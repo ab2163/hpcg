@@ -20,6 +20,11 @@
 
 #include "ComputeSPMV.hpp"
 #include "ComputeSPMV_ref.hpp"
+#include "ComputeSPMV_stdpar.hpp"
+#include "SelectImplementation.hpp"
+
+// Choose an implementation e.g. stdpar, baseline
+#define SELECTION BASELINE
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
@@ -39,7 +44,15 @@
 */
 int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
 
-  // This line and the next two lines should be removed and your version of ComputeSPMV should be used.
-  A.isSpmvOptimized = false;
-  return ComputeSPMV_ref(A, x, y);
+  if(SELECTION == BASELINE) {
+    A.isSpmvOptimized = false;
+    return ComputeSPMV_ref(A, x, y);
+  }
+  else if(SELECTION == STDPAR) {
+    return ComputeSPMV_stdpar(A, x, y);
+  }
+  else if(SELECTION == STDEXEC) {
+    // Not currently defined - throw error
+    exit(EXIT_FAILURE);
+  }
 }
