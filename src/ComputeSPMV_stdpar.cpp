@@ -1,3 +1,7 @@
+#include <ranges>
+#include <algorithm>
+#include <execution>
+
 #include "ComputeSPMV_stdpar.hpp"
 
 #ifndef HPCG_NO_MPI
@@ -18,7 +22,7 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
   const local_int_t nrow = A.localNumberOfRows;
 
   // create a lazy-evaluated view
-  auto indices = std::ranges::iota_view<local_int_t>{0, nrow};
+  auto indices = std::ranges::views::iota(static_cast<local_int_t>(0), nrow);
 
   // run parallel for with the lazy view
   std::for_each(std::execution::par, indices.begin(), indices.end(), [&](local_int_t i) {
