@@ -71,7 +71,7 @@ using std::endl;
 
 */
 int main(int argc, char * argv[]) {
-
+std::cout << "Checking my modification of main loop has an effect" << std::endl;
 #ifndef HPCG_NO_MPI
   MPI_Init(&argc, &argv);
 #endif
