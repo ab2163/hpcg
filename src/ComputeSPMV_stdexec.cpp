@@ -10,11 +10,6 @@
 
 #define NUM_THREADS 4
 
-using stdexec::starts_on;
-using stdexec::just;
-using stdexec::when_all;
-using stdexec::sync_wait;
-
 int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
 
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
@@ -44,15 +39,14 @@ int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
   // get scheduler to thread pool
   auto sched = pool.get_scheduler();
 
-  local_int_t base = nrow/NUM_THREADS;
-  int remainder = nrow % NUM_THREADS;
+  //get sender to start from
+  auto start_point = stdexec::schedule(sched);
 
-  for(cnt = 0; cnt < NUM_THREADS; cnt++) {
-    if(cnt < remainder)
-      starts_on(sched, just(thread_spmv(0, 2, 500)));
-    else
-      starts_on(sched, just(thread_spmv(0, 2, 500)));
-  }
+  //bulk function to split-up workload
+  auto bulk_work = stdexec::bulk(start_point, nrow, thread_spmv);
+
+  //wait for all streams to execute
+  stdexec::sync_wait(bulk_work);
 
   return 0;
 }
