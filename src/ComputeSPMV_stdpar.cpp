@@ -32,7 +32,7 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
       A.matrixValues[i] + A.nonzerosInRow[i],
       std::views::transform(
         std::span(A.mtxIndL[i], A.nonzerosInRow[i]),
-        [xv](int idx) { return xv[idx]; }
+        [&xv](int idx) { return xv[idx]; }
       ).begin(),
       0.0
     );
