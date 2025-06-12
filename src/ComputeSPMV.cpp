@@ -21,10 +21,11 @@
 #include "ComputeSPMV.hpp"
 #include "ComputeSPMV_ref.hpp"
 #include "ComputeSPMV_stdpar.hpp"
+#include "ComputeSPMV_stdexec.hpp"
 #include "SelectImplementation.hpp"
 
 // Choose an implementation e.g. stdpar, baseline
-#define SELECTION STDPAR
+#define SELECTION STDEXEC
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
@@ -52,7 +53,6 @@ int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
     return ComputeSPMV_stdpar(A, x, y);
   }
   else if(SELECTION == STDEXEC) {
-    // Not currently defined - throw error
-    exit(EXIT_FAILURE);
+    return ComputeSPMV_stdexec(A, x, y);
   }
 }
