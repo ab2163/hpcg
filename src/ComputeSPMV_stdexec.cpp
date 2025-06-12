@@ -1,4 +1,5 @@
 #include <thread>
+#include <iostream>
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
