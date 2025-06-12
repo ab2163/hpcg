@@ -26,9 +26,9 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
 
   // Create a view for xv values with "transform"
   // Pass the view and the A values to "transform reduce"
-  std::for_each(std::execution::par, rows.begin(), rows.end(), [&](local_int_t i) {
+  std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [&](local_int_t i) {
     yv[i] = std::transform_reduce(
-      A.matrixValues[i], 
+      A.matrixValues[i],
       A.matrixValues[i] + A.nonzerosInRow[i],
       std::views::transform(
         std::span(A.mtxIndL[i], A.nonzerosInRow[i]),
