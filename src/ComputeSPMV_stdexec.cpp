@@ -1,3 +1,4 @@
+#include <thread>
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
@@ -7,8 +8,6 @@
 #include "ExchangeHalo.hpp"
 #endif
 #include <cassert>
-
-#define NUM_THREADS 4
 
 int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
 
@@ -23,30 +22,27 @@ int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
   const local_int_t nrow = A.localNumberOfRows;
 
   auto thread_spmv = [&](local_int_t i) {
-    double sum = 0.0;
-    const double * const cur_vals = A.matrixValues[i];
-    const local_int_t * const cur_inds = A.mtxIndL[i];
-    const int cur_nnz = A.nonzerosInRow[i];
-
-    for (int j=0; j< cur_nnz; j++)
-      sum += cur_vals[j]*xv[cur_inds[j]];
-    yv[i] = sum;
+    yv[i] = std::transform_reduce(
+      A.matrixValues[i],
+      A.matrixValues[i] + A.nonzerosInRow[i],
+      std::views::transform(
+        std::span(A.mtxIndL[i], A.nonzerosInRow[i]),
+        [&xv](int idx) { return xv[idx]; }
+      ).begin(),
+      0.0
+    );
   };
 
-  // instantiate thread pool
-  exec::static_thread_pool pool(NUM_THREADS);
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if(num_threads == 0) {
+    std::cerr << "Unable to determine thread pool size.\n";
+    std::exit(EXIT_FAILURE);
+  }
 
-  // get scheduler to thread pool
+  exec::static_thread_pool pool(num_threads);
   auto sched = pool.get_scheduler();
-
-  //get sender to start from
   auto start_point = stdexec::schedule(sched);
-
-  //bulk function to split-up workload
   auto bulk_work = stdexec::bulk(start_point, nrow, thread_spmv);
-
-  //wait for all streams to execute
   stdexec::sync_wait(bulk_work);
-
   return 0;
 }
