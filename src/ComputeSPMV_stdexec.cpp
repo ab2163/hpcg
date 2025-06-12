@@ -31,7 +31,7 @@ int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
     for (int j=0; j< cur_nnz; j++)
       sum += cur_vals[j]*xv[cur_inds[j]];
     yv[i] = sum;
-  }
+  };
 
   // instantiate thread pool
   exec::static_thread_pool pool(NUM_THREADS);
