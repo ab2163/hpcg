@@ -22,10 +22,11 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
   const double * const xv = x.values;
   double * const yv = y.values;
   const local_int_t nrow = A.localNumberOfRows;
+  auto rows = std::views::iota(0, nrow);
 
   // Create a view for xv values with "transform"
   // Pass the view and the A values to "transform reduce"
-  std::for_each(std::execution::par, std::views::iota(0, nrow), [&](local_int_t i) {
+  std::for_each(std::execution::par, rows.begin(), rows.end(), [&](local_int_t i) {
     yv[i] = std::transform_reduce(
       A.matrixValues[i], 
       A.matrixValues[i] + A.nonzerosInRow[i],
