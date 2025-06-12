@@ -25,7 +25,7 @@
 #include "SelectImplementation.hpp"
 
 // Choose an implementation e.g. stdpar, baseline
-#define SELECTION STDEXEC
+#define SELECTION STDPAR
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
