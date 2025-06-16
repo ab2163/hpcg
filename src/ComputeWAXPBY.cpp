@@ -19,7 +19,14 @@
  */
 
 #include "ComputeWAXPBY.hpp"
+
+#ifdef SELECT_STDEXEC
+#include "ComputeWAXPBY_stdexec.hpp"
+#elif defined(SELECT_STDPAR)
+#include "ComputeWAXPBY_stdpar.hpp"
+#else
 #include "ComputeWAXPBY_ref.hpp"
+#endif
 
 /*!
   Routine to compute the update of a vector with the sum of two
@@ -42,7 +49,12 @@
 int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w, bool & isOptimized) {
 
-  // This line and the next two lines should be removed and your version of ComputeWAXPBY should be used.
-  isOptimized = false;
-  return ComputeWAXPBY_ref(n, alpha, x, beta, y, w);
+  #ifdef SELECT_STDEXEC
+    return ComputeWAXPBY_stdexec(n, alpha, x, beta, y, w);
+  #elif defined(SELECT_STDPAR)
+    return ComputeWAXPBY_stdpar(n, alpha, x, beta, y, w);
+  #else
+    isOptimized = false;
+    return ComputeWAXPBY_ref(n, alpha, x, beta, y, w);
+  #endif    
 }

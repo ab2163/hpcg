@@ -19,7 +19,14 @@
  */
 
 #include "ComputeSYMGS.hpp"
+
+#ifdef SELECT_STDEXEC
+#include "ComputeSYMGS_stdexec.hpp"
+#elif defined(SELECT_STDPAR)
+#include "ComputeSYMGS_stdpar.hpp"
+#else
 #include "ComputeSYMGS_ref.hpp"
+#endif
 
 /*!
   Routine to compute one step of symmetric Gauss-Seidel:
@@ -49,7 +56,11 @@
 */
 int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
 
-  // This line and the next two lines should be removed and your version of ComputeSYMGS should be used.
-  return ComputeSYMGS_ref(A, r, x);
-
+  #ifdef SELECT_STDEXEC
+    return ComputeSYMGS_stdexec(A, r, x);
+  #elif defined(SELECT_STDPAR)
+    return ComputeSYMGS_stdpar(A, r, x);
+  #else
+    return ComputeSYMGS_ref(A, r, x);
+  #endif  
 }
