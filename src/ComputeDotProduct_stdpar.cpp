@@ -1,34 +1,27 @@
-//CURRENTLY SAME AS REFERENCE IMPLEMENTATION
-//CHANGE THIS CODE!
+#include <numeric>
+#include <cassert>
+
+#include "ComputeDotProduct_stdpar.hpp"
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
 #include "mytimer.hpp"
 #endif
-#ifndef HPCG_NO_OPENMP
-#include <omp.h>
-#endif
-#include <cassert>
-#include "ComputeDotProduct_stdpar.hpp"
 
 int ComputeDotProduct_stdpar(const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce) {
+
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
   double local_result = 0.0;
   double * xv = x.values;
   double * yv = y.values;
-  if (yv==xv) {
-#ifndef HPCG_NO_OPENMP
-    #pragma omp parallel for reduction (+:local_result)
-#endif
-    for (local_int_t i=0; i<n; i++) local_result += xv[i]*xv[i];
-  } else {
-#ifndef HPCG_NO_OPENMP
-    #pragma omp parallel for reduction (+:local_result)
-#endif
-    for (local_int_t i=0; i<n; i++) local_result += xv[i]*yv[i];
+  if (yv == xv) {
+    local_result = std::transform_reduce(xv, xv + n, xv, 0.0); 
+  }
+  else {
+    local_result = std::transform_reduce(xv, xv + n, yv, 0.0); 
   }
 
 #ifndef HPCG_NO_MPI

@@ -1,14 +1,14 @@
 #include <thread>
 #include <iostream>
+#include <cassert>
+
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
-
 #include "ComputeSPMV_stdexec.hpp"
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
-#include <cassert>
 
 int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
 

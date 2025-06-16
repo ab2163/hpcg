@@ -3,13 +3,13 @@
 #include <execution>
 #include <span>
 #include <numeric>
+#include <cassert>
 
 #include "ComputeSPMV_stdpar.hpp"
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
-#include <cassert>
 
 int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
 
