@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <execution>
 #include <span>
+#include <numeric>
 
 #include "ComputeSPMV_stdpar.hpp"
 

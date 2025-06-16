@@ -25,7 +25,7 @@
 #include "SelectImplementation.hpp"
 
 // Choose an implementation e.g. stdpar, baseline
-#define SELECTION STDPAR
+#define SELECTION STDEXEC
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
@@ -45,14 +45,14 @@
 */
 int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
 
-  if(SELECTION == BASELINE) {
-    A.isSpmvOptimized = false;
-    return ComputeSPMV_ref(A, x, y);
-  }
-  else if(SELECTION == STDPAR) {
+  if(SELECTION == STDPAR) {
     return ComputeSPMV_stdpar(A, x, y);
   }
   else if(SELECTION == STDEXEC) {
     return ComputeSPMV_stdexec(A, x, y);
+  }
+  else {
+    A.isSpmvOptimized = false;
+    return ComputeSPMV_ref(A, x, y);
   }
 }

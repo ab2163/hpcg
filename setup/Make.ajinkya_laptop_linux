@@ -64,7 +64,7 @@ HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
 # ----------------------------------------------------------------------
 #
 CXX          = /opt/nvidia/hpc_sdk/Linux_x86_64/2025/compilers/bin/nvc++
-CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -ffast-math -fopenmp
+CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -fast -mp -stdpar=multicore
 #
 LINKER       = $(CXX)
 LINKFLAGS    = $(CXXFLAGS)
