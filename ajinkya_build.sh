@@ -4,9 +4,9 @@ mkdir build
 cd build
 
 #Path on Azure instance:
-#~/hpcg/configure ajinkya_laptop_linux
+~/hpcg/configure ajinkya_laptop_linux
 
 #Path on laptop:
-/home/ajinkya/Documents/hpcg/configure ajinkya_laptop_linux
+#/home/ajinkya/Documents/hpcg/configure ajinkya_laptop_linux
 make
 cd ..
