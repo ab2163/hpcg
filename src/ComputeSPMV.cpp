@@ -19,10 +19,14 @@
  */
 
 #include "ComputeSPMV.hpp"
-#include "ComputeSPMV_ref.hpp"
-#include "ComputeSPMV_stdpar.hpp"
+
+#ifdef SELECT_STDEXEC
 #include "ComputeSPMV_stdexec.hpp"
-#include "SelectImplementation.hpp"
+#elif defined(SELECT_STDPAR)
+#include "ComputeSPMV_stdpar.hpp"
+#else
+#include "ComputeSPMV_ref.hpp"
+#endif
 
 /*!
   Routine to compute sparse matrix vector product y = Ax where:
@@ -42,10 +46,10 @@
 */
 int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
 
-  #ifdef SELECT_STDPAR
-    return ComputeSPMV_stdpar(A, x, y);
-  #elif defined(SELECT_STDEXEC)
+  #ifdef SELECT_STDEXEC
     return ComputeSPMV_stdexec(A, x, y);
+  #elif defined(SELECT_STDPAR)
+    return ComputeSPMV_stdpar(A, x, y);
   #else
     A.isSpmvOptimized = false;
     return ComputeSPMV_ref(A, x, y);
