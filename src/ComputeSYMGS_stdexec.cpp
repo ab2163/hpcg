@@ -4,7 +4,7 @@
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
-#include "ComputeDotProduct_stdexec.hpp"
+#include "ComputeSYMGS_stdexec.hpp"
 
 int ComputeSYMGS_stdexec( const SparseMatrix & A, const Vector & r, Vector & x) {
 
@@ -36,7 +36,7 @@ int ComputeSYMGS_stdexec( const SparseMatrix & A, const Vector & r, Vector & x) 
     double sum = rv[i]; // RHS value
 
     auto column_loop = stdexec::bulk(stdexec::schedule(sched), stdexec::par, currentNumberOfNonzeros, 
-      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; })
+      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; });
     stdexec::sync_wait(column_loop);
 
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
@@ -55,7 +55,7 @@ int ComputeSYMGS_stdexec( const SparseMatrix & A, const Vector & r, Vector & x) 
     double sum = rv[i]; // RHS value
 
     auto column_loop = stdexec::bulk(stdexec::schedule(sched), stdexec::par, currentNumberOfNonzeros, 
-      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; })
+      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; });
     stdexec::sync_wait(column_loop);
 
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
