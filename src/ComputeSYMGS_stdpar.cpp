@@ -1,5 +1,6 @@
 #include <cassert>
 #include <numeric>
+#include <execution>
 
 #include "ComputeSYMGS_stdpar.hpp"
 

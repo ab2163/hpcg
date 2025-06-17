@@ -1,5 +1,6 @@
 #include <numeric>
 #include <cassert>
+#include <execution>
 
 #include "ComputeDotProduct_stdpar.hpp"
 
