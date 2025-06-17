@@ -1,5 +1,6 @@
 #include <thread>
 #include <cassert>
+#include <iostream>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
@@ -31,10 +32,10 @@ int ComputeDotProduct_stdexec(const local_int_t n, const Vector & x, const Vecto
   auto start_point = stdexec::schedule(sched);
 
   if (yv == xv) {
-    auto bulk_work = stdexec::bulk(start_point, n, [&](local_int_t i){ local_result += xv[i]*xv[i] });
+    auto bulk_work = stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*xv[i]; });
   }
   else {
-    auto bulk_work = stdexec::bulk(start_point, n, [&](local_int_t i){ local_result += xv[i]*yv[i] });
+    auto bulk_work = stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*yv[i]; });
   }
 
   stdexec::sync_wait(bulk_work);

@@ -43,7 +43,7 @@ int ComputeSPMV_stdexec(const SparseMatrix & A, Vector & x, Vector & y) {
   exec::static_thread_pool pool(num_threads);
   auto sched = pool.get_scheduler();
   auto start_point = stdexec::schedule(sched);
-  auto bulk_work = stdexec::bulk(start_point, nrow, thread_spmv);
+  auto bulk_work = stdexec::bulk(start_point, stdexec::par, nrow, thread_spmv);
   stdexec::sync_wait(bulk_work);
   return 0;
 }
