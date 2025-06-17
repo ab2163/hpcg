@@ -2,6 +2,8 @@
 #include <cassert>
 #include <iostream>
 
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "ComputeWAXPBY_stdexec.hpp"
 
 int ComputeWAXPBY_stdexec(const local_int_t n, const double alpha, const Vector & x,
