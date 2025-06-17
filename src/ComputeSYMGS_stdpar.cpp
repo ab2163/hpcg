@@ -1,11 +1,7 @@
-//CURRENTLY SAME AS REFERENCE IMPLEMENTATION
-//CHANGE THIS CODE!
-
-#ifndef HPCG_NO_MPI
-#include "ExchangeHalo.hpp"
-#endif
-#include "ComputeSYMGS_stdpar.hpp"
 #include <cassert>
+#include <numeric>
+
+#include "ComputeSYMGS_stdpar.hpp"
 
 int ComputeSYMGS_stdpar( const SparseMatrix & A, const Vector & r, Vector & x) {
 
@@ -27,10 +23,15 @@ int ComputeSYMGS_stdpar( const SparseMatrix & A, const Vector & r, Vector & x) {
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
 
-    for (int j=0; j< currentNumberOfNonzeros; j++) {
-      local_int_t curCol = currentColIndices[j];
-      sum -= currentValues[j] * xv[curCol];
-    }
+    sum -= std::transform_reduce(std::execution::par, 
+      currentValues, 
+      currentValues + currentNumberOfNonzeros,
+      currentColIndices,
+      0.0,
+      std::plus<>(),
+      [&](double matrixVal, int ind) { return matrixVal*xv[ind]; }
+    );
+
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
     xv[i] = sum/currentDiagonal;
@@ -46,10 +47,15 @@ int ComputeSYMGS_stdpar( const SparseMatrix & A, const Vector & r, Vector & x) {
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
 
-    for (int j = 0; j< currentNumberOfNonzeros; j++) {
-      local_int_t curCol = currentColIndices[j];
-      sum -= currentValues[j]*xv[curCol];
-    }
+    sum -= std::transform_reduce(std::execution::par, 
+      currentValues, 
+      currentValues + currentNumberOfNonzeros,
+      currentColIndices,
+      0.0,
+      std::plus<>(),
+      [&](double matrixVal, int ind) { return matrixVal*xv[ind]; }
+    );
+
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
     xv[i] = sum/currentDiagonal;
