@@ -1,10 +1,9 @@
-//CURRENTLY SAME AS REFERENCE IMPLEMENTATION
-//CHANGE THIS CODE!
+#include <thread>
+#include <iostream>
+#include <cassert>
 
-#ifndef HPCG_NO_OPENMP
-#include <omp.h>
-#endif
-
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "ComputeProlongation_stdexec.hpp"
 
 int ComputeProlongation_stdexec(const SparseMatrix & Af, Vector & xf) {
@@ -14,11 +13,18 @@ int ComputeProlongation_stdexec(const SparseMatrix & Af, Vector & xf) {
   local_int_t * f2c = Af.mgData->f2cOperator;
   local_int_t nc = Af.mgData->rc->localLength;
 
-#ifndef HPCG_NO_OPENMP
-#pragma omp parallel for
-#endif
-// TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
-  for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if(num_threads == 0) {
+    std::cerr << "Unable to determine thread pool size.\n";
+    std::exit(EXIT_FAILURE);
+  }
+
+  exec::static_thread_pool pool(num_threads);
+  auto sched = pool.get_scheduler();
+  auto start_point = stdexec::schedule(sched);
+  auto bulk_work = stdexec::bulk(start_point, stdexec::par, nc,
+    [&](int i) { xfv[f2c[i]] += xcv[i]; });
+  stdexec::sync_wait(bulk_work);
 
   return 0;
 }

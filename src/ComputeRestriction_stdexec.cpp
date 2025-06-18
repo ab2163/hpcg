@@ -1,10 +1,9 @@
-//CURRENTLY SAME AS REFERENCE IMPLEMENTATION
-//CHANGE THIS CODE!
+#include <thread>
+#include <iostream>
+#include <cassert>
 
-#ifndef HPCG_NO_OPENMP
-#include <omp.h>
-#endif
-
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "ComputeRestriction_stdexec.hpp"
 
 int ComputeRestriction_stdexec(const SparseMatrix & A, const Vector & rf) {
@@ -15,10 +14,18 @@ int ComputeRestriction_stdexec(const SparseMatrix & A, const Vector & rf) {
   local_int_t * f2c = A.mgData->f2cOperator;
   local_int_t nc = A.mgData->rc->localLength;
 
-#ifndef HPCG_NO_OPENMP
-#pragma omp parallel for
-#endif
-  for (local_int_t i=0; i<nc; ++i) rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if(num_threads == 0) {
+    std::cerr << "Unable to determine thread pool size.\n";
+    std::exit(EXIT_FAILURE);
+  }
+  
+  exec::static_thread_pool pool(num_threads);
+  auto sched = pool.get_scheduler();
+  auto start_point = stdexec::schedule(sched);
+  auto bulk_work = stdexec::bulk(start_point, stdexec::par, nc,
+    [&](int i) { rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; });
+  stdexec::sync_wait(bulk_work);
 
   return 0;
 }
