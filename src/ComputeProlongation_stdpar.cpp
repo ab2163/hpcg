@@ -1,9 +1,6 @@
-//CURRENTLY SAME AS REFERENCE IMPLEMENTATION
-//CHANGE THIS CODE!
-
-#ifndef HPCG_NO_OPENMP
-#include <omp.h>
-#endif
+#include <ranges>
+#include <algorithm>
+#include <execution>
 
 #include "ComputeProlongation_stdpar.hpp"
 
@@ -14,11 +11,10 @@ int ComputeProlongation_stdpar(const SparseMatrix & Af, Vector & xf) {
   local_int_t * f2c = Af.mgData->f2cOperator;
   local_int_t nc = Af.mgData->rc->localLength;
 
-#ifndef HPCG_NO_OPENMP
-#pragma omp parallel for
-#endif
-// TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
-  for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
+  auto range = std::views::iota(0, nc);
+
+  std::for_each(std::execution::par, range.begin(), range.end(),
+              [&](int i) { xfv[f2c[i]] += xcv[i]; });
 
   return 0;
 }
