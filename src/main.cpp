@@ -104,7 +104,7 @@ int main(int argc, char * argv[]) {
   // First load vector with random values
   FillRandomVector(x_overlap);
 
-  int numberOfCalls = 25;
+  int numberOfCalls = 150;
   double t_begin = mytimer();
   for (int i=0; i< numberOfCalls; ++i) {
     ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
@@ -114,7 +114,7 @@ int main(int argc, char * argv[]) {
   std::cout << "Average time for SPMV operation: " << times[8] << "\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
 
-  numberOfCalls = 200;
+  numberOfCalls = 20;
   t_begin = mytimer();
   for (int i=0; i< numberOfCalls; ++i) {
     ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
@@ -123,6 +123,29 @@ int main(int argc, char * argv[]) {
   times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
   std::cout << "Average time for MG operation: " << times[8] << "\n";
   std::this_thread::sleep_for(std::chrono::seconds(5));
+
+  ///////////////////////////////
+  // Reference CG Timing Phase //
+  ///////////////////////////////
+
+  int global_failure = 0; // assume all is well: no failures
+  int niters = 0;
+  double normr = 0.0;
+  double normr0 = 0.0;
+  int refMaxIters = 50;
+  numberOfCalls = 1; // Only need to run the residual reduction analysis once
+
+  // Compute the residual reduction for the natural ordering and reference kernels
+  std::vector< double > ref_times(9,0.0);
+  double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  int err_count = 0;
+  for (int i=0; i< numberOfCalls; ++i) {
+    ZeroVector(x);
+    ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    if (ierr) ++err_count; // count the number of errors in CG
+  }
+  if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
+  std::cout << "Time for CG operation: " << ref_times[0] << "\n";
 
   ////////////////////
   // Cleanup /////////
