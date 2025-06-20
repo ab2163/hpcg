@@ -34,6 +34,8 @@ using std::endl;
 #include "hpcg.hpp"
 #endif
 
+#include <iostream>
+
 /*!
  Creates a YAML file and writes the information about the HPCG run, its results, and validity.
 
@@ -341,6 +343,8 @@ void ReportResults(const SparseMatrix & A, int numberOfMgLevels, int numberOfCgS
     doc.get("GB/s Summary")->add("Raw Total B/W",(fnreads+fnwrites)/(times[0])/1.0E9);
     doc.get("GB/s Summary")->add("Total with convergence and optimization phase overhead",(frefnreads+frefnwrites)/(times[0]+fNumberOfCgSets*(times[7]/10.0+times[9]/10.0))/1.0E9);
 
+    std::cout << "SPMV Time: " << times[3] << "\n";
+    std::cout << "SPMV Opns: " << fnops_sparsemv/1.0E9 << "\n";
 
     doc.add("GFLOP/s Summary","");
     doc.get("GFLOP/s Summary")->add("Raw DDOT",fnops_ddot/times[1]/1.0E9);
