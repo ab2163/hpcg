@@ -1,6 +1,8 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <thread>
+#include <chrono>
 
 using std::endl;
 
@@ -102,7 +104,7 @@ int main(int argc, char * argv[]) {
   // First load vector with random values
   FillRandomVector(x_overlap);
 
-  int numberOfCalls = 200;
+  int numberOfCalls = 25;
   double t_begin = mytimer();
   for (int i=0; i< numberOfCalls; ++i) {
     ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
@@ -110,6 +112,17 @@ int main(int argc, char * argv[]) {
   }
   times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
   std::cout << "Average time for SPMV operation: " << times[8] << "\n";
+  std::this_thread::sleep_for(std::chrono::seconds(5));
+
+  numberOfCalls = 200;
+  t_begin = mytimer();
+  for (int i=0; i< numberOfCalls; ++i) {
+    ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+    if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
+  }
+  times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
+  std::cout << "Average time for MG operation: " << times[8] << "\n";
+  std::this_thread::sleep_for(std::chrono::seconds(5));
 
   ////////////////////
   // Cleanup /////////
