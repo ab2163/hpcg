@@ -102,7 +102,7 @@ int main(int argc, char * argv[]) {
   // First load vector with random values
   FillRandomVector(x_overlap);
 
-  int numberOfCalls = 10;
+  int numberOfCalls = 200;
   double t_begin = mytimer();
   for (int i=0; i< numberOfCalls; ++i) {
     ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
