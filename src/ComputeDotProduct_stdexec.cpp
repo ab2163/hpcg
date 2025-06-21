@@ -1,4 +1,3 @@
-#include <cassert>
 #include <execution>
 #include <atomic>
 #include <ranges>
@@ -14,14 +13,9 @@
 #endif
 
 int ComputeDotProduct_stdexec(stdexec::sender auto input, const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce) {
+    double & result, double & time_allreduce){
 
-  return stdexec::then(input, [&](int input_success){
-
-    //If the preceding sender did not execute properly then return a failure also
-    if(input_success != 0){
-      return EXIT_FAILURE;
-    }
+  return stdexec::then(input, [&](){
 
     assert(x.localLength >= n); //Test vector lengths
     assert(y.localLength >= n);
@@ -52,7 +46,5 @@ int ComputeDotProduct_stdexec(stdexec::sender auto input, const local_int_t n, c
     time_allreduce += 0.0;
     result = local_result;
 #endif
-
-    return 0;
   });
 }

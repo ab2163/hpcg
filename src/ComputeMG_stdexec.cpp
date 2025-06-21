@@ -1,5 +1,4 @@
 #include <cassert>
-#include <iostream>
 #include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
@@ -12,11 +11,7 @@
 
 int ComputeMG_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
   
-  stdexec::sender auto current = input | then([&](int input_success){
-    //If the preceding sender did not execute properly then return a failure also
-    if(input_success != 0){
-      return EXIT_FAILURE;
-    }
+  stdexec::sender auto current = input | then([&](){
     assert(x.localLength==A.localNumberOfColumns); //Make sure x contain space for halo values
     ZeroVector(x); //initialize x to zero
   });
