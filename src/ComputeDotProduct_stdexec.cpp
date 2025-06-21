@@ -1,13 +1,10 @@
-#include <thread>
 #include <cassert>
-#include <iostream>
 #include <execution>
 #include <atomic>
 #include <ranges>
 #include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include <__senders_core.hpp>
 #include "ComputeDotProduct_stdexec.hpp"
 
