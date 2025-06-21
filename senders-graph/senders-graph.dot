@@ -1,0 +1,30 @@
+digraph MG {
+  S1 [label="SYMGS"]
+  S2 [label="SYMGS"]
+  S3 [label="SYMGS"]
+  S4 [label="SPMV"]
+  S5 [label="Restrict"]
+  S6 [label="MG"]
+  S7 [label="Prolong"]
+  S8 [label="SYMGS"]
+  S9 [label="SYMGS"]
+  S10 [label="SYMGS"]
+  S11 [label="Zero Vector"]
+  S12 [label="Path Selector"]
+  S13 [label="SPMV"]
+  S14 [label="MG"]
+
+  S14 -> S11
+  S11 -> S12
+  S12 -> S1 [label="Non-Final"]
+  S1 -> S2;
+  S2 -> S3;
+  S3 -> S4;
+  S4 -> S5;
+  S5 -> S6;
+  S6 -> S7;
+  S7 -> S8;
+  S8 -> S9;
+  S9 -> S10;
+  S12 -> S13 [label="Final Level"]
+}
