@@ -1,6 +1,9 @@
 #include <thread>
 #include <cassert>
 #include <iostream>
+#include <execution>
+#include <atomic>
+#include <ranges>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
@@ -17,10 +20,13 @@ int ComputeDotProduct_stdexec(const local_int_t n, const Vector & x, const Vecto
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
-  double local_result = 0.0;
+  //double local_result = 0.0;
+  std::atomic<double> local_result(0.0);
+  auto rows = std::views::iota(local_int_t{0}, n);
   double * xv = x.values;
   double * yv = y.values;
 
+  /*
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0) {
     std::cerr << "Unable to determine thread pool size.\n";
@@ -30,12 +36,17 @@ int ComputeDotProduct_stdexec(const local_int_t n, const Vector & x, const Vecto
   exec::static_thread_pool pool(num_threads);
   auto sched = pool.get_scheduler();
   auto start_point = stdexec::schedule(sched);
+  */
 
   if (yv == xv) {
-    stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*xv[i]; }));
+    //stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*xv[i]; }));
+    std::for_each_n(std::execution::par, xv, n, 
+      [&](double xval){ local_result.fetch_add(xval*xval, std::memory_order_relaxed); });
   }
   else {
-    stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*yv[i]; }));
+    //stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ local_result += xv[i]*yv[i]; }));
+    std::for_each_n(std::execution::par, rows.begin(), n, 
+      [&](local_int_t ind){ local_result.fetch_add(xv[ind]*yv[ind], std::memory_order_relaxed); });
   }
   
 #ifndef HPCG_NO_MPI
