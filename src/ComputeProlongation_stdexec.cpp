@@ -1,30 +1,22 @@
-#include <thread>
-#include <iostream>
-#include <cassert>
+#include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
+#include <__senders_core.hpp>
 #include "ComputeProlongation_stdexec.hpp"
 
-int ComputeProlongation_stdexec(const SparseMatrix & Af, Vector & xf) {
-
-  double * xfv = xf.values;
-  double * xcv = Af.mgData->xc->values;
-  local_int_t * f2c = Af.mgData->f2cOperator;
-  local_int_t nc = Af.mgData->rc->localLength;
-
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0) {
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-  auto start_point = stdexec::schedule(sched);
-  auto bulk_work = stdexec::bulk(start_point, stdexec::par, nc,
-    [&](int i) { xfv[f2c[i]] += xcv[i]; });
-  stdexec::sync_wait(bulk_work);
-
-  return 0;
+int ComputeProlongation_stdexec(stdexec::sender auto input, const SparseMatrix & Af, Vector & xf) {
+  return input | then([](int input_success){
+    //If the preceding sender did not execute properly then return a failure also
+    if(input_success != 0){
+      return EXIT_FAILURE;
+    }
+  })
+  | stdexec::bulk(input, stdexec::par, Af.mgData->rc->localLength;,
+    [&](int i){ 
+      double * xfv = xf.values;
+      double * xcv = Af.mgData->xc->values;
+      local_int_t * f2c = Af.mgData->f2cOperator;
+      xfv[f2c[i]] += xcv[i];
+  }) 
+  | then([](){ return 0; }); //return 0 for next sender in pipeline
 }

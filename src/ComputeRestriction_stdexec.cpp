@@ -1,31 +1,23 @@
-#include <thread>
-#include <iostream>
-#include <cassert>
+#include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
+#include <__senders_core.hpp>
 #include "ComputeRestriction_stdexec.hpp"
 
-int ComputeRestriction_stdexec(const SparseMatrix & A, const Vector & rf) {
-
-  double * Axfv = A.mgData->Axf->values;
-  double * rfv = rf.values;
-  double * rcv = A.mgData->rc->values;
-  local_int_t * f2c = A.mgData->f2cOperator;
-  local_int_t nc = A.mgData->rc->localLength;
-
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0) {
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-  
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-  auto start_point = stdexec::schedule(sched);
-  auto bulk_work = stdexec::bulk(start_point, stdexec::par, nc,
-    [&](int i) { rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; });
-  stdexec::sync_wait(bulk_work);
-
-  return 0;
+int ComputeRestriction_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & rf){
+  return input | then([](int input_success){
+    //If the preceding sender did not execute properly then return a failure also
+    if(input_success != 0){
+      return EXIT_FAILURE;
+    }
+  })
+  | stdexec::bulk(input, stdexec::par, A.mgData->rc->localLength,
+    [&](int i){ 
+      double * Axfv = A.mgData->Axf->values;
+      double * rfv = rf.values;
+      double * rcv = A.mgData->rc->values;
+      local_int_t * f2c = A.mgData->f2cOperator;
+      rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
+  }) 
+  | then([](){ return 0; }); //return 0 for next sender in pipeline
 }
