@@ -1,7 +1,6 @@
 #include <execution>
 #include <atomic>
 #include <ranges>
-#include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include <__senders_core.hpp>

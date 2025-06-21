@@ -1,5 +1,3 @@
-#include <cstdlib>
-
 #include "../stdexec/include/stdexec/execution.hpp"
 #include <__senders_core.hpp>
 #include "ComputeRestriction_stdexec.hpp"
