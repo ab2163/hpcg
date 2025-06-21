@@ -19,29 +19,12 @@ int ComputeSYMGS_stdexec( const SparseMatrix & A, const Vector & r, Vector & x) 
   const double * const rv = r.values;
   double * const xv = x.values;
 
-  /*
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0) {
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-  */
-
   for (local_int_t i=0; i< nrow; i++) {
     const double * const currentValues = A.matrixValues[i];
     const local_int_t * const currentColIndices = A.mtxIndL[i];
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
-
-    /*
-    auto column_loop = stdexec::bulk(stdexec::schedule(sched), stdexec::par, currentNumberOfNonzeros, 
-      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; });
-    stdexec::sync_wait(column_loop);
-    */
 
     for (int j=0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
@@ -62,12 +45,6 @@ int ComputeSYMGS_stdexec( const SparseMatrix & A, const Vector & r, Vector & x) 
     const int currentNumberOfNonzeros = A.nonzerosInRow[i];
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
-
-    /*
-    auto column_loop = stdexec::bulk(stdexec::schedule(sched), stdexec::par, currentNumberOfNonzeros, 
-      [&](local_int_t ind){ sum -= currentValues[ind] * xv[currentColIndices[ind]]; });
-    stdexec::sync_wait(column_loop);
-    */
 
     for (int j = 0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
