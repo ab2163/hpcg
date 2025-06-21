@@ -1,9 +1,7 @@
-#include <thread>
-#include <iostream>
 #include <cassert>
+#include <cstdlib>
 
 #include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include <__senders_core.hpp>
 #include "ComputeSPMV_stdexec.hpp"
 
@@ -35,16 +33,6 @@ int ComputeSPMV_stdexec(stdexec::sender auto input, const SparseMatrix & A, Vect
     );
   };
 
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0){
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-  auto start_point = stdexec::schedule(sched);
   auto bulk_work = stdexec::bulk(start_point, stdexec::par, nrow, thread_spmv);
-  stdexec::sync_wait(bulk_work);
   return 0;
 }
