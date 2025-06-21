@@ -293,8 +293,6 @@ int main(int argc, char * argv[]) {
     if (current_time > opt_worst_time) opt_worst_time = current_time;
   }
 
-  std::cout << "opt_worst_time: " << opt_worst_time << "\n";
-
 #ifndef HPCG_NO_MPI
 // Get the absolute worst time across all MPI ranks (time in CG can be different)
   double local_opt_worst_time = opt_worst_time;
