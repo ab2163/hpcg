@@ -3,18 +3,19 @@
 #include <ranges>
 
 #include "ComputeDotProduct_stdexec.hpp"
+#include "mytimer.hpp"
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
-#include "mytimer.hpp"
 #endif
 
 template <stdexec::sender Sender>
-auto ComputeDotProduct_stdexec(Sender input, const local_int_t n, const Vector & x, const Vector & y,
+auto ComputeDotProduct_stdexec(Sender input, double & time, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce) -> declype(stdexec::then(input, [](){})){
 
   return stdexec::then(input, [&](){
 
+    double t_begin = mytimer();
     assert(x.localLength >= n); //Test vector lengths
     assert(y.localLength >= n);
 
@@ -44,5 +45,7 @@ auto ComputeDotProduct_stdexec(Sender input, const local_int_t n, const Vector &
     time_allreduce += 0.0;
     result = local_result;
 #endif
+
+    time += mytimer() - t_begin;
   });
 }

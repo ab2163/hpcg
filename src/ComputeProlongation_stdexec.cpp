@@ -1,10 +1,12 @@
 #include "ComputeProlongation_stdexec.hpp"
+#include "mytimer.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeProlongation_stdexec(Sender input, const SparseMatrix & Af, Vector & xf)
+auto ComputeProlongation_stdexec(Sender input, double & time, const SparseMatrix & Af, Vector & xf)
   -> declype(stdexec::then(input, [](){})){
-  return stdexec::bulk(input, stdexec::par, Af.mgData->rc->localLength;,
-    [&](int i){ 
+  return input
+  | stdexec::bulk(input, stdexec::par, Af.mgData->rc->localLength;,
+    [&](int i){
       double * xfv = xf.values;
       double * xcv = Af.mgData->xc->values;
       local_int_t * f2c = Af.mgData->f2cOperator;

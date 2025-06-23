@@ -1,5 +1,6 @@
 #include <cassert>
 
+#include "mytimer.hpp"
 #include "ComputeMG_stdexec.hpp"
 #include "ComputeSYMGS_stdexec.hpp"
 #include "ComputeSPMV_stdexec.hpp"
@@ -7,10 +8,13 @@
 #include "ComputeProlongation_stdexec.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeMG_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+auto ComputeMG_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
   -> declype(stdexec::then(input, [](){})){
   
+  double t_begin;
+
   stdexec::sender auto current = input | then([&](){
+    t_begin = mytimer();
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
     ZeroVector(x); //initialize x to zero
   });
@@ -36,6 +40,6 @@ auto ComputeMG_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, 
     current = ComputeSYMGS_stdexec(current, A, r, x);
   }
 
-  return current;
+  return current = current | then([&](){ time += mytimer() - t_begin; });;
 }
 

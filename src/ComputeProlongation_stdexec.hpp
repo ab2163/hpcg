@@ -4,5 +4,5 @@
 #include "SparseMatrix.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeProlongation_stdexec(Sender input, const SparseMatrix & Af, Vector & xf)
+auto ComputeProlongation_stdexec(Sender input, double & time, const SparseMatrix & Af, Vector & xf)
   -> declype(stdexec::then(input, [](){}));

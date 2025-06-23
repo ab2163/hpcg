@@ -3,5 +3,5 @@
 #include "Vector.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeDotProduct_stdexec(Sender input, const local_int_t n, const Vector & x, const Vector & y,
+auto ComputeDotProduct_stdexec(Sender input, double & time, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce) -> declype(stdexec::then(input, [](){}));
