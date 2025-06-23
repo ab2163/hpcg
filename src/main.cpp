@@ -28,15 +28,17 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <vector>
+#include <thread>
+
 #ifdef HPCG_DETAILED_DEBUG
 using std::cin;
 #endif
 using std::endl;
 
-#include <vector>
-
 #include "hpcg.hpp"
-
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "CheckAspectRatio.hpp"
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"
@@ -158,11 +160,8 @@ int main(int argc, char * argv[]) {
      curxexact = 0;
   }
 
-
   CGData data;
   InitializeSparseCGData(A, data);
-
-
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
@@ -176,7 +175,6 @@ int main(int argc, char * argv[]) {
   Vector x_overlap, b_computed;
   InitializeVector(x_overlap, ncol); // Overlapped copy of x vector
   InitializeVector(b_computed, nrow); // Computed RHS vector
-
 
   // Record execution time of reference SpMV and MG kernels for reporting times
   // First load vector with random values
@@ -238,7 +236,6 @@ int main(int argc, char * argv[]) {
   if (geom->size == 1) WriteProblem(*geom, A, b, x, xexact);
 #endif
 
-
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
@@ -277,12 +274,27 @@ int main(int argc, char * argv[]) {
 
   std::vector< double > opt_times(9,0.0);
 
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if(num_threads == 0) {
+    std::cerr << "Unable to determine thread pool size.\n";
+    std::exit(EXIT_FAILURE);
+  }
+  exec::static_thread_pool pool(num_threads);
+  auto sched = pool.get_scheduler();
+  stdexec::sender auto opt_setup =  stdexec::schedule(sched);
+
   // Compute the residual reduction and residual count for the user ordering and optimized kernels.
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
-    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+#ifndef SELECT_STDEXEC
+    ierr = CG(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
+#else
+    stdexec::sender auto CG_for_setup = 
+      CG_stdexec(opt_setup, A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+    stdexec::sync_wait(CG_for_setup);
+#endif
     // Convergence check accepts an error of no more than 6 significant digits of relTolerance
     if (normr / normr0 > refTolerance * (1.0 + 1.0e-6)) ++tolerance_failures; // the number of failures to reduce residual
 
@@ -331,12 +343,19 @@ int main(int argc, char * argv[]) {
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
   testnorms_data.values = new double[numberOfCgSets];
+  stdexec::sender auto opt_timing =  stdexec::schedule(sched);
 
   for (int i=0; i< numberOfCgSets; ++i) {
     ZeroVector(x); // Zero out x
-    ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
+#ifndef SELECT_STDEXEC
+    ierr = CG(A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
     if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
-    if (rank==0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
+#else
+    stdexec::sender auto CG_for_timing = 
+      CG_stdexec(opt_timing, A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
+    stdexec::sync_wait(CG_for_setup);
+#endif
+    if (rank == 0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
     testnorms_data.values[i] = normr/normr0; // Record scaled residual from this run
   }
 
@@ -368,8 +387,6 @@ int main(int argc, char * argv[]) {
   DeleteVector(x_overlap);
   DeleteVector(b_computed);
   delete [] testnorms_data.values;
-
-
 
   HPCG_Finalize();
 
