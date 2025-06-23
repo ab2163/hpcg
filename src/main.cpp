@@ -55,6 +55,7 @@ using std::endl;
 #include "ComputeResidual.hpp"
 #include "CG.hpp"
 #include "CG_ref.hpp"
+#include "CG_stdexec.hpp"
 #include "Geometry.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
