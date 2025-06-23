@@ -38,20 +38,22 @@ auto CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, const Vecto
 
   Sender current = input | then([&](){
     //p is of length ncols, copy x to p for sparse MV operation
-    CopyVector(x, p);
-    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); //Ap = A*p
-    TICK(); ComputeWAXPBY(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized);  TOCK(t2); //r = b - Ax (x stored in p)
-    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
-    normr = sqrt(normr);
+    CopyVector(x, p); 
+  });
 
+  current = ComputeSPMV(current, t3, A, p, Ap);
+  current = ComputeWAXPBY(current, t2, nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized);
+  current = ComputeDotProduct(current, t1, nrow, r, r, normr, t4, A.isDotProductOptimized);
+
+  current = stdexec::then(current, [&](){
+    normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank==0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
 #endif
-
     //Record initial residual for convergence testing
     normr0 = normr;
-  });
-
+  })
+    
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for (int k = 1; k <= max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++){
@@ -62,39 +64,42 @@ auto CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, const Vecto
       CopyVector (r, z); //copy r to z (no preconditioning)
     TOCK(t5); //Preconditioner apply time
 
-    if (k == 1) {
-      TICK(); ComputeWAXPBY(nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized); TOCK(t2); // Copy Mr to p
-      TICK(); ComputeDotProduct (nrow, r, z, rtz, t4, A.isDotProductOptimized); TOCK(t1); // rtz = r'*z
-    } else {
-      oldrtz = rtz;
-      TICK(); ComputeDotProduct (nrow, r, z, rtz, t4, A.isDotProductOptimized); TOCK(t1); // rtz = r'*z
-      beta = rtz/oldrtz;
-      TICK(); ComputeWAXPBY (nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized);  TOCK(t2); // p = beta*p + z
+    if(k == 1){
+      current = ComputeWAXPBY(current, t2, nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized); //Copy Mr to p
+      current = ComputeDotProduct (current, t1, nrow, r, z, rtz, t4, A.isDotProductOptimized); //rtz = r'*z
+    }else{
+      current = stdexec::then(current, [&](){ oldrtz = rtz; });
+      current = ComputeDotProduct (current, t1, nrow, r, z, rtz, t4, A.isDotProductOptimized); //rtz = r'*z
+      current = stdexec::then(current, [&](){ beta = rtz/oldrtz; });
+      current = ComputeWAXPBY (current, t2, nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized); //p = beta*p + z
     }
 
-    TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
-    TICK(); ComputeDotProduct(nrow, p, Ap, pAp, t4, A.isDotProductOptimized); TOCK(t1); // alpha = p'*Ap
-    alpha = rtz/pAp;
-    TICK(); ComputeWAXPBY(nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized);// x = x + alpha*p
-            ComputeWAXPBY(nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized);  TOCK(t2);// r = r - alpha*Ap
-    TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
-    normr = sqrt(normr);
+    current = ComputeSPMV(current, t3, A, p, Ap); //Ap = A*p
+    current = ComputeDotProduct(current, t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized); //alpha = p'*Ap
+    current = stdexec::then(current, [&](){ alpha = rtz/pAp; });
+    current = ComputeWAXPBY(current, t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized); //x = x + alpha*p
+    current = ComputeWAXPBY(current, t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized); //r = r - alpha*Ap
+    current = ComputeDotProduct(current, t1, nrow, r, r, normr, t4, A.isDotProductOptimized);
+    current = stdexec::then(current, [&](){ normr = sqrt(normr); });
+    
+    current = stdexec::then(current, [&](){
 #ifdef HPCG_DEBUG
-    if (A.geom->rank==0 && (k%print_freq == 0 || k == max_iter))
-      HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
+      if (A.geom->rank==0 && (k%print_freq == 0 || k == max_iter))
+        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
-    niters = k;
+      niters = k;
+    });
+
+    stdexec::sync_wait(current);
   }
 
-  // Store times
-  times[1] += t1; // dot-product time
-  times[2] += t2; // WAXPBY time
-  times[3] += t3; // SPMV time
-  times[4] += t4; // AllReduce time
-  times[5] += t5; // preconditioner apply time
-//#ifndef HPCG_NO_MPI
-//  times[6] += t6; // exchange halo time
-//#endif
-  times[0] += mytimer() - t_begin;  // Total time. All done...
+  //Store times
+  times[1] += t1; //dot-product time
+  times[2] += t2; //WAXPBY time
+  times[3] += t3; //SPMV time
+  times[4] += t4; //AllReduce time
+  times[5] += t5; //preconditioner apply time
+
+  times[0] += mytimer() - t_begin;  //Total time. All done...
   return 0;
 }
