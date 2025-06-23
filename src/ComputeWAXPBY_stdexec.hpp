@@ -1,4 +1,7 @@
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "Vector.hpp"
 
-int ComputeWAXPBY_stdexec(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w);
+template <stdexec::sender Sender>
+auto ComputeWAXPBY_stdexec(Sender input, double & time, const local_int_t n, const double alpha, const Vector & x,
+    const double beta, const Vector & y, Vector & w) -> declype(stdexec::then(input, [](){}));

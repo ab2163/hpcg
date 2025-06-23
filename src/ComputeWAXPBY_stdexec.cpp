@@ -2,37 +2,30 @@
 #include <cassert>
 #include <iostream>
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "ComputeWAXPBY_stdexec.hpp"
+#include "mytimer.hpp"
 
-int ComputeWAXPBY_stdexec(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w) {
+template <stdexec::sender Sender>
+auto ComputeWAXPBY_stdexec(Sender input, double & time, const local_int_t n, const double alpha, const Vector & x,
+    const double beta, const Vector & y, Vector & w) -> declype(stdexec::then(input, [](){})){
 
-  assert(x.localLength>=n); // Test vector lengths
+  double t_begin = mytimer();
+  assert(x.localLength>=n); //Test vector lengths
   assert(y.localLength>=n);
-
   const double * const xv = x.values;
   const double * const yv = y.values;
   double * const wv = w.values;
 
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0) {
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
+  if(alpha == 1.0) {
+    return input | stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = xv[i] + beta*yv[i]; })
+      | then([&](){ time += mytimer() - t_begin; });
   }
-
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-  auto start_point = stdexec::schedule(sched);
-
-  if (alpha==1.0) {
-    stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = xv[i] + beta*yv[i]; }));
-  } else if (beta==1.0) {
-    stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = alpha*xv[i] + yv[i]; }));
-  } else {
-    stdexec::sync_wait(stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = alpha*xv[i] + beta*yv[i]; }));
+  else if(beta == 1.0){
+    return input | stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = alpha*xv[i] + yv[i]; })
+      | then([&](){ time += mytimer() - t_begin; });
   }
-
-  return 0;
+  else{
+    return input | stdexec::bulk(start_point, stdexec::par, n, [&](local_int_t i){ wv[i] = alpha*xv[i] + beta*yv[i]; })
+      | then([&](){ time += mytimer() - t_begin; });
+  }
 }
