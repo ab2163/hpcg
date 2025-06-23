@@ -1,15 +1,15 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include <__senders_core.hpp>
 #include "ComputeSPMV_stdexec.hpp"
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
 
-decltype(auto) ComputeSPMV_stdexec(stdexec::sender auto input, const SparseMatrix & A, Vector & x, Vector & y){
+template <stdexec::sender Sender>
+auto ComputeSPMV_stdexec(Sender input, const SparseMatrix & A, Vector  & x, Vector & y)
+  -> declype(stdexec::then(input, [](){})){
 
   auto thread_spmv = [&](local_int_t i){
     const double * const xv = x.values;

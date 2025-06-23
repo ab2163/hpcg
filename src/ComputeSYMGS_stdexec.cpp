@@ -1,10 +1,10 @@
 #include <cassert>
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include <__senders_core.hpp>
 #include "ComputeSYMGS_stdexec.hpp"
 
-decltype(auto) ComputeSYMGS_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
+template <stdexec::sender Sender>
+auto ComputeSYMGS_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+  -> declype(stdexec::then(input, [](){})){
 
   return input | then([&](){
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values

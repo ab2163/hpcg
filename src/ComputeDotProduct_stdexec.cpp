@@ -2,8 +2,6 @@
 #include <atomic>
 #include <ranges>
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include <__senders_core.hpp>
 #include "ComputeDotProduct_stdexec.hpp"
 
 #ifndef HPCG_NO_MPI
@@ -11,8 +9,9 @@
 #include "mytimer.hpp"
 #endif
 
-decltype(auto) ComputeDotProduct_stdexec(stdexec::sender auto input, const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce){
+template <stdexec::sender Sender>
+auto ComputeDotProduct_stdexec(Sender input, const local_int_t n, const Vector & x, const Vector & y,
+    double & result, double & time_allreduce) -> declype(stdexec::then(input, [](){})){
 
   return stdexec::then(input, [&](){
 

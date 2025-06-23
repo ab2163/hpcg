@@ -1,4 +1,8 @@
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeSYMGS_stdexec( const SparseMatrix  & A, const Vector & r, Vector & x);
+template <stdexec::sender Sender>
+auto ComputeSYMGS_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+  -> declype(stdexec::then(input, [](){}));

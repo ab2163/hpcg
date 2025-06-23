@@ -1,4 +1,7 @@
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "Vector.hpp"
 
-int ComputeDotProduct_stdexec(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce);
+template <stdexec::sender Sender>
+auto ComputeDotProduct_stdexec(Sender input, const local_int_t n, const Vector & x, const Vector & y,
+    double & result, double & time_allreduce) -> declype(stdexec::then(input, [](){}));

@@ -1,14 +1,14 @@
 #include <cassert>
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include <__senders_core.hpp>
 #include "ComputeMG_stdexec.hpp"
 #include "ComputeSYMGS_stdexec.hpp"
 #include "ComputeSPMV_stdexec.hpp"
 #include "ComputeRestriction_stdexec.hpp"
 #include "ComputeProlongation_stdexec.hpp"
 
-decltype(auto) ComputeMG_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
+template <stdexec::sender Sender>
+auto ComputeMG_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+  -> declype(stdexec::then(input, [](){})){
   
   stdexec::sender auto current = input | then([&](){
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values

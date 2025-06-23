@@ -1,4 +1,8 @@
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
-int ComputeSPMV_stdexec(const SparseMatrix & A, Vector  & x, Vector & y);
+template <stdexec::sender Sender>
+auto ComputeSPMV_stdexec(Sender input, const SparseMatrix & A, Vector  & x, Vector & y)
+  -> declype(stdexec::then(input, [](){}));

@@ -1,8 +1,8 @@
-#include "../stdexec/include/stdexec/execution.hpp"
-#include <__senders_core.hpp>
 #include "ComputeRestriction_stdexec.hpp"
 
-decltype(auto) ComputeRestriction_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & rf){
+template <stdexec::sender Sender>
+auto ComputeRestriction_stdexec(Sender input, const SparseMatrix & A, const Vector & rf)
+  -> declype(stdexec::then(input, [](){})){
   return stdexec::bulk(input, stdexec::par, A.mgData->rc->localLength,
     [&](int i){ 
       double * Axfv = A.mgData->Axf->values;
