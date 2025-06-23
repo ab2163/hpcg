@@ -283,6 +283,7 @@ int main(int argc, char * argv[]) {
   exec::static_thread_pool pool(num_threads);
   auto sched = pool.get_scheduler();
   stdexec::sender auto opt_setup =  stdexec::schedule(sched);
+  static_assert(stdexec::sender<decltype(opt_setup)>);
 
   // Compute the residual reduction and residual count for the user ordering and optimized kernels.
   for (int i=0; i< numberOfCalls; ++i) {
