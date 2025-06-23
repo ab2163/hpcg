@@ -4,7 +4,7 @@
 #include <__senders_core.hpp>
 #include "ComputeSYMGS_stdexec.hpp"
 
-int ComputeSYMGS_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
+decltype(auto) ComputeSYMGS_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
 
   return input | then([&](){
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values

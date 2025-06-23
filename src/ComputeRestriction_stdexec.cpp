@@ -2,8 +2,8 @@
 #include <__senders_core.hpp>
 #include "ComputeRestriction_stdexec.hpp"
 
-int ComputeRestriction_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & rf){
-  return input stdexec::bulk(input, stdexec::par, A.mgData->rc->localLength,
+decltype(auto) ComputeRestriction_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & rf){
+  return stdexec::bulk(input, stdexec::par, A.mgData->rc->localLength,
     [&](int i){ 
       double * Axfv = A.mgData->Axf->values;
       double * rfv = rf.values;

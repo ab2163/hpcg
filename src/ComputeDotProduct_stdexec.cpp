@@ -11,7 +11,7 @@
 #include "mytimer.hpp"
 #endif
 
-int ComputeDotProduct_stdexec(stdexec::sender auto input, const local_int_t n, const Vector & x, const Vector & y,
+decltype(auto) ComputeDotProduct_stdexec(stdexec::sender auto input, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce){
 
   return stdexec::then(input, [&](){

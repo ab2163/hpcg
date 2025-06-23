@@ -2,8 +2,8 @@
 #include <__senders_core.hpp>
 #include "ComputeProlongation_stdexec.hpp"
 
-int ComputeProlongation_stdexec(stdexec::sender auto input, const SparseMatrix & Af, Vector & xf) {
-  return input stdexec::bulk(input, stdexec::par, Af.mgData->rc->localLength;,
+decltype(auto) ComputeProlongation_stdexec(stdexec::sender auto input, const SparseMatrix & Af, Vector & xf) {
+  return stdexec::bulk(input, stdexec::par, Af.mgData->rc->localLength;,
     [&](int i){ 
       double * xfv = xf.values;
       double * xcv = Af.mgData->xc->values;

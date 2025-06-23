@@ -8,7 +8,7 @@
 #include "ComputeRestriction_stdexec.hpp"
 #include "ComputeProlongation_stdexec.hpp"
 
-int ComputeMG_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
+decltype(auto) ComputeMG_stdexec(stdexec::sender auto input, const SparseMatrix & A, const Vector & r, Vector & x){
   
   stdexec::sender auto current = input | then([&](){
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values

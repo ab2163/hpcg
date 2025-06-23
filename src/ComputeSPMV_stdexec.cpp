@@ -9,7 +9,7 @@
 #include "ExchangeHalo.hpp"
 #endif
 
-int ComputeSPMV_stdexec(stdexec::sender auto input, const SparseMatrix & A, Vector & x, Vector & y){
+decltype(auto) ComputeSPMV_stdexec(stdexec::sender auto input, const SparseMatrix & A, Vector & x, Vector & y){
 
   auto thread_spmv = [&](local_int_t i){
     const double * const xv = x.values;
