@@ -4,5 +4,5 @@
 #include "Vector.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeSYMGS_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+auto ComputeSYMGS_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
   -> declype(stdexec::then(input, [](){}));

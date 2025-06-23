@@ -1,12 +1,14 @@
 #include <cassert>
 
 #include "ComputeSYMGS_stdexec.hpp"
+#include "mytimer.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeSYMGS_stdexec(Sender input, const SparseMatrix  & A, const Vector & r, Vector & x)
+auto ComputeSYMGS_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
   -> declype(stdexec::then(input, [](){})){
 
   return input | then([&](){
+    double t_begin = mytimer();
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
 #ifndef HPCG_NO_MPI
     ExchangeHalo(A,x);
@@ -50,6 +52,8 @@ auto ComputeSYMGS_stdexec(Sender input, const SparseMatrix  & A, const Vector & 
       sum += xv[i]*currentDiagonal; //Remove diagonal contribution from previous loop
       xv[i] = sum/currentDiagonal;
     }
+
+    time += mytimer() - t_begin;
   });
 }
 

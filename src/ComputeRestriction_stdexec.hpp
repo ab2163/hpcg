@@ -4,5 +4,5 @@
 #include "SparseMatrix.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeRestriction_stdexec(Sender input, const SparseMatrix & A, const Vector & rf)
+auto ComputeRestriction_stdexec(Sender input, double & time, const SparseMatrix & A, const Vector & rf)
   -> declype(stdexec::then(input, [](){}));

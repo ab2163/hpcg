@@ -4,5 +4,5 @@
 #include "SparseMatrix.hpp"
 
 template <stdexec::sender Sender>
-auto ComputeSPMV_stdexec(Sender input, const SparseMatrix & A, Vector  & x, Vector & y)
+auto ComputeSPMV_stdexec(Sender input, double & time, const SparseMatrix & A, Vector  & x, Vector & y)
   -> declype(stdexec::then(input, [](){}));

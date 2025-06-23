@@ -40,6 +40,6 @@ auto ComputeMG_stdexec(Sender input, double & time, const SparseMatrix  & A, con
     current = ComputeSYMGS_stdexec(current, A, r, x);
   }
 
-  return current = current | then([&](){ time += mytimer() - t_begin; });;
+  return current = current | stdexec::then([&](){ time += mytimer() - t_begin; });;
 }
 
