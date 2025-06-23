@@ -7,7 +7,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeWAXPBY_stdexec(Sender input, double & time, const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w) -> declype(stdexec::then(input, [](){})){
+    const double beta, const Vector & y, Vector & w) -> decltype(stdexec::then(input, [](){})){
 
   double t_begin = mytimer();
   assert(x.localLength>=n); //Test vector lengths

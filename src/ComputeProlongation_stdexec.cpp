@@ -3,7 +3,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeProlongation_stdexec(Sender input, double & time, const SparseMatrix & Af, Vector & xf)
-  -> declype(stdexec::then(input, [](){})){
+  -> decltype(stdexec::then(input, [](){})){
 
   double t_begin;
 

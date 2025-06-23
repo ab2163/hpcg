@@ -5,4 +5,4 @@
 
 template <stdexec::sender Sender>
 auto ComputeMG_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
-  -> declype(stdexec::then(input, [](){}));
+  -> decltype(stdexec::then(input, [](){}));

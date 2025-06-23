@@ -5,7 +5,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeSYMGS_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
-  -> declype(stdexec::then(input, [](){})){
+  -> decltype(stdexec::then(input, [](){})){
 
   return input | then([&](){
     double t_begin = mytimer();

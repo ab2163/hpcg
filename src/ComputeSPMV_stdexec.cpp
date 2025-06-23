@@ -10,7 +10,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeSPMV_stdexec(Sender input, double & time, const SparseMatrix & A, Vector  & x, Vector & y)
-  -> declype(stdexec::then(input, [](){})){
+  -> decltype(stdexec::then(input, [](){})){
 
   double t_begin;
   

@@ -11,7 +11,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeDotProduct_stdexec(Sender input, double & time, const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce) -> declype(stdexec::then(input, [](){})){
+    double & result, double & time_allreduce) -> decltype(stdexec::then(input, [](){})){
 
   return stdexec::then(input, [&](){
 

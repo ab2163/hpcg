@@ -3,7 +3,7 @@
 
 template <stdexec::sender Sender>
 auto ComputeRestriction_stdexec(Sender input, double & time, const SparseMatrix & A, const Vector & rf)
-  -> declype(stdexec::then(input, [](){})){
+  -> decltype(stdexec::then(input, [](){})){
 
   double t_begin;
 
