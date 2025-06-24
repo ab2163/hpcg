@@ -19,9 +19,10 @@
 
 using stdexec::sender;
 using stdexec::then;
+using stdexec::schedule;
+using stdexec::sync_wait;
 
-template <sender Sender>
-decltype(auto) CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
+auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
 
@@ -44,16 +45,14 @@ decltype(auto) CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, c
   if (print_freq < 1)  print_freq = 1;
 #endif
 
-  sender auto step1 = input | then([&](){
+  sender auto pre_loop_work = schedule(scheduler) | then([&](){
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
-  });
-
-  sender auto step2 = ComputeSPMV_stdexec(step1, t3, A, p, Ap);
-  sender auto step3 = ComputeWAXPBY_stdexec(step2, t2, nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized);
-  sender auto step4 = ComputeDotProduct_stdexec(step3, t1, nrow, r, r, normr, t4, A.isDotProductOptimized);
-
-  sender auto step5 = then(step4, [&](){
+  })
+  | ComputeSPMV_stdexec(t3, A, p, Ap)
+  | ComputeWAXPBY_stdexec(t2, nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized)
+  | ComputeDotProduct_stdexec(t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
+  | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
@@ -61,36 +60,33 @@ decltype(auto) CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, c
     //Record initial residual for convergence testing
     normr0 = normr;
   });
+
+  sync_wait(pre_loop_work);
     
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 1; k <= max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++){
-    sender auto step6 = then((k > 1) ? step 20 : step5, [&](){ TICK(); });
-    if(doPreconditioning)
-    sender auto step7 = ComputeMG_stdexec(step6, dummy, A, r, z); //Apply preconditioner
-    else
-      sender auto step7 = then(step6, [&](){ CopyVector(r, z); }); //copy r to z (no preconditioning)
-    sender auto step8 = then(step7, [&](){ TOCK(t5); }); //Preconditioner apply time
 
-    if(k == 1){
-      sender auto step9 = ComputeWAXPBY_stdexec(step8, t2, nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized); //Copy Mr to p
-      sender auto step12 = ComputeDotProduct_stdexec(step9, t1, nrow, r, z, rtz, t4, A.isDotProductOptimized); //rtz = r'*z
-    }else{
-      sender auto step9 = then(step8, [&](){ oldrtz = rtz; });
-      sender auto step10 = ComputeDotProduct_stdexec(step9, t1, nrow, r, z, rtz, t4, A.isDotProductOptimized); //rtz = r'*z
-      sender auto step11 = then(step10, [&](){ beta = rtz/oldrtz; });
-      sender auto step12 = ComputeWAXPBY_stdexec(step11, t2, nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized); //p = beta*p + z
-    }
-
-    sender auto step13 = ComputeSPMV_stdexec(step12, t3, A, p, Ap); //Ap = A*p
-    sender auto step14 = ComputeDotProduct_stdexec(step13, t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized); //alpha = p'*Ap
-    sender auto step15 = then(step14, [&](){ alpha = rtz/pAp; });
-    sender auto step16 = ComputeWAXPBY_stdexec(step15, t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized); //x = x + alpha*p
-    sender auto step17 = ComputeWAXPBY_stdexec(step16, t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized); //r = r - alpha*Ap
-    sender auto step18 = ComputeDotProduct_stdexec(step17, t1, nrow, r, r, normr, t4, A.isDotProductOptimized);
-    sender auto step19 = then(step18, [&](){ normr = sqrt(normr); });
-    
-    sender auto step20 = then(step19, [&](){
+    sender auto loop_work = schedule(scheduler) | then([&](){ TICK(); })
+    | (doPreconditioning) ? 
+      ComputeMG_stdexec(dummy, A, r, z) //Apply preconditioner
+      : then([&](){ CopyVector(r, z); }) //copy r to z (no preconditioning)
+    | then([&](){ TOCK(t5); }) //Preconditioner apply time
+    | (k == 1) ?
+      (ComputeWAXPBY_stdexec(t2, nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized) //Copy Mr to p
+      | ComputeDotProduct_stdexec(t1, nrow, r, z, rtz, t4, A.isDotProductOptimized)) //rtz = r'*z
+      : (then([&](){ oldrtz = rtz; })
+      | ComputeDotProduct_stdexec(t1, nrow, r, z, rtz, t4, A.isDotProductOptimized) //rtz = r'*z
+      | then([&](){ beta = rtz/oldrtz; })
+      | ComputeWAXPBY_stdexec(t2, nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized)) //p = beta*p + z
+    | ComputeSPMV_stdexec(t3, A, p, Ap) //Ap = A*p
+    | ComputeDotProduct_stdexec(t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized) //alpha = p'*Ap
+    | then([&](){ alpha = rtz/pAp; })
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized) //x = x + alpha*p
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized) //r = r - alpha*Ap
+    | ComputeDotProduct_stdexec(t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
+    | then(step18, [&](){ normr = sqrt(normr); })
+    | then(step19, [&](){
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
@@ -98,12 +94,10 @@ decltype(auto) CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, c
       niters = k;
     });
 
-    //because I am passing an lvalue reference to sync_wait
-    //I will be able to resuse current afterwards
-    stdexec::sync_wait(step20);
+    stdexec::sync_wait(loop_work);
   }
 
-  sender auto step21 = then(step20, [&](){
+  sender auto store_times = schedule(scheduler) | then([&](){
     //Store times
     times[1] += t1; //dot-product time
     times[2] += t2; //WAXPBY time
@@ -114,6 +108,8 @@ decltype(auto) CG_stdexec(Sender input, const SparseMatrix & A, CGData & data, c
     times[0] += mytimer() - t_begin;  //Total time. All done...
   });
 
-  return step20;
+  stdexec::sync_wait(store_times);
+
+  return 0;
 }
 
