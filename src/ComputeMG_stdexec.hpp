@@ -1,8 +1,44 @@
+#include <cassert>
+
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+#include "mytimer.hpp"
+#include "ComputeMG_stdexec.hpp"
+#include "ComputeSYMGS_stdexec.hpp"
+#include "ComputeSPMV_stdexec.hpp"
+#include "ComputeRestriction_stdexec.hpp"
+#include "ComputeProlongation_stdexec.hpp"
 
-template <stdexec::sender Sender>
-auto ComputeMG_stdexec(Sender input, double & time, const SparseMatrix  & A, const Vector & r, Vector & x)
-  -> decltype(stdexec::then(input, [](){}));
+auto ComputeMG_stdexec(double *time, const SparseMatrix  & A, const Vector & r, Vector & x){
+    
+  if(A.mgData == 0){
+    return then([time, &](){
+      double t_begin = mytimer();
+      assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
+      ZeroVector(x); //initialize x to zero
+    })
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | stdexec::then([&](){ time += mytimer() - t_begin; });
+  }
+  else return then([time, &](){
+      t_begin = mytimer();
+      assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
+      ZeroVector(x); //initialize x to zero
+    })
+    //MUST FIND WAY OF HAVING VARIABLE NUMBER OF PRECONDITIONING STEPS!
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | ComputeSPMV_stdexec(NULL, A, x, *A.mgData->Axf);
+    | ComputeRestriction_stdexec(NULL, A, r);
+    | ComputeMG_stdexec(NULL, *A.Ac,*A.mgData->rc, *A.mgData->xc);
+    | ComputeProlongation_stdexec(NULL, A, x);
+    //MUST FIND WAY OF HAVING VARIABLE NUMBER OF POSTCONDITIONING STEPS!
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | ComputeSYMGS_stdexec(NULL, A, r, x);
+    | stdexec::then([&](){ *time += mytimer() - t_begin; });
+}
+
