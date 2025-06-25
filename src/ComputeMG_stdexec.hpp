@@ -33,17 +33,17 @@ auto ComputeMG_stdexec(double * time, const SparseMatrix  & A, const Vector & r,
 
   //IS THERE A RISK OF THESE BEING UPDATED BY A SUBSEQUENT CALL
   //BEFORE THE FIRST CALL FINISHES??
-  static std::vector<SparseMatrix*> matrix_ptrs(4);
-  static std::vector<Vector*> res_ptrs(4);
+  static std::vector<const SparseMatrix*> matrix_ptrs(4);
+  static std::vector<const Vector*> res_ptrs(4);
   static std::vector<Vector*> xval_ptrs(4);
 
   matrix_ptrs[0] = &A;
   res_ptrs[0] = &r;
   xval_ptrs[0] = &x;
-  for(cnt = 1; cnt < 4; cnt++){
-    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1].Ac;
-    res_ptrs[cnt] = matrix_ptrs[cnt - 1].mgData->rc;
-    xval_ptrs[cnt] = matrix_ptrs[cnt - 1].mgData->xc;
+  for(int cnt = 1; cnt < 4; cnt++){
+    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
+    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
+    xval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
   }
 
   return stdexec::then([&, time](){
