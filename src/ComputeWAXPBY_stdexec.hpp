@@ -28,22 +28,10 @@ auto ComputeWAXPBY_stdexec(double * time, const local_int_t n, const double alph
   const double * const yv = y.values;
   double * const wv = w.values;
 
-  if(alpha == 1.0) {
-    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [&, beta, xv, wv, yv](local_int_t i){ 
-        wv[i] = xv[i] + beta*yv[i]; })
-    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
-  }
-  else if(beta == 1.0){
-    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [&, alpha, xv, wv, yv](local_int_t i){ 
-        wv[i] = alpha*xv[i] + yv[i]; })
-    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
-  }
-  else{
-    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [&, alpha, beta, xv, wv, yv](local_int_t i){ 
-        wv[i] = alpha*xv[i] + beta*yv[i]; })
-    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
-  }
+  //NEED TO FIND A WAY OF RETURNING ALTERNATIVE SENDERS
+  //IF ALPHA = 1 OR BETA = 1!
+  return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
+  | stdexec::bulk(stdexec::par, n, [&, alpha, beta, xv, wv, yv](local_int_t i){ 
+      wv[i] = alpha*xv[i] + beta*yv[i]; })
+  | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
 }
