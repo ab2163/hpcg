@@ -7,7 +7,6 @@ include $(setup_file)
 
 HPCG_DEPS = src/CG.o \
 	    src/CG_ref.o \
-	    src/CG_stdexec.o \
 	    src/TestCG.o \
 	    src/ComputeResidual.o \
 	    src/ExchangeHalo.o \
@@ -28,31 +27,24 @@ HPCG_DEPS = src/CG.o \
 	    src/YAML_Element.o \
 	    src/ComputeDotProduct.o \
 	    src/ComputeDotProduct_ref.o \
-	    src/ComputeDotProduct_stdexec.o \
 	    src/ComputeDotProduct_stdpar.o \
 	    src/mytimer.o \
 	    src/ComputeOptimalShapeXYZ.o \
 	    src/ComputeSPMV.o \
 	    src/ComputeSPMV_ref.o \
-	    src/ComputeSPMV_stdexec.o \
 	    src/ComputeSPMV_stdpar.o \
 	    src/ComputeSYMGS.o \
 	    src/ComputeSYMGS_ref.o \
-	    src/ComputeSYMGS_stdexec.o \
 	    src/ComputeSYMGS_stdpar.o \
 	    src/ComputeWAXPBY.o \
 	    src/ComputeWAXPBY_ref.o \
-	    src/ComputeWAXPBY_stdexec.o \
 	    src/ComputeWAXPBY_stdpar.o \
 	    src/ComputeMG_ref.o \
-	    src/ComputeMG_stdexec.o \
 	    src/ComputeMG_stdpar.o \
 	    src/ComputeMG.o \
 	    src/ComputeProlongation_ref.o \
-	    src/ComputeProlongation_stdexec.o \
 	    src/ComputeProlongation_stdpar.o \
 	    src/ComputeRestriction_ref.o \
-	    src/ComputeRestriction_stdexec.o \
 	    src/ComputeRestriction_stdpar.o \
 	    src/CheckAspectRatio.o \
 	    src/OutputFile.o \
@@ -81,9 +73,6 @@ src/CG.o: HPCG_SRC_PATH/src/CG.cpp HPCG_SRC_PATH/src/CG.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/CG_ref.o: HPCG_SRC_PATH/src/CG_ref.cpp HPCG_SRC_PATH/src/CG_ref.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/CG_stdexec.o: HPCG_SRC_PATH/src/CG_stdexec.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/TestCG.o: HPCG_SRC_PATH/src/TestCG.cpp HPCG_SRC_PATH/src/TestCG.hpp $(PRIMARY_HEADERS)
@@ -146,9 +135,6 @@ src/ComputeDotProduct.o: HPCG_SRC_PATH/src/ComputeDotProduct.cpp HPCG_SRC_PATH/s
 src/ComputeDotProduct_ref.o: HPCG_SRC_PATH/src/ComputeDotProduct_ref.cpp HPCG_SRC_PATH/src/ComputeDotProduct_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-src/ComputeDotProduct_stdexec.o: HPCG_SRC_PATH/src/ComputeDotProduct_stdexec.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
 src/ComputeDotProduct_stdpar.o: HPCG_SRC_PATH/src/ComputeDotProduct_stdpar.cpp HPCG_SRC_PATH/src/ComputeDotProduct_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 	
@@ -169,9 +155,6 @@ src/ComputeSPMV.o: HPCG_SRC_PATH/src/ComputeSPMV.cpp HPCG_SRC_PATH/src/ComputeSP
 
 src/ComputeSPMV_ref.o: HPCG_SRC_PATH/src/ComputeSPMV_ref.cpp HPCG_SRC_PATH/src/ComputeSPMV_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/ComputeSPMV_stdexec.o: HPCG_SRC_PATH/src/ComputeSPMV_stdexec.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 	
 src/ComputeSPMV_stdpar.o: HPCG_SRC_PATH/src/ComputeSPMV_stdpar.cpp HPCG_SRC_PATH/src/ComputeSPMV_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
@@ -180,9 +163,6 @@ src/ComputeSYMGS.o: HPCG_SRC_PATH/src/ComputeSYMGS.cpp HPCG_SRC_PATH/src/Compute
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeSYMGS_ref.o: HPCG_SRC_PATH/src/ComputeSYMGS_ref.cpp HPCG_SRC_PATH/src/ComputeSYMGS_ref.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/ComputeSYMGS_stdexec.o: HPCG_SRC_PATH/src/ComputeSYMGS_stdexec.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeSYMGS_stdpar.o: HPCG_SRC_PATH/src/ComputeSYMGS_stdpar.cpp HPCG_SRC_PATH/src/ComputeSYMGS_stdpar.hpp $(PRIMARY_HEADERS)
@@ -194,16 +174,10 @@ src/ComputeWAXPBY.o: HPCG_SRC_PATH/src/ComputeWAXPBY.cpp HPCG_SRC_PATH/src/Compu
 src/ComputeWAXPBY_ref.o: HPCG_SRC_PATH/src/ComputeWAXPBY_ref.cpp HPCG_SRC_PATH/src/ComputeWAXPBY_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-src/ComputeWAXPBY_stdexec.o: HPCG_SRC_PATH/src/ComputeWAXPBY_stdexec.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
 src/ComputeWAXPBY_stdpar.o: HPCG_SRC_PATH/src/ComputeWAXPBY_stdpar.cpp HPCG_SRC_PATH/src/ComputeWAXPBY_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeMG_ref.o: HPCG_SRC_PATH/src/ComputeMG_ref.cpp HPCG_SRC_PATH/src/ComputeMG_ref.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/ComputeMG_stdexec.o: HPCG_SRC_PATH/src/ComputeMG_stdexec.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeMG_stdpar.o: HPCG_SRC_PATH/src/ComputeMG_stdpar.cpp HPCG_SRC_PATH/src/ComputeMG_stdpar.hpp $(PRIMARY_HEADERS)
@@ -215,16 +189,10 @@ src/ComputeMG.o: HPCG_SRC_PATH/src/ComputeMG.cpp HPCG_SRC_PATH/src/ComputeMG.hpp
 src/ComputeProlongation_ref.o: HPCG_SRC_PATH/src/ComputeProlongation_ref.cpp HPCG_SRC_PATH/src/ComputeProlongation_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-src/ComputeProlongation_stdexec.o: HPCG_SRC_PATH/src/ComputeProlongation_stdexec.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
 src/ComputeProlongation_stdpar.o: HPCG_SRC_PATH/src/ComputeProlongation_stdpar.cpp HPCG_SRC_PATH/src/ComputeProlongation_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeRestriction_ref.o: HPCG_SRC_PATH/src/ComputeRestriction_ref.cpp HPCG_SRC_PATH/src/ComputeRestriction_ref.hpp $(PRIMARY_HEADERS)
-	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-
-src/ComputeRestriction_stdexec.o: HPCG_SRC_PATH/src/ComputeRestriction_stdexec.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeRestriction_stdpar.o: HPCG_SRC_PATH/src/ComputeRestriction_stdpar.cpp HPCG_SRC_PATH/src/ComputeRestriction_stdpar.hpp $(PRIMARY_HEADERS)
