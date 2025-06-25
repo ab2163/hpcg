@@ -5,28 +5,25 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 #include "mytimer.hpp"
-#include "ComputeMG_stdexec.hpp"
 #include "ComputeSYMGS_stdexec.hpp"
 #include "ComputeSPMV_stdexec.hpp"
 #include "ComputeRestriction_stdexec.hpp"
 #include "ComputeProlongation_stdexec.hpp"
 
-auto ComputeMG_stdexec(double *time, const SparseMatrix  & A, const Vector & r, Vector & x){
+auto ComputeMG_stdexec(double & time, const SparseMatrix  & A, const Vector & r, Vector & x){
     
   if(A.mgData == 0){
-    return then([time, &](){
-      double t_begin = mytimer();
+    return then([&](){
+      if(time != NULL) time = mytimer();
       assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
       ZeroVector(x); //initialize x to zero
     })
     | ComputeSYMGS_stdexec(NULL, A, r, x)
-    | stdexec::then([time, &](){
-      if(time != NULL){
-        *time += mytimer() - t_begin;
-      }});
+    | stdexec::then([&](){
+      if(time != NULL) time = mytimer() - time; });
   }
-  else return then([time, &](){
-      t_begin = mytimer();
+  else return then([&](){
+      if(time != NULL) time = mytimer();
       assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
       ZeroVector(x); //initialize x to zero
     })
@@ -42,9 +39,7 @@ auto ComputeMG_stdexec(double *time, const SparseMatrix  & A, const Vector & r, 
     | ComputeSYMGS_stdexec(NULL, A, r, x)
     | ComputeSYMGS_stdexec(NULL, A, r, x)
     | ComputeSYMGS_stdexec(NULL, A, r, x)
-    | stdexec::then([time, &](){
-      if(time != NULL){
-        *time += mytimer() - t_begin;
-      }});
+    | stdexec::then([&](){
+      if(time != NULL) time = mytimer() - time; });
 }
 
