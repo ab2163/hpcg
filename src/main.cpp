@@ -37,8 +37,6 @@ using std::cin;
 using std::endl;
 
 #include "hpcg.hpp"
-#include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "CheckAspectRatio.hpp"
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"
@@ -55,7 +53,6 @@ using std::endl;
 #include "ComputeResidual.hpp"
 #include "CG.hpp"
 #include "CG_ref.hpp"
-#include "CG_stdexec.hpp"
 #include "Geometry.hpp"
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
@@ -63,6 +60,7 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
+#include "CG_stdexec.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.

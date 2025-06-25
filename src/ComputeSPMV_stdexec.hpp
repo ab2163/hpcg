@@ -30,7 +30,7 @@
 
 auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vector & y){
   
-  return stdexec:then([&](){
+  return stdexec:then([time, &](){
     if(time != NULL) *time -= mytimer();
     assert(x.localLength >= A.localNumberOfColumns); //Test vector lengths
     assert(y.localLength >= A.localNumberOfRows);
@@ -51,5 +51,5 @@ auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vec
       0.0
     );
   };)
-  | stdexec::then([&](){ if(time != NULL) *time += mytimer(); });
+  | stdexec::then([time, &](){ if(time != NULL) *time += mytimer(); });
 }

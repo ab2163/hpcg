@@ -58,7 +58,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
-  sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); });
+  sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
@@ -85,7 +85,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++){
 
-    sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); });
+    sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | (then([&](){ oldrtz = rtz; })
