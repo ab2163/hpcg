@@ -1,3 +1,7 @@
+#include <numeric>
+#include <span>
+#include <ranges> 
+
 #ifndef ASSERT_INCLUDED
 #define ASSERT_INCLUDED
 #include <cassert>
@@ -30,7 +34,7 @@
 
 auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vector & y){
   
-  return stdexec:then([time, &](){
+  return stdexec::then([&, time](){
     if(time != NULL) *time -= mytimer();
     assert(x.localLength >= A.localNumberOfColumns); //Test vector lengths
     assert(y.localLength >= A.localNumberOfRows);
@@ -50,6 +54,6 @@ auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vec
       ).begin(),
       0.0
     );
-  };)
-  | stdexec::then([time, &](){ if(time != NULL) *time += mytimer(); });
+  })
+  | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
 }

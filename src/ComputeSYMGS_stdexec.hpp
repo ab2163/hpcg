@@ -26,7 +26,7 @@
 
 auto ComputeSYMGS_stdexec(double * time, const SparseMatrix & A, const Vector & r, Vector & x){
 
-  return then([time, &](){
+  return stdexec::then([&, time](){
     if(time != NULL) *time -= mytimer();
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
 #ifndef HPCG_NO_MPI

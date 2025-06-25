@@ -61,6 +61,7 @@ using std::endl;
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 #include "CG_stdexec.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.

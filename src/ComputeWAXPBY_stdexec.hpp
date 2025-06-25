@@ -29,21 +29,21 @@ auto ComputeWAXPBY_stdexec(double * time, const local_int_t n, const double alph
   double * const wv = w.values;
 
   if(alpha == 1.0) {
-    return then([time, &](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [beta, xv, wv, yv, &](local_int_t i){ 
+    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
+    | stdexec::bulk(stdexec::par, n, [&, beta, xv, wv, yv](local_int_t i){ 
         wv[i] = xv[i] + beta*yv[i]; })
-    | then([time, &](){ if(time != NULL) *time += mytimer(); });
+    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
   }
   else if(beta == 1.0){
-    return then([time, &](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [alpha, xy, wv, yv, &](local_int_t i){ 
+    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
+    | stdexec::bulk(stdexec::par, n, [&, alpha, xv, wv, yv](local_int_t i){ 
         wv[i] = alpha*xv[i] + yv[i]; })
-    | then([time, &](){ if(time != NULL) *time += mytimer(); });
+    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
   }
   else{
-    return then([time, &](){ if(time != NULL) *time -= mytimer(); })
-    | stdexec::bulk(stdexec::par, n, [alpha, beta, xy, wv, yv, &](local_int_t i){ 
+    return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
+    | stdexec::bulk(stdexec::par, n, [&, alpha, beta, xv, wv, yv](local_int_t i){ 
         wv[i] = alpha*xv[i] + beta*yv[i]; })
-    | then([time, &](){ if(time != NULL) *time += mytimer(); });
+    | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
   }
 }

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <execution>
 #include <atomic>
 #include <ranges>
@@ -25,7 +26,7 @@
 auto ComputeDotProduct_stdexec(double * time, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce){
 
-  return stdexec::then([time, n, &](){
+  return stdexec::then([&, time, n](){
 
     if(time != NULL) *time -= mytimer();
     assert(x.localLength >= n); //Test vector lengths
