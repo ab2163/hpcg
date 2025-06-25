@@ -19,8 +19,11 @@ auto ComputeMG_stdexec(double *time, const SparseMatrix  & A, const Vector & r, 
       assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
       ZeroVector(x); //initialize x to zero
     })
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | stdexec::then([&](){ time += mytimer() - t_begin; });
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | stdexec::then([time, &](){
+      if(time != NULL){
+        *time += mytimer() - t_begin;
+      }});
   }
   else return then([time, &](){
       t_begin = mytimer();
@@ -28,17 +31,20 @@ auto ComputeMG_stdexec(double *time, const SparseMatrix  & A, const Vector & r, 
       ZeroVector(x); //initialize x to zero
     })
     //MUST FIND WAY OF HAVING VARIABLE NUMBER OF PRECONDITIONING STEPS!
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | ComputeSPMV_stdexec(NULL, A, x, *A.mgData->Axf);
-    | ComputeRestriction_stdexec(NULL, A, r);
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | ComputeSPMV_stdexec(NULL, A, x, *A.mgData->Axf)
+    | ComputeRestriction_stdexec(NULL, A, r)
     | ComputeMG_stdexec(NULL, *A.Ac,*A.mgData->rc, *A.mgData->xc);
-    | ComputeProlongation_stdexec(NULL, A, x);
+    | ComputeProlongation_stdexec(NULL, A, x)
     //MUST FIND WAY OF HAVING VARIABLE NUMBER OF POSTCONDITIONING STEPS!
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | ComputeSYMGS_stdexec(NULL, A, r, x);
-    | stdexec::then([&](){ *time += mytimer() - t_begin; });
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | ComputeSYMGS_stdexec(NULL, A, r, x)
+    | stdexec::then([time, &](){
+      if(time != NULL){
+        *time += mytimer() - t_begin;
+      }});
 }
 
