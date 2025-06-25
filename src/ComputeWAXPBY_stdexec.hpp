@@ -1,11 +1,23 @@
-#include <thread>
+#ifndef ASSERT_INCLUDED
+#define ASSERT_INCLUDED
 #include <cassert>
-#include <iostream>
+#endif
 
+#ifndef EXECUTION_INCLUDED
+#define EXECUTION_INCLUDED
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
+#endif
+
+#ifndef VECTOR_INCLUDED
+#define VECTOR_INCLUDED
 #include "Vector.hpp"
+#endif
+
+#ifndef TIMER_INCLUDED
+#define TIMER_INCLUDED
 #include "mytimer.hpp"
+#endif
 
 auto ComputeWAXPBY_stdexec(double * time, const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w){

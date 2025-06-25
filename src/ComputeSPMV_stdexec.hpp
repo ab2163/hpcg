@@ -1,11 +1,28 @@
+#ifndef ASSERT_INCLUDED
+#define ASSERT_INCLUDED
 #include <cassert>
-#include <cstdlib>
+#endif
 
+#ifndef EXECUTION_INCLUDED
+#define EXECUTION_INCLUDED
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
-#include "Vector.hpp"
+#endif
+
+#ifndef SPARSE_INCLUDED
+#define SPARSE_INCLUDED
 #include "SparseMatrix.hpp"
+#endif
+
+#ifndef VECTOR_INCLUDED
+#define VECTOR_INCLUDED
+#include "Vector.hpp"
+#endif
+
+#ifndef TIMER_INCLUDED
+#define TIMER_INCLUDED
 #include "mytimer.hpp"
+#endif
 
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"

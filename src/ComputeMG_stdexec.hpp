@@ -1,10 +1,8 @@
+#ifndef ASSERT_INCLUDED
+#define ASSERT_INCLUDED
 #include <cassert>
+#endif
 
-#include "../stdexec/include/stdexec/execution.hpp"
-#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
-#include "SparseMatrix.hpp"
-#include "Vector.hpp"
-#include "mytimer.hpp"
 #include "ComputeSYMGS_stdexec.hpp"
 #include "ComputeSPMV_stdexec.hpp"
 #include "ComputeRestriction_stdexec.hpp"
