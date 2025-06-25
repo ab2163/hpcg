@@ -73,10 +73,10 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
-      if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
+      if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
-      niters = k;
+      niters = 1;
     });
 
     stdexec::sync_wait(first_loop);
