@@ -8,8 +8,8 @@
 #include "ComputeWAXPBY_stdexec.hpp"
 
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
-#define TICK()  t0 = mytimer() //!< record current time in 't0'
-#define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
+#define TICK()  *t0 = mytimer() //!< record current time in 't0'
+#define TOCK(t) *t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
 
 using stdexec::sender;
 using stdexec::then;
@@ -23,7 +23,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
+  double *t0 = 0.0, *t1 = 0.0, *t2 = 0.0, *t3 = 0.0, *t4 = 0.0, *t5 = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -42,9 +42,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
   })
-  | ComputeSPMV_stdexec(&t3, A, p, Ap)
-  | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized)
-  | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
+  | ComputeSPMV_stdexec(t3, A, p, Ap)
+  | ComputeWAXPBY_stdexec(t2, nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized)
+  | ComputeDotProduct_stdexec(t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -62,14 +62,14 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized) //Copy Mr to p
-    | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4, A.isDotProductOptimized) //rtz = r'*z
-    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
-    | ComputeDotProduct_stdexec(&t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized) //alpha = p'*Ap
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, z, 0.0, z, p, A.isWaxpbyOptimized) //Copy Mr to p
+    | ComputeDotProduct_stdexec(t1, nrow, r, z, rtz, t4, A.isDotProductOptimized) //rtz = r'*z
+    | ComputeSPMV_stdexec(t3, A, p, Ap) //Ap = A*p
+    | ComputeDotProduct_stdexec(t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized) //x = x + alpha*p
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized) //r = r - alpha*Ap
-    | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized) //x = x + alpha*p
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized) //r = r - alpha*Ap
+    | ComputeDotProduct_stdexec(t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
@@ -89,15 +89,15 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | (then([&](){ oldrtz = rtz; })
-    | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4, A.isDotProductOptimized) //rtz = r'*z
+    | ComputeDotProduct_stdexec(t1, nrow, r, z, rtz, t4, A.isDotProductOptimized) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized)) //p = beta*p + z
-    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
-    | ComputeDotProduct_stdexec(&t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized) //alpha = p'*Ap
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, z, beta, p, p, A.isWaxpbyOptimized)) //p = beta*p + z
+    | ComputeSPMV_stdexec(t3, A, p, Ap) //Ap = A*p
+    | ComputeDotProduct_stdexec(t1, nrow, p, Ap, pAp, t4, A.isDotProductOptimized) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized) //x = x + alpha*p
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized) //r = r - alpha*Ap
-    | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, x, alpha, p, x, A.isWaxpbyOptimized) //x = x + alpha*p
+    | ComputeWAXPBY_stdexec(t2, nrow, 1.0, r, -alpha, Ap, r, A.isWaxpbyOptimized) //r = r - alpha*Ap
+    | ComputeDotProduct_stdexec(t1, nrow, r, r, normr, t4, A.isDotProductOptimized)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
@@ -112,11 +112,11 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
   sender auto store_times = schedule(scheduler) | then([&](){
     //Store times
-    times[1] += t1; //dot-product time
-    times[2] += t2; //WAXPBY time
-    times[3] += t3; //SPMV time
-    times[4] += t4; //AllReduce time
-    times[5] += t5; //preconditioner apply time
+    times[1] += *t1; //dot-product time
+    times[2] += *t2; //WAXPBY time
+    times[3] += *t3; //SPMV time
+    times[4] += *t4; //AllReduce time
+    times[5] += *t5; //preconditioner apply time
 
     times[0] += mytimer() - t_begin;  //Total time. All done...
   });

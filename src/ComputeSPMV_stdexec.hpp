@@ -11,10 +11,10 @@
 #include "ExchangeHalo.hpp"
 #endif
 
-auto ComputeSPMV_stdexec(double & time, const SparseMatrix & A, Vector  & x, Vector & y){
+auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vector & y){
   
   return stdexec:then([&](){
-    if(time != NULL) time = mytimer();
+    if(time != NULL) *time -= mytimer();
     assert(x.localLength >= A.localNumberOfColumns); //Test vector lengths
     assert(y.localLength >= A.localNumberOfRows);
 #ifndef HPCG_NO_MPI
@@ -34,5 +34,5 @@ auto ComputeSPMV_stdexec(double & time, const SparseMatrix & A, Vector  & x, Vec
       0.0
     );
   };)
-  | stdexec::then([&](){ if(time != NULL) time = mytimer() - time; });
+  | stdexec::then([&](){ if(time != NULL) *time += mytimer(); });
 }

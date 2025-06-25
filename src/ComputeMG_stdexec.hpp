@@ -10,11 +10,11 @@
 #include "ComputeRestriction_stdexec.hpp"
 #include "ComputeProlongation_stdexec.hpp"
 
-auto ComputeMG_stdexec(double & time, const SparseMatrix  & A, const Vector & r, Vector & x){
+auto ComputeMG_stdexec(double * time, const SparseMatrix  & A, const Vector & r, Vector & x){
     
   if(A.mgData == 0){
     return then([&](){
-      if(time != NULL) time = mytimer();
+      if(time != NULL) *time -= mytimer();
       assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
       ZeroVector(x); //initialize x to zero
     })
@@ -40,6 +40,6 @@ auto ComputeMG_stdexec(double & time, const SparseMatrix  & A, const Vector & r,
     | ComputeSYMGS_stdexec(NULL, A, r, x)
     | ComputeSYMGS_stdexec(NULL, A, r, x)
     | stdexec::then([&](){
-      if(time != NULL) time = mytimer() - time; });
+      if(time != NULL) *time += mytimer(); });
 }
 

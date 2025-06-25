@@ -11,12 +11,12 @@
 #include <mpi.h>
 #endif
 
-auto ComputeDotProduct_stdexec(double *time, const local_int_t n, const Vector & x, const Vector & y,
+auto ComputeDotProduct_stdexec(double * time, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce){
 
-  return stdexec::then([time, n, &](){
+  return stdexec::then([n, &](){
 
-    double t_begin = mytimer();
+    if(time != NULL) *time -= mytimer();
     assert(x.localLength >= n); //Test vector lengths
     assert(y.localLength >= n);
 
@@ -46,8 +46,6 @@ auto ComputeDotProduct_stdexec(double *time, const local_int_t n, const Vector &
     time_allreduce += 0.0;
     result = local_result;
 #endif
-    if(time != NULL){
-        *time += mytimer() - t_begin;
-    };
+    if(time != NULL) *time += mytimer();
   });
 }
