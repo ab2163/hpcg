@@ -20,9 +20,7 @@
 
 #include "ComputeMG.hpp"
 
-#ifdef SELECT_STDEXEC
-#include "ComputeMG_stdexec.hpp"
-#elif defined(SELECT_STDPAR)
+#ifdef SELECT_STDPAR
 #include "ComputeMG_stdpar.hpp"
 #else
 #include "ComputeMG_ref.hpp"
@@ -39,12 +37,10 @@
 */
 int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
 
-  #ifdef SELECT_STDEXEC
-    return ComputeMG_stdexec(A, r, x);
-  #elif defined(SELECT_STDPAR)
-    return ComputeMG_stdpar(A, r, x);
-  #else
-    A.isMgOptimized = false;
-    return ComputeMG_ref(A, r, x);
-  #endif
+#ifdef SELECT_STDPAR
+  return ComputeMG_stdpar(A, r, x);
+#else
+  A.isMgOptimized = false;
+  return ComputeMG_ref(A, r, x);
+#endif
 }

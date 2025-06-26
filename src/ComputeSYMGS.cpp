@@ -20,9 +20,7 @@
 
 #include "ComputeSYMGS.hpp"
 
-#ifdef SELECT_STDEXEC
-#include "ComputeSYMGS_stdexec.hpp"
-#elif defined(SELECT_STDPAR)
+#ifdef SELECT_STDPAR
 #include "ComputeSYMGS_stdpar.hpp"
 #else
 #include "ComputeSYMGS_ref.hpp"
@@ -56,11 +54,9 @@
 */
 int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
 
-  #ifdef SELECT_STDEXEC
-    return ComputeSYMGS_stdexec(A, r, x);
-  #elif defined(SELECT_STDPAR)
-    return ComputeSYMGS_stdpar(A, r, x);
-  #else
-    return ComputeSYMGS_ref(A, r, x);
-  #endif  
+#ifdef SELECT_STDPAR
+  return ComputeSYMGS_stdpar(A, r, x);
+#else
+  return ComputeSYMGS_ref(A, r, x);
+#endif  
 }

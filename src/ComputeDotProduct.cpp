@@ -20,9 +20,7 @@
 
 #include "ComputeDotProduct.hpp"
 
-#ifdef SELECT_STDEXEC
-#include "ComputeDotProduct_stdexec.hpp"
-#elif defined(SELECT_STDPAR)
+#ifdef SELECT_STDPAR
 #include "ComputeDotProduct_stdpar.hpp"
 #else
 #include "ComputeDotProduct_ref.hpp"
@@ -48,12 +46,10 @@
 int ComputeDotProduct(const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce, bool & isOptimized) {
 
-  #ifdef SELECT_STDEXEC
-    return ComputeDotProduct_stdexec(n, x, y, result, time_allreduce);
-  #elif defined(SELECT_STDPAR)
-    return ComputeDotProduct_stdpar(n, x, y, result, time_allreduce);
-  #else
-    isOptimized = false;
-    return ComputeDotProduct_ref(n, x, y, result, time_allreduce);
-  #endif
+#ifdef SELECT_STDPAR
+  return ComputeDotProduct_stdpar(n, x, y, result, time_allreduce);
+#else
+  isOptimized = false;
+  return ComputeDotProduct_ref(n, x, y, result, time_allreduce);
+#endif
 }

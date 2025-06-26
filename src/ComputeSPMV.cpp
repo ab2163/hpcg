@@ -20,9 +20,7 @@
 
 #include "ComputeSPMV.hpp"
 
-#ifdef SELECT_STDEXEC
-#include "ComputeSPMV_stdexec.hpp"
-#elif defined(SELECT_STDPAR)
+#ifdef SELECT_STDPAR
 #include "ComputeSPMV_stdpar.hpp"
 #else
 #include "ComputeSPMV_ref.hpp"
@@ -46,12 +44,10 @@
 */
 int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
 
-  #ifdef SELECT_STDEXEC
-    return ComputeSPMV_stdexec(A, x, y);
-  #elif defined(SELECT_STDPAR)
-    return ComputeSPMV_stdpar(A, x, y);
-  #else
-    A.isSpmvOptimized = false;
-    return ComputeSPMV_ref(A, x, y);
-  #endif
+#ifdef SELECT_STDPAR
+  return ComputeSPMV_stdpar(A, x, y);
+#else
+  A.isSpmvOptimized = false;
+  return ComputeSPMV_ref(A, x, y);
+#endif
 }
