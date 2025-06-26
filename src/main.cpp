@@ -274,6 +274,14 @@ int main(int argc, char * argv[]) {
 
   std::vector< double > opt_times(9,0.0);
 
+  int indcnt = 0;
+  SparseMatrix * matPtr = &A;
+  while(matPtr->mgData != 0){
+    matPtr = matPtr->Ac;
+    indcnt++;
+  }
+  std::cout << "MG is " << indcnt << " levels deep\n";
+
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0) {
     std::cerr << "Unable to determine thread pool size.\n";
