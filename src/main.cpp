@@ -331,6 +331,11 @@ int main(int argc, char * argv[]) {
 
   //TEMPORARY CHANGE TO CODE - DELETE THESE LINES IN FUTURE!
   std::cout << "Runtime for run of CG in setup phase: " << opt_worst_time << "s\n";
+  TestNormsData testnorms_data;
+  testnorms_data.samples = numberOfCgSets;
+  testnorms_data.values = new double[numberOfCgSets];
+  //Report results to YAML file
+  ReportResults(A, numberOfMgLevels, 1, refMaxIters, optMaxIters, &opt_times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
   return 0;
 
 #ifdef HPCG_DEBUG
@@ -344,7 +349,8 @@ int main(int argc, char * argv[]) {
 
   optMaxIters = optNiters;
   double optTolerance = 0.0;  // Force optMaxIters iterations
-  TestNormsData testnorms_data;
+  //UNCOMMENT THIS LINE IN FUTURE! DONE FOR PROFILING PURPOSES
+  //TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
   testnorms_data.values = new double[numberOfCgSets];
 
