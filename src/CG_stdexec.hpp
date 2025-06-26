@@ -60,7 +60,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-    //| ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
+    | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, 0.0, z, p) //Copy Mr to p
     | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4) //rtz = r'*z
@@ -86,7 +86,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++){
 
     sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
-    //| ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
+    | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | (then([&](){ oldrtz = rtz; })
     | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4) //rtz = r'*z
