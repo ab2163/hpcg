@@ -326,6 +326,10 @@ int main(int argc, char * argv[]) {
   double total_runtime = params.runningTime;
   int numberOfCgSets = int(total_runtime / opt_worst_time) + 1; // Run at least once, account for rounding
 
+  //TEMPORARY CHANGE TO CODE - DELETE THESE LINES IN FUTURE!
+  std::cout << "Runtime for run of CG in setup phase: " << opt_worst_time << "s\n";
+  return 0;
+
 #ifdef HPCG_DEBUG
   if (rank==0) {
     HPCG_fout << "Projected running time: " << total_runtime << " seconds" << endl;
