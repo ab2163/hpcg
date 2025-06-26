@@ -274,18 +274,13 @@ int main(int argc, char * argv[]) {
 
   std::vector< double > opt_times(9,0.0);
 
-  int indcnt = 0;
-  SparseMatrix * matPtr = &A;
-  while(matPtr->mgData != 0){
-    matPtr = matPtr->Ac;
-    indcnt++;
-  }
-  std::cout << "MG is " << indcnt << " levels deep\n";
-
   unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0) {
+  if(num_threads == 0){
     std::cerr << "Unable to determine thread pool size.\n";
     std::exit(EXIT_FAILURE);
+  }
+  else{
+    std::cout << "Thread pool size is " << num_threads << "\n";
   }
   exec::static_thread_pool pool(num_threads);
   auto sched = pool.get_scheduler();

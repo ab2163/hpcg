@@ -54,7 +54,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     normr0 = normr;
   });
 
-  sync_wait(pre_loop_work);
+  sync_wait(std::move(pre_loop_work));
   
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
@@ -79,7 +79,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       niters = 1;
     });
 
-    stdexec::sync_wait(first_loop);
+    stdexec::sync_wait(std::move(first_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
@@ -107,7 +107,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       niters = k;
     });
 
-    stdexec::sync_wait(subsequent_loop);
+    stdexec::sync_wait(std::move(subsequent_loop));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
@@ -121,7 +121,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     times[0] += mytimer() - t_begin;  //Total time. All done...
   });
 
-  stdexec::sync_wait(store_times);
+  stdexec::sync_wait(std::move(store_times));
 
   return 0;
 }
