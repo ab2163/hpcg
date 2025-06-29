@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -216,6 +215,7 @@ int main(int argc, char * argv[]) {
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
+    //***MODIFICATION TO ORIGINAL***
     //ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
@@ -274,6 +274,7 @@ int main(int argc, char * argv[]) {
 
   std::vector< double > opt_times(9,0.0);
 
+  //***ADDITION TO ORIGINAL***
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
     std::cerr << "Unable to determine thread pool size.\n";
@@ -289,7 +290,9 @@ int main(int argc, char * argv[]) {
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
+//***ADDITION TO ORIGINAL*** IFNDEF STRUCTURE
 #ifndef SELECT_STDEXEC
+    //***MODIFICATION TO ORIGINAL*** SPECIFIC VALUE OF 5E-8 GIVEN
     ierr = CG(A, data, b, x, optMaxIters, 5E-8, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
@@ -329,7 +332,7 @@ int main(int argc, char * argv[]) {
   double total_runtime = params.runningTime;
   int numberOfCgSets = int(total_runtime / opt_worst_time) + 1; // Run at least once, account for rounding
 
-  //TEMPORARY CHANGE TO CODE - DELETE THESE LINES IN FUTURE!
+  //***ADDITION TO ORIGINAL*** PREMATURE REPORTING OF RESULTS AND TERMINATION OF SCRIPT
   std::cout << "Runtime for run of CG in setup phase: " << opt_worst_time << "s\n";
   TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
@@ -337,6 +340,7 @@ int main(int argc, char * argv[]) {
   //Report results to YAML file
   ReportResults(A, numberOfMgLevels, 1, refMaxIters, optMaxIters, &opt_times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
   return 0;
+  /*
 
 #ifdef HPCG_DEBUG
   if (rank==0) {
@@ -345,12 +349,11 @@ int main(int argc, char * argv[]) {
   }
 #endif
 
-  /* This is the timed run for a specified amount of time. */
+  // This is the timed run for a specified amount of time.
 
   optMaxIters = optNiters;
   double optTolerance = 0.0;  // Force optMaxIters iterations
-  //UNCOMMENT THIS LINE IN FUTURE! DONE FOR PROFILING PURPOSES
-  //TestNormsData testnorms_data;
+  TestNormsData testnorms_data;
   testnorms_data.samples = numberOfCgSets;
   testnorms_data.values = new double[numberOfCgSets];
 
@@ -402,4 +405,5 @@ int main(int argc, char * argv[]) {
   MPI_Finalize();
 #endif
   return 0;
+  */
 }
