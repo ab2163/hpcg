@@ -290,7 +290,7 @@ int main(int argc, char * argv[]) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
 #ifndef SELECT_STDEXEC
-    ierr = CG(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+    ierr = CG(A, data, b, x, optMaxIters, 5E-8, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
     CG_stdexec(sched, A, data, b, x, optMaxIters, 5E-8, niters, normr, normr0, &opt_times[0], true);

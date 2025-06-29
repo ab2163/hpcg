@@ -1,5 +1,10 @@
 #!/bin/bash
 
+#Needed for NVC compiler
+#otherwise I get a segmentation fault
+#increase stack size from 8MB to 16MB
+ulimit -s 16384
+
 mkdir build
 cd build
 
@@ -23,19 +28,19 @@ esac
 case "$1" in
   stdexec)
     echo "Compiling for stdexec"
-    make USERFLAGS=-DSELECT_STDEXEC
+    make USERFLAGS=-DSELECT_STDEXEC 2>&1 | tee build.log
     ;;
   stdpar)
     echo "Compiling for stdpar"
-    make USERFLAGS=-DSELECT_STDPAR
+    make USERFLAGS=-DSELECT_STDPAR 2>&1 | tee build.log
     ;;
   baseline)
     echo "Compiling for baseline"
-    make USERFLAGS=-DSELECT_BASELINE
+    make USERFLAGS=-DSELECT_BASELINE 2>&1 | tee build.log
     ;;
   *)
     echo "Compiling for baseline"
-    make USERFLAGS=-DSELECT_BASELINE
+    make USERFLAGS=-DSELECT_BASELINE 2>&1 | tee build.log
     ;;
 esac
 
