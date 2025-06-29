@@ -19,6 +19,10 @@
 #include "mytimer.hpp"
 #endif
 
+#include <ranges>
+#include <algorithm>
+#include <execution>
+
 auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector & xf){
 
   /*
@@ -32,11 +36,26 @@ auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector 
   })
   | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
   */
+  /*
   return stdexec::then([&](){ 
     double * xfv = xf.values;
     double * xcv = Af.mgData->xc->values;
     local_int_t * f2c = Af.mgData->f2cOperator;
     local_int_t nc = Af.mgData->rc->localLength;
     for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; 
+  });
+  */
+  return stdexec::then([&](){
+    if(time != NULL) *time -= mytimer();
+    double * xfv = xf.values;
+    double * xcv = Af.mgData->xc->values;
+    local_int_t * f2c = Af.mgData->f2cOperator;
+    local_int_t nc = Af.mgData->rc->localLength;
+    auto range = std::views::iota(0, nc);
+
+    std::for_each(std::execution::par, range.begin(), range.end(),
+      [&](int i) { xfv[f2c[i]] += xcv[i]; });
+    
+    if(time != NULL) *time += mytimer();
   });
 }
