@@ -308,6 +308,15 @@ int main(int argc, char * argv[]) {
 
     double current_time = opt_times[0] - last_cummulative_time;
     if (current_time > opt_worst_time) opt_worst_time = current_time;
+
+    std::cout << "OPTIMISED SETUP PHASE RESULTS:\n";
+    std::cout << "Number of CG calls: " << numberOfCalls << "\n";
+    std::cout << "Tolerance specified: " << refTolerance << "\n";
+    std::cout << "Tolerance (start): " << normr0 << "\n";
+    std::cout << "Tolerance (end): " << normr << "\n";
+    std::cout << "Maximum iterations specified: " << optMaxIters << "\n";
+    std::cout << "Iterations performed: " << niters << "\n";
+    std::cout << "Time taken: " << current_time << "\n";
   }
 
 #ifndef HPCG_NO_MPI

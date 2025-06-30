@@ -55,6 +55,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   });
 
   sync_wait(std::move(pre_loop_work));
+  int k = 1;
   
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
