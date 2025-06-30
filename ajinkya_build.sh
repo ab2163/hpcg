@@ -10,9 +10,9 @@ cd build
 
 #Run make and pass the relevant compilation flag
 case "$2" in
-  azure)
-    echo "Using azure path"
-    ~/hpcg/configure ajinkya_laptop_linux
+  hpc)
+    echo "Using hpc path"
+    ~/hpcg/configure ajinkya_hpc
     ;;
   laptop)
     echo "Using laptop path"
