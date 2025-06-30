@@ -25,7 +25,6 @@
 
 auto ComputeRestriction_stdexec(double * time, const SparseMatrix & A, const Vector & rf){
 
-  /*
   return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
   | stdexec::bulk(stdexec::par, A.mgData->rc->localLength,
     [&](int i){ 
@@ -36,7 +35,7 @@ auto ComputeRestriction_stdexec(double * time, const SparseMatrix & A, const Vec
       rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
   })
   | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
-  */
+  
   /*
   return stdexec::then([&](){ 
     double * Axfv = A.mgData->Axf->values;
@@ -47,6 +46,7 @@ auto ComputeRestriction_stdexec(double * time, const SparseMatrix & A, const Vec
     for (local_int_t i=0; i<nc; ++i) rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
   });
   */
+  /*
   return stdexec::then([&](){ 
     if(time != NULL) *time -= mytimer();
     double * Axfv = A.mgData->Axf->values;
@@ -60,5 +60,6 @@ auto ComputeRestriction_stdexec(double * time, const SparseMatrix & A, const Vec
       [&](int i) { rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; });
 
     if(time != NULL) *time += mytimer();
-  }); 
+  });
+  */
 }

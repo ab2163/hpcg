@@ -25,7 +25,6 @@
 
 auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector & xf){
 
-  /*
   return stdexec::then([&, time](){ if(time != NULL) *time -= mytimer(); })
   | stdexec::bulk(stdexec::par, Af.mgData->rc->localLength,
     [&](int i){
@@ -35,7 +34,7 @@ auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector 
       xfv[f2c[i]] += xcv[i];
   })
   | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
-  */
+  
   /*
   return stdexec::then([&](){ 
     double * xfv = xf.values;
@@ -45,6 +44,7 @@ auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector 
     for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; 
   });
   */
+  /*
   return stdexec::then([&](){
     if(time != NULL) *time -= mytimer();
     double * xfv = xf.values;
@@ -58,4 +58,5 @@ auto ComputeProlongation_stdexec(double * time, const SparseMatrix & Af, Vector 
     
     if(time != NULL) *time += mytimer();
   });
+  */
 }
