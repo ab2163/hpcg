@@ -215,8 +215,7 @@ int main(int argc, char * argv[]) {
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
-    //***MODIFICATION TO ORIGINAL***
-    //ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
@@ -292,11 +291,10 @@ int main(int argc, char * argv[]) {
     double last_cummulative_time = opt_times[0];
 //***ADDITION TO ORIGINAL*** IFNDEF STRUCTURE
 #ifndef SELECT_STDEXEC
-    //***MODIFICATION TO ORIGINAL*** SPECIFIC VALUE OF 5E-8 GIVEN
-    ierr = CG(A, data, b, x, optMaxIters, 5E-8, niters, normr, normr0, &opt_times[0], true);
+    ierr = CG(A, data, b, x, optMaxIters, optMaxIters, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
-    CG_stdexec(sched, A, data, b, x, optMaxIters, 5E-8, niters, normr, normr0, &opt_times[0], true);
+    CG_stdexec(sched, A, data, b, x, optMaxIters, optMaxIters, niters, normr, normr0, &opt_times[0], true);
 #endif
     // Convergence check accepts an error of no more than 6 significant digits of relTolerance
     if (normr / normr0 > refTolerance * (1.0 + 1.0e-6)) ++tolerance_failures; // the number of failures to reduce residual
@@ -331,16 +329,6 @@ int main(int argc, char * argv[]) {
 
   double total_runtime = params.runningTime;
   int numberOfCgSets = int(total_runtime / opt_worst_time) + 1; // Run at least once, account for rounding
-
-  //***ADDITION TO ORIGINAL*** PREMATURE REPORTING OF RESULTS AND TERMINATION OF SCRIPT
-  std::cout << "Runtime for run of CG in setup phase: " << opt_worst_time << "s\n";
-  TestNormsData testnorms_data;
-  testnorms_data.samples = numberOfCgSets;
-  testnorms_data.values = new double[numberOfCgSets];
-  //Report results to YAML file
-  ReportResults(A, numberOfMgLevels, 1, refMaxIters, optMaxIters, &opt_times[0], testcg_data, testsymmetry_data, testnorms_data, global_failure, quickPath);
-  return 0;
-  /*
 
 #ifdef HPCG_DEBUG
   if (rank==0) {
@@ -405,5 +393,4 @@ int main(int argc, char * argv[]) {
   MPI_Finalize();
 #endif
   return 0;
-  */
 }
