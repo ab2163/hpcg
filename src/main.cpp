@@ -1,3 +1,4 @@
+
 //@HEADER
 // ***************************************************
 //
@@ -27,15 +28,15 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
-#include <vector>
-#include <thread>
-
 #ifdef HPCG_DETAILED_DEBUG
 using std::cin;
 #endif
 using std::endl;
 
+#include <vector>
+
 #include "hpcg.hpp"
+
 #include "CheckAspectRatio.hpp"
 #include "GenerateGeometry.hpp"
 #include "GenerateProblem.hpp"
@@ -59,8 +60,6 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-#include "CG_stdexec.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
@@ -159,8 +158,11 @@ int main(int argc, char * argv[]) {
      curxexact = 0;
   }
 
+
   CGData data;
   InitializeSparseCGData(A, data);
+
+
 
   ////////////////////////////////////
   // Reference SpMV+MG Timing Phase //
@@ -174,6 +176,7 @@ int main(int argc, char * argv[]) {
   Vector x_overlap, b_computed;
   InitializeVector(x_overlap, ncol); // Overlapped copy of x vector
   InitializeVector(b_computed, nrow); // Computed RHS vector
+
 
   // Record execution time of reference SpMV and MG kernels for reporting times
   // First load vector with random values
@@ -235,6 +238,7 @@ int main(int argc, char * argv[]) {
   if (geom->size == 1) WriteProblem(*geom, A, b, x, xexact);
 #endif
 
+
   //////////////////////////////
   // Validation Testing Phase //
   //////////////////////////////
@@ -273,29 +277,12 @@ int main(int argc, char * argv[]) {
 
   std::vector< double > opt_times(9,0.0);
 
-  //***ADDITION TO ORIGINAL***
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0){
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-  else{
-    std::cout << "Thread pool size is " << num_threads << "\n";
-  }
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
-
   // Compute the residual reduction and residual count for the user ordering and optimized kernels.
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
-//***ADDITION TO ORIGINAL*** IFNDEF STRUCTURE
-#ifndef SELECT_STDEXEC
-    ierr = CG(A, data, b, x, optMaxIters, optMaxIters, niters, normr, normr0, &opt_times[0], true);
+    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
-#else
-    CG_stdexec(sched, A, data, b, x, optMaxIters, optMaxIters, niters, normr, normr0, &opt_times[0], true);
-#endif
     // Convergence check accepts an error of no more than 6 significant digits of relTolerance
     if (normr / normr0 > refTolerance * (1.0 + 1.0e-6)) ++tolerance_failures; // the number of failures to reduce residual
 
@@ -337,7 +324,7 @@ int main(int argc, char * argv[]) {
   }
 #endif
 
-  // This is the timed run for a specified amount of time.
+  /* This is the timed run for a specified amount of time. */
 
   optMaxIters = optNiters;
   double optTolerance = 0.0;  // Force optMaxIters iterations
@@ -347,13 +334,9 @@ int main(int argc, char * argv[]) {
 
   for (int i=0; i< numberOfCgSets; ++i) {
     ZeroVector(x); // Zero out x
-#ifndef SELECT_STDEXEC
-    ierr = CG(A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
+    ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
     if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
-#else
-    CG_stdexec(sched, A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
-#endif
-    if (rank == 0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
+    if (rank==0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
     testnorms_data.values[i] = normr/normr0; // Record scaled residual from this run
   }
 
@@ -385,6 +368,8 @@ int main(int argc, char * argv[]) {
   DeleteVector(x_overlap);
   DeleteVector(b_computed);
   delete [] testnorms_data.values;
+
+
 
   HPCG_Finalize();
 
