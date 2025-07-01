@@ -24,10 +24,14 @@
 #include "mytimer.hpp"
 #endif
 
+#include "ComputeSYMGS_ref.hpp"
+
 auto ComputeSYMGS_stdexec(double * time, const SparseMatrix & A, const Vector & r, Vector & x){
 
   return stdexec::then([&, time](){
     if(time != NULL) *time -= mytimer();
+    ComputeSYMGS_ref(A, r, x);
+    /*
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
 #ifndef HPCG_NO_MPI
     ExchangeHalo(A,x);
@@ -71,7 +75,7 @@ auto ComputeSYMGS_stdexec(double * time, const SparseMatrix & A, const Vector & 
       sum += xv[i]*currentDiagonal; //Remove diagonal contribution from previous loop
       xv[i] = sum/currentDiagonal;
     }
-
+    */
     if(time != NULL) *time += mytimer();
   });
 }

@@ -23,12 +23,16 @@
 #include <mpi.h>
 #endif
 
+#include "ComputeDotProduct_ref.hpp"
+
 auto ComputeDotProduct_stdexec(double * time, const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce){
 
   return stdexec::then([&, time, n](){
 
     if(time != NULL) *time -= mytimer();
+    ComputeDotProduct_ref(n, x, y, result, time_allreduce);
+    /*
     assert(x.localLength >= n); //Test vector lengths
     assert(y.localLength >= n);
 
@@ -58,6 +62,7 @@ auto ComputeDotProduct_stdexec(double * time, const local_int_t n, const Vector 
     time_allreduce += 0.0;
     result = local_result;
 #endif
+    */
     if(time != NULL) *time += mytimer();
   });
 }

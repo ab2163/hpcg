@@ -32,6 +32,8 @@
 #include "ExchangeHalo.hpp"
 #endif
 
+#include "ComputeSPMV_ref.hpp"
+
 auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vector & y){
   
   return stdexec::then([&, time](){
@@ -41,6 +43,10 @@ auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vec
 #ifndef HPCG_NO_MPI
     ExchangeHalo(A,x);
 #endif
+    ComputeSPMV_ref(A, x, y);
+    if(time != NULL) *time += mytimer();
+  });
+  /*
   })
   | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
     const double * const xv = x.values;
@@ -56,4 +62,5 @@ auto ComputeSPMV_stdexec(double * time, const SparseMatrix & A, Vector  & x, Vec
     );
   })
   | stdexec::then([&, time](){ if(time != NULL) *time += mytimer(); });
+  */
 }
