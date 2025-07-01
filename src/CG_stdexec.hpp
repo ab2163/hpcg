@@ -41,6 +41,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
   })
+  //SPMV: Ap = A*p
 #ifndef HPCG_NO_MPI
   | then([&](){ ExchangeHalo(A, p); })
 #endif
@@ -57,6 +58,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     Ap.values[i] = sum;
 
   })
+  //WAXPBY: r = b - Ax (x stored in p)
   | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
   | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | then([&](){
@@ -80,10 +82,28 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
     | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
-    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    //SPMV: Ap = A*p
+#ifndef HPCG_NO_MPI
+    | then([&](){ ExchangeHalo(A, p); })
+#endif
+    | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
+
+      double sum = 0.0;
+      double *cur_vals = A.matrixValues[i];
+      local_int_t *cur_inds = A.mtxIndL[i];
+      int cur_nnz = A.nonzerosInRow[i];
+      double *xv = p.values;
+
+      for(int j = 0; j < cur_nnz; j++)
+        sum += cur_vals[j]*xv[cur_inds[j]];
+      Ap.values[i] = sum;
+
+    })
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
+    //WAXPBY: x = x + alpha*p
     | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    //WAXPBY: r = r - alpha*Ap
     | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
@@ -107,11 +127,30 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ oldrtz = rtz; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
+    //WAXPBY: p = beta*p + z
     | bulk(stdexec::par, nrow, [&](local_int_t i){ p.values[i] = beta*p.values[i] + z.values[i]; })
-    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    //SPMV: Ap = A*p
+#ifndef HPCG_NO_MPI
+    | then([&](){ ExchangeHalo(A, p); })
+#endif
+    | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
+
+      double sum = 0.0;
+      double *cur_vals = A.matrixValues[i];
+      local_int_t *cur_inds = A.mtxIndL[i];
+      int cur_nnz = A.nonzerosInRow[i];
+      double *xv = p.values;
+
+      for(int j = 0; j < cur_nnz; j++)
+        sum += cur_vals[j]*xv[cur_inds[j]];
+      Ap.values[i] = sum;
+
+    })
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
+    //WAXPBY: x = x + alpha*p
     | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    //WAXPBY: r = r - alpha*Ap
     | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
