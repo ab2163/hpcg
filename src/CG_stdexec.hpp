@@ -7,6 +7,8 @@
 #include "ComputeDotProduct_stdexec.hpp"
 #include "ComputeWAXPBY_stdexec.hpp"
 
+#include "CG_ref.hpp"
+
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
@@ -20,6 +22,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
 
+  CG_ref(A, data, b, x, max_iter, tolerance, niters, normr, normr0, times, doPreconditioning);
+
+  /*
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
@@ -123,6 +128,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   });
 
   stdexec::sync_wait(std::move(store_times));
+  */
 
   return 0;
 }
