@@ -7,8 +7,6 @@
 #include "ComputeDotProduct_stdexec.hpp"
 #include "ComputeWAXPBY_stdexec.hpp"
 
-#include "CG_ref.hpp"
-
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
@@ -22,9 +20,6 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
 
-  CG_ref(A, data, b, x, max_iter, tolerance, niters, normr, normr0, times, doPreconditioning);
-
-  /*
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
@@ -35,13 +30,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
 
-  if (!doPreconditioning && A.geom->rank==0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
-
-#ifdef HPCG_DEBUG
-  int print_freq = 1;
-  if (print_freq > 50) print_freq = 50;
-  if (print_freq < 1)  print_freq = 1;
-#endif
+  if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
   sender auto pre_loop_work = schedule(scheduler) | then([&](){
     //p is of length ncols, copy x to p for sparse MV operation
@@ -67,8 +56,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
-    | then([&](){ TOCK(t5); }) //Preconditioner apply time
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, 0.0, z, p) //Copy Mr to p
+    | then([&](){ 
+      TOCK(t5); //Preconditioner apply time
+      CopyVector(z, p); }) //Copy Mr to p
     | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4) //rtz = r'*z
     | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
     | ComputeDotProduct_stdexec(&t1, nrow, p, Ap, pAp, t4) //alpha = p'*Ap
@@ -89,7 +79,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++){
+  for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
     sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
     | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
@@ -128,7 +118,6 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   });
 
   stdexec::sync_wait(std::move(store_times));
-  */
 
   return 0;
 }
