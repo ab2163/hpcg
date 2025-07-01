@@ -41,7 +41,22 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
   })
-  | then([&](){ ComputeSPMV_ref(A, p, Ap); })
+#ifndef HPCG_NO_MPI
+  | then([&](){ ExchangeHalo(A, p); })
+#endif
+  | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
+
+    double sum = 0.0;
+    double *cur_vals = A.matrixValues[i];
+    local_int_t *cur_inds = A.mtxIndL[i];
+    int cur_nnz = A.nonzerosInRow[i];
+    double *xv = p.values;
+
+    for(int j = 0; j < cur_nnz; j++)
+      sum += cur_vals[j]*xv[cur_inds[j]];
+    Ap.values[i] = sum;
+
+  })
   | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
   | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | then([&](){
