@@ -15,6 +15,7 @@ using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
 using stdexec::sync_wait;
+using stdexec::bulk;
 
 auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -41,7 +42,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     CopyVector(x, p); 
   })
   | then([&](){ ComputeSPMV_ref(A, p, Ap); })
-  | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r); })
+  | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
   | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | then([&](){
     normr = sqrt(normr);
@@ -67,8 +68,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
@@ -91,12 +92,12 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ oldrtz = rtz; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p); }) //p = beta*p + z
+    | bulk(stdexec::par, nrow, [&](local_int_t i){ p.values[i] = beta*p.values[i] + z.values[i]; })
     | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
