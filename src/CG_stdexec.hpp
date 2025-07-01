@@ -40,8 +40,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
   })
-  | then([&](){ ComputeSPMV_ref(A, p, Ap); })
-  | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r); })
+  | ComputeSPMV_stdexec(&t3, A, p, Ap)
+  | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, b, -1.0, Ap, r)
   | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | then([&](){
     normr = sqrt(normr);
@@ -64,11 +64,11 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
     | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
-    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x) //x = x + alpha*p
+    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r) //r = r - alpha*Ap
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
@@ -91,12 +91,12 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ oldrtz = rtz; })
     | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p); }) //p = beta*p + z
-    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, beta, p, p) //p = beta*p + z
+    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
     | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
-    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x) //x = x + alpha*p
+    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r) //r = r - alpha*Ap
     | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
