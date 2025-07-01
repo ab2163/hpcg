@@ -32,13 +32,17 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
+#ifdef HPCG_DEBUG
+  int print_freq = 1;
+#endif
+
   sender auto pre_loop_work = schedule(scheduler) | then([&](){
     //p is of length ncols, copy x to p for sparse MV operation
     CopyVector(x, p); 
   })
-  | ComputeSPMV_stdexec(&t3, A, p, Ap)
-  | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, b, -1.0, Ap, r)
-  | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4)
+  | then([&](){ ComputeSPMV_ref(A, p, Ap); })
+  | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, b, -1.0, Ap, r); })
+  | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -55,17 +59,17 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-    | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
+    | then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
     | then([&](){ 
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
-    | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4) //rtz = r'*z
-    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
-    | ComputeDotProduct_stdexec(&t1, nrow, p, Ap, pAp, t4) //alpha = p'*Ap
+    | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
+    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x) //x = x + alpha*p
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r) //r = r - alpha*Ap
-    | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4)
+    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
+    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
@@ -82,18 +86,18 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
     sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
-    | ComputeMG_stdexec(NULL, A, r, z) //Apply preconditioner
+    | then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
-    | (then([&](){ oldrtz = rtz; })
-    | ComputeDotProduct_stdexec(&t1, nrow, r, z, rtz, t4) //rtz = r'*z
+    | then([&](){ oldrtz = rtz; })
+    | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, z, beta, p, p)) //p = beta*p + z
-    | ComputeSPMV_stdexec(&t3, A, p, Ap) //Ap = A*p
-    | ComputeDotProduct_stdexec(&t1, nrow, p, Ap, pAp, t4) //alpha = p'*Ap
+    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, z, beta, p, p); }) //p = beta*p + z
+    | then([&](){ ComputeSPMV_ref(A, p, Ap); }) //Ap = A*p
+    | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, x, alpha, p, x) //x = x + alpha*p
-    | ComputeWAXPBY_stdexec(&t2, nrow, 1.0, r, -alpha, Ap, r) //r = r - alpha*Ap
-    | ComputeDotProduct_stdexec(&t1, nrow, r, r, normr, t4)
+    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, x, alpha, p, x); }) //x = x + alpha*p
+    | then([&](){ ComputeWAXPBY_ref(nrow, 1.0, r, -alpha, Ap, r); }) //r = r - alpha*Ap
+    | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
