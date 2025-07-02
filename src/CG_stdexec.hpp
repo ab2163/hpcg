@@ -30,6 +30,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   Vector & z = data.z; //Preconditioned residual vector
   Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
+  std::atomic<double> dot_local_result(0.0); //for summing within dot product
+  double dot_local_copy; //for passing into MPIAllReduce within dot product 
+
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -39,7 +42,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
   sender auto pre_loop_work = schedule(scheduler) | then([&](){
     //p is of length ncols, copy x to p for sparse MV operation
-    CopyVector(x, p); 
+    CopyVector(x, p);
   })
   //SPMV: Ap = A*p
 #ifndef HPCG_NO_MPI
@@ -60,7 +63,19 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   })
   //WAXPBY: r = b - Ax (x stored in p)
   | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
-  | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
+  //| then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
+  | then([&](){ dot_local_result = 0.0; })
+  | bulk(stdexec::par, nrow, [&](local_int_t i){ 
+    dot_local_result.fetch_add(r.values[i]*r.values[i], std::memory_order_relaxed); })
+#ifndef HPCG_NO_MPI
+  | then([&](){ 
+    //ASSUMING DOT_LOCAL_COPY IS UNIQUE TO EACH MPI PROCESS?
+    dot_local_copy = dot_local_result.load();
+    //ASSUMING THAT NORMR IS OVERWRITTEN (AND NOT ADDED TO)?
+    MPI_Allreduce(&dot_local_copy, &normr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);})
+#else
+  | then([&](){ normr = dot_local_result; })
+#endif
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
