@@ -48,13 +48,13 @@ auto ComputeMG_stdexec(double * time, const SparseMatrix  & A, const Vector & r,
 
   return stdexec::then([&, time](){
     if(time != NULL) *time -= mytimer();
-    /*
+    
     assert(x.localLength == A.localNumberOfColumns); //Make sure x contain space for halo values
     ZeroVector(x); //initialize x to zero
-    */
-    ComputeMG_ref(A, r, x);
+    
+    //ComputeMG_ref(A, r, x);
   })
-  /*
+  
   | preRecursionMG(*matrix_ptrs[0], *res_ptrs[0], *xval_ptrs[0])
   | preRecursionMG(*matrix_ptrs[1], *res_ptrs[1], *xval_ptrs[1])
   | preRecursionMG(*matrix_ptrs[2], *res_ptrs[2], *xval_ptrs[2])
@@ -62,7 +62,7 @@ auto ComputeMG_stdexec(double * time, const SparseMatrix  & A, const Vector & r,
   | postRecursionMG(*matrix_ptrs[2], *res_ptrs[2], *xval_ptrs[2])
   | postRecursionMG(*matrix_ptrs[1], *res_ptrs[1], *xval_ptrs[1])
   | postRecursionMG(*matrix_ptrs[0], *res_ptrs[0], *xval_ptrs[0])
-  */
+  
   | stdexec::then([&, time](){
       if(time != NULL) *time += mytimer(); });
 }
