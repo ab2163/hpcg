@@ -207,12 +207,10 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
-  sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
+  sender auto first_loop = schedule(scheduler)
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | COMPUTE_MG()
-    | then([&](){ 
-      TOCK(t5); //Preconditioner apply time
-      CopyVector(z, p); }) //Copy Mr to p
+    | then([&](){ CopyVector(z, p); }) //Copy Mr to p
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     //SPMV: Ap = A*p
     | SPMV(A, p, Ap)
@@ -223,8 +221,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //WAXPBY: r = r - alpha*Ap
     | WAXPBY(1, r, -alpha, Ap, r)
     | COMPUTE_DOT_PRODUCT(r, r, normr)
-    | then([&](){ normr = sqrt(normr); })
-    | then([&](){
+    | then([&](){ 
+      normr = sqrt(normr);
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
@@ -238,9 +236,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
-    sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
+    sender auto subsequent_loop = schedule(scheduler)
     | COMPUTE_MG()
-    | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
@@ -255,8 +252,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //WAXPBY: r = r - alpha*Ap
     | WAXPBY(1, r, -alpha, Ap, r)
     | COMPUTE_DOT_PRODUCT(r, r, normr)
-    | then([&](){ normr = sqrt(normr); })
-    | then([&](){
+    | then([&](){ 
+      normr = sqrt(normr); 
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
@@ -274,7 +271,6 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     times[3] += t3; //SPMV time
     times[4] += t4; //AllReduce time
     times[5] += t5; //preconditioner apply time
-
     times[0] += mytimer() - t_begin;  //Total time. All done...
   });
 
