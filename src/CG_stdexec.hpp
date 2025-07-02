@@ -117,6 +117,7 @@ using stdexec::bulk;
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x) \
   then([&](){ \
+    ZeroVector((x)); \
     SYMGS((A), (r), (x)) \
   }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
