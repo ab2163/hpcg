@@ -64,10 +64,11 @@ using stdexec::bulk;
 #endif
 
 #define SYMGS(A, r, x) \
+  nrow_SYMGS = (A).localNumberOfRows; \
   matrixDiagonal = (A).matrixDiagonal; \
   rv = (r).values; \
   xv = (x).values; \
-  for(local_int_t i = 0; i < nrow; i++){ \
+  for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
     const double * const currentValues = (A).matrixValues[i]; \
     const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
     const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
@@ -80,7 +81,7 @@ using stdexec::bulk;
     sum += xv[i]*currentDiagonal; \
     xv[i] = sum/currentDiagonal; \
   } \
-  for(local_int_t i = nrow - 1; i >= 0; i--){ \
+  for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
     const double * const currentValues = (A).matrixValues[i]; \
     const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
     const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
@@ -170,6 +171,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   }
 
   //used in SYMGS - declare here to avoid redeclarations
+  local_int_t nrow_SYMGS;
   double **matrixDiagonal;
   double *rv;
   double *xv;

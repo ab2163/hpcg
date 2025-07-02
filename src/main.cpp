@@ -60,7 +60,7 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-#include "CG_stdexec_expanded.hpp"
+#include "CG_stdexec.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
 /*!
