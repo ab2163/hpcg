@@ -63,6 +63,83 @@ using stdexec::bulk;
   })
 #endif
 
+#define SYMGS(A, r, x) \
+  matrixDiagonal = (A).matrixDiagonal; \
+  rv = (r).values; \
+  xv = (x).values; \
+  for(local_int_t i = 0; i < nrow; i++){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j] * xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  } \
+  for(local_int_t i = nrow - 1; i >= 0; i--){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j]*xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  }
+
+#define RESTRICTION(A, rf) \
+  stdexec::bulk(stdexec::par, (A).mgData->rc->localLength, \
+    [&](int i){ \
+    double * Axfv = (A).mgData->Axf->values; \
+    double * rfv = (rf).values; \
+    double * rcv = (A).mgData->rc->values; \
+    local_int_t * f2c = (A).mgData->f2cOperator; \
+    rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; \
+  })
+
+#define PROLONGATION(Af, xf) \
+  stdexec::bulk(stdexec::par, (Af).mgData->rc->localLength, \
+    [&](int i){ \
+    double * xfv = (xf).values; \
+    double * xcv = (Af).mgData->xc->values; \
+    local_int_t * f2c = (Af).mgData->f2cOperator; \
+    xfv[f2c[i]] += xcv[i]; \
+  })
+
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
+#define PRE_RECURSION_MG(A, r, x) \
+  then([&](){ \
+    SYMGS((A), (r), (x)) \
+    SYMGS((A), (r), (x)) \
+    SYMGS((A), (r), (x)) \
+  }) \
+  | SPMV((A), (x), *((A).mgData->Axf)) \
+  | RESTRICTION((A), (r))
+
+#define POST_RECURSION_MG(A, r, x) \
+  PROLONGATION((A), (x)) \
+  | then([&](){ \
+    SYMGS((A), (r), (x)) \
+    SYMGS((A), (r), (x)) \
+    SYMGS((A), (r), (x)) \
+  })
+
+#define COMPUTE_MG() \
+  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]) \
+  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
+  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
+  | SPMV(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
+  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
+  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
+  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0])
+
 auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
@@ -77,8 +154,25 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
   std::atomic<double> dot_local_result(0.0); //for summing within dot product
-  double dot_local_copy; //for passing into MPIAllReduce within dot product 
+  double dot_local_copy; //for passing into MPIAllReduce within dot product
 
+  //variables needed for MG computation
+  std::vector<const SparseMatrix*> matrix_ptrs(4);
+  std::vector<const Vector*> res_ptrs(4);
+  std::vector<Vector*> zval_ptrs(4);
+  matrix_ptrs[0] = &A;
+  res_ptrs[0] = &r;
+  zval_ptrs[0] = &z;
+  for(int cnt = 1; cnt < 4; cnt++){
+    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
+    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
+    zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
+  }
+
+  //used in SYMGS - declare here to avoid redeclarations
+  double **matrixDiagonal;
+  double *rv;
+  double *xv;
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -112,7 +206,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     //| then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
-    | ComputeMG_stdexec(NULL, A, r, z)
+    | COMPUTE_MG()
     | then([&](){ 
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
@@ -143,7 +237,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
     sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
     //| then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
-    | ComputeMG_stdexec(NULL, A, r, z)
+    | COMPUTE_MG()
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
