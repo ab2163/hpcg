@@ -33,6 +33,9 @@ using stdexec::bulk;
   | then([&](){ (RESULT) = dot_local_result.load(); })
 #endif
 
+#define WAXPBY(ALPHA, X, BETA, Y, W) \
+  bulk(stdexec::par, nrow, [&](local_int_t i){ (W).values[i] = (ALPHA)*(X).values[i] + (BETA)*(Y).values[i]; })
+
 auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
@@ -78,7 +81,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 
   })
   //WAXPBY: r = b - Ax (x stored in p)
-  | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
+  | WAXPBY(1, b, -1, Ap, r)
   //| then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | COMPUTE_DOT_PRODUCT(r, r, normr)
   | then([&](){
@@ -122,9 +125,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
-    | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    | WAXPBY(1, x, alpha, p, x)
     //WAXPBY: r = r - alpha*Ap
-    | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
+    | WAXPBY(1, r, -alpha, Ap, r)
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
@@ -148,7 +151,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
     //WAXPBY: p = beta*p + z
-    | bulk(stdexec::par, nrow, [&](local_int_t i){ p.values[i] = beta*p.values[i] + z.values[i]; })
+    | WAXPBY(1, z, beta, p, p)
     //SPMV: Ap = A*p
 #ifndef HPCG_NO_MPI
     | then([&](){ ExchangeHalo(A, p); })
@@ -169,9 +172,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
-    | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
+    | WAXPBY(1, x, alpha, p, x)
     //WAXPBY: r = r - alpha*Ap
-    | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
+    | WAXPBY(1, r, -alpha, Ap, r)
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
