@@ -101,7 +101,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ 
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
-    | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     //SPMV: Ap = A*p
 #ifndef HPCG_NO_MPI
     | then([&](){ ExchangeHalo(A, p); })
@@ -119,13 +119,13 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       Ap.values[i] = sum;
 
     })
-    | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
+    | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
     | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
     //WAXPBY: r = r - alpha*Ap
     | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
-    | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
+    | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
@@ -145,7 +145,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | then([&](){ oldrtz = rtz; })
-    | then([&](){ ComputeDotProduct_ref(nrow, r, z, rtz, t4); }) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
     //WAXPBY: p = beta*p + z
     | bulk(stdexec::par, nrow, [&](local_int_t i){ p.values[i] = beta*p.values[i] + z.values[i]; })
@@ -166,13 +166,13 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       Ap.values[i] = sum;
 
     })
-    | then([&](){ ComputeDotProduct_ref(nrow, p, Ap, pAp, t4); }) //alpha = p'*Ap
+    | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
     | bulk(stdexec::par, nrow, [&](local_int_t i){ x.values[i] = x.values[i] + alpha*p.values[i]; })
     //WAXPBY: r = r - alpha*Ap
     | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = r.values[i] - alpha*Ap.values[i]; })
-    | then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
+    | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ normr = sqrt(normr); })
     | then([&](){
 #ifdef HPCG_DEBUG
