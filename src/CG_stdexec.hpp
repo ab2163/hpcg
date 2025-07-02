@@ -17,6 +17,22 @@ using stdexec::schedule;
 using stdexec::sync_wait;
 using stdexec::bulk;
 
+#ifndef HPCG_NO_MPI
+#define COMPUTE_DOT_PRODUCT(VEC1, VEC2, RESULT) \
+  then([&](){ dot_local_result = 0.0; }) \
+  | bulk(stdexec::par, nrow, [&](local_int_t i){ \
+    dot_local_result.fetch_add((VEC1).values[i]*(VEC2).values[i], std::memory_order_relaxed); }) \
+  | then([&](){ \
+    dot_local_copy = dot_local_result.load(); \
+    MPI_Allreduce(&dot_local_copy, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);})
+#else
+#define COMPUTE_DOT_PRODUCT(VEC1, VEC2, RESULT) \
+  then([&](){ dot_local_result = 0.0; }) \
+  | bulk(stdexec::par, nrow, [&](local_int_t i){ \
+    dot_local_result.fetch_add((VEC1).values[i]*(VEC2).values[i], std::memory_order_relaxed); }) \
+  | then([&](){ (RESULT) = dot_local_result.load(); })
+#endif
+
 auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
@@ -64,18 +80,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //WAXPBY: r = b - Ax (x stored in p)
   | bulk(stdexec::par, nrow, [&](local_int_t i){ r.values[i] = b.values[i] - Ap.values[i]; })
   //| then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
-  | then([&](){ dot_local_result = 0.0; })
-  | bulk(stdexec::par, nrow, [&](local_int_t i){ 
-    dot_local_result.fetch_add(r.values[i]*r.values[i], std::memory_order_relaxed); })
-#ifndef HPCG_NO_MPI
-  | then([&](){ 
-    //ASSUMING DOT_LOCAL_COPY IS UNIQUE TO EACH MPI PROCESS?
-    dot_local_copy = dot_local_result.load();
-    //ASSUMING THAT NORMR IS OVERWRITTEN (AND NOT ADDED TO)?
-    MPI_Allreduce(&dot_local_copy, &normr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);})
-#else
-  | then([&](){ normr = dot_local_result; })
-#endif
+  | COMPUTE_DOT_PRODUCT(r, r, normr)
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
