@@ -129,11 +129,16 @@ using stdexec::bulk;
     SYMGS((A), (r), (x)) \
   })
 
+#define TERMINAL_MG(A, r, x) \
+  then([&](){ ZeroVector((x)); \
+    SYMGS((A), (r), (x)) \
+  })
+  
 #define COMPUTE_MG() \
   PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]) \
   | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
   | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
-  | SPMV(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
+  | TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
   | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
   | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0])
