@@ -118,8 +118,6 @@ using stdexec::bulk;
 #define PRE_RECURSION_MG(A, r, x) \
   then([&](){ \
     SYMGS((A), (r), (x)) \
-    SYMGS((A), (r), (x)) \
-    SYMGS((A), (r), (x)) \
   }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
   | RESTRICTION((A), (r))
@@ -127,8 +125,6 @@ using stdexec::bulk;
 #define POST_RECURSION_MG(A, r, x) \
   PROLONGATION((A), (x)) \
   | then([&](){ \
-    SYMGS((A), (r), (x)) \
-    SYMGS((A), (r), (x)) \
     SYMGS((A), (r), (x)) \
   })
 
