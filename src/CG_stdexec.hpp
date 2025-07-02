@@ -36,6 +36,33 @@ using stdexec::bulk;
 #define WAXPBY(ALPHA, X, BETA, Y, W) \
   bulk(stdexec::par, nrow, [&](local_int_t i){ (W).values[i] = (ALPHA)*(X).values[i] + (BETA)*(Y).values[i]; })
 
+#ifndef HPCG_NO_MPI
+#define SPMV(A, x, y) \
+  then([&](){ ExchangeHalo((A), (x)); }) \
+  | stdexec::bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+    double sum = 0.0; \
+    double *cur_vals = (A).matrixValues[i]; \
+    local_int_t *cur_inds = (A).mtxIndL[i]; \
+    int cur_nnz = (A).nonzerosInRow[i]; \
+    double *xv = (x).values; \
+    for(int j = 0; j < cur_nnz; j++) \
+      sum += cur_vals[j]*xv[cur_inds[j]]; \
+    (y).values[i] = sum; \
+  })
+#else
+#define SPMV(A, x, y) \
+  stdexec::bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+    double sum = 0.0; \
+    double *cur_vals = (A).matrixValues[i]; \
+    local_int_t *cur_inds = (A).mtxIndL[i]; \
+    int cur_nnz = (A).nonzerosInRow[i]; \
+    double *xv = (x).values; \
+    for(int j = 0; j < cur_nnz; j++) \
+      sum += cur_vals[j]*xv[cur_inds[j]]; \
+    (y).values[i] = sum; \
+  })
+#endif
+
 auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
@@ -64,25 +91,9 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     CopyVector(x, p);
   })
   //SPMV: Ap = A*p
-#ifndef HPCG_NO_MPI
-  | then([&](){ ExchangeHalo(A, p); })
-#endif
-  | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
-
-    double sum = 0.0;
-    double *cur_vals = A.matrixValues[i];
-    local_int_t *cur_inds = A.mtxIndL[i];
-    int cur_nnz = A.nonzerosInRow[i];
-    double *xv = p.values;
-
-    for(int j = 0; j < cur_nnz; j++)
-      sum += cur_vals[j]*xv[cur_inds[j]];
-    Ap.values[i] = sum;
-
-  })
+  | SPMV(A, p, Ap)
   //WAXPBY: r = b - Ax (x stored in p)
   | WAXPBY(1, b, -1, Ap, r)
-  //| then([&](){ ComputeDotProduct_ref(nrow, r, r, normr, t4); })
   | COMPUTE_DOT_PRODUCT(r, r, normr)
   | then([&](){
     normr = sqrt(normr);
@@ -106,22 +117,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       CopyVector(z, p); }) //Copy Mr to p
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     //SPMV: Ap = A*p
-#ifndef HPCG_NO_MPI
-    | then([&](){ ExchangeHalo(A, p); })
-#endif
-    | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
-
-      double sum = 0.0;
-      double *cur_vals = A.matrixValues[i];
-      local_int_t *cur_inds = A.mtxIndL[i];
-      int cur_nnz = A.nonzerosInRow[i];
-      double *xv = p.values;
-
-      for(int j = 0; j < cur_nnz; j++)
-        sum += cur_vals[j]*xv[cur_inds[j]];
-      Ap.values[i] = sum;
-
-    })
+    | SPMV(A, p, Ap)
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
@@ -153,22 +149,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     //WAXPBY: p = beta*p + z
     | WAXPBY(1, z, beta, p, p)
     //SPMV: Ap = A*p
-#ifndef HPCG_NO_MPI
-    | then([&](){ ExchangeHalo(A, p); })
-#endif
-    | stdexec::bulk(stdexec::par, A.localNumberOfRows, [&](local_int_t i){
-
-      double sum = 0.0;
-      double *cur_vals = A.matrixValues[i];
-      local_int_t *cur_inds = A.mtxIndL[i];
-      int cur_nnz = A.nonzerosInRow[i];
-      double *xv = p.values;
-
-      for(int j = 0; j < cur_nnz; j++)
-        sum += cur_vals[j]*xv[cur_inds[j]];
-      Ap.values[i] = sum;
-
-    })
+    | SPMV(A, p, Ap)
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     //WAXPBY: x = x + alpha*p
