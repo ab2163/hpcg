@@ -111,7 +111,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   sender auto first_loop = schedule(scheduler) | then([&](){ TICK(); })
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-    | then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
+    //| then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
+    | ComputeMG_stdexec(NULL, A, r, z)
     | then([&](){ 
       TOCK(t5); //Preconditioner apply time
       CopyVector(z, p); }) //Copy Mr to p
@@ -141,7 +142,8 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
     sender auto subsequent_loop = schedule(scheduler) | then([&](){ TICK(); })
-    | then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
+    //| then([&](){ ComputeMG_ref(A, r, z); }) //Apply preconditioner
+    | ComputeMG_stdexec(NULL, A, r, z)
     | then([&](){ TOCK(t5); }) //Preconditioner apply time
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
