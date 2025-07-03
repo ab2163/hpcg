@@ -190,26 +190,21 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 #endif
 
   sender auto pre_loop_work = schedule(scheduler) | then([&](){
-    //p is of length ncols, copy x to p for sparse MV operation
-    CopyVector(x, p);
+    CopyVector(x, p); //p is of length ncols, copy x to p for sparse MV operation
   })
-  //SPMV: Ap = A*p
-  | SPMV(A, p, Ap)
-  //WAXPBY: r = b - Ax (x stored in p)
-  | WAXPBY(1, b, -1, Ap, r)
+  | SPMV(A, p, Ap) //SPMV: Ap = A*p
+  | WAXPBY(1, b, -1, Ap, r) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(r, r, normr)
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
 #endif
-    //Record initial residual for convergence testing
-    normr0 = normr;
+    normr0 = normr; //Record initial residual for convergence testing
   });
-
   sync_wait(std::move(pre_loop_work));
-  int k = 1;
   
+  int k = 1;
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   sender auto first_loop = schedule(scheduler)
@@ -217,14 +212,11 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
     | COMPUTE_MG()
     | then([&](){ CopyVector(z, p); }) //Copy Mr to p
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
-    //SPMV: Ap = A*p
-    | SPMV(A, p, Ap)
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, x, alpha, p, x)
-    //WAXPBY: r = r - alpha*Ap
-    | WAXPBY(1, r, -alpha, Ap, r)
+    | WAXPBY(1, x, alpha, p, x) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r, -alpha, Ap, r) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ 
       normr = sqrt(normr);
@@ -234,28 +226,22 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 #endif
       niters = 1;
     });
-
     sync_wait(std::move(first_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
-
     sender auto subsequent_loop = schedule(scheduler)
     | COMPUTE_MG()
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    //WAXPBY: p = beta*p + z
-    | WAXPBY(1, z, beta, p, p)
-    //SPMV: Ap = A*p
-    | SPMV(A, p, Ap)
+    | WAXPBY(1, z, beta, p, p) //WAXPBY: p = beta*p + z
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, x, alpha, p, x)
-    //WAXPBY: r = r - alpha*Ap
-    | WAXPBY(1, r, -alpha, Ap, r)
+    | WAXPBY(1, x, alpha, p, x) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r, -alpha, Ap, r) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ 
       normr = sqrt(normr); 
@@ -265,16 +251,13 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
 #endif
       niters = k;
     });
-
     sync_wait(std::move(subsequent_loop));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
     times[0] += mytimer() - t_begin;  //Total time
   });
-
   sync_wait(std::move(store_times));
-
   return 0;
 }
 
