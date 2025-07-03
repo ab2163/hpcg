@@ -1,11 +1,18 @@
 #include <fstream>
 #include <cmath>
+#include <algorithm>
+#include <execution>
+#include <atomic>
+#include <ranges>
 
 #include "CGData.hpp"
 #include "hpcg.hpp"
-#include "ComputeMG_stdexec.hpp"
-#include "ComputeDotProduct_stdexec.hpp"
-#include "ComputeWAXPBY_stdexec.hpp"
+
+#ifndef EXECUTION_INCLUDED
+#define EXECUTION_INCLUDED
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
+#endif
 
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
