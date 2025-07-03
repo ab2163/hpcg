@@ -1,18 +1,16 @@
-#include <fstream>
 #include <cmath>
 #include <algorithm>
 #include <execution>
 #include <atomic>
 #include <ranges>
 
-#include "CGData.hpp"
-#include "hpcg.hpp"
-
-#ifndef EXECUTION_INCLUDED
-#define EXECUTION_INCLUDED
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
-#endif
+
+//Already included in main.cpp:
+//#include <fstream>
+//#include "CGData.hpp"
+//#include "hpcg.hpp"
 
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
@@ -46,7 +44,7 @@ using stdexec::bulk;
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | stdexec::bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -58,7 +56,7 @@ using stdexec::bulk;
   })
 #else
 #define SPMV(A, x, y) \
-  stdexec::bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+  bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -103,7 +101,7 @@ using stdexec::bulk;
   }
 
 #define RESTRICTION(A, rf) \
-  stdexec::bulk(stdexec::par, (A).mgData->rc->localLength, \
+  bulk(stdexec::par, (A).mgData->rc->localLength, \
     [&](int i){ \
     double * Axfv = (A).mgData->Axf->values; \
     double * rfv = (rf).values; \
@@ -113,7 +111,7 @@ using stdexec::bulk;
   })
 
 #define PROLONGATION(Af, xf) \
-  stdexec::bulk(stdexec::par, (Af).mgData->rc->localLength, \
+  bulk(stdexec::par, (Af).mgData->rc->localLength, \
     [&](int i){ \
     double * xfv = (xf).values; \
     double * xcv = (Af).mgData->xc->values; \
@@ -237,7 +235,7 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       niters = 1;
     });
 
-    stdexec::sync_wait(std::move(first_loop));
+    sync_wait(std::move(first_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
@@ -268,20 +266,14 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
       niters = k;
     });
 
-    stdexec::sync_wait(std::move(subsequent_loop));
+    sync_wait(std::move(subsequent_loop));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
-    //Store times
-    times[1] += t1; //dot-product time
-    times[2] += t2; //WAXPBY time
-    times[3] += t3; //SPMV time
-    times[4] += t4; //AllReduce time
-    times[5] += t5; //preconditioner apply time
-    times[0] += mytimer() - t_begin;  //Total time. All done...
+    times[0] += mytimer() - t_begin;  //Total time
   });
 
-  stdexec::sync_wait(std::move(store_times));
+  sync_wait(std::move(store_times));
 
   return 0;
 }
