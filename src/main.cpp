@@ -305,6 +305,10 @@ int main(int argc, char * argv[]) {
     std::cout << "Maximum iterations specified: " << optMaxIters << "\n";
     std::cout << "Iterations performed: " << niters << "\n";
     std::cout << "Time taken: " << current_time << "\n";
+    std::cout << "Dot product time: " << opt_times[1] << "\n";
+    std::cout << "WAXPBY time: " << opt_times[2] << "\n";
+    std::cout << "SPMV time: " << opt_times[3] << "\n";
+    std::cout << "MG time: " << opt_times[4] << "\n";
   }
 
 #ifndef HPCG_NO_MPI
