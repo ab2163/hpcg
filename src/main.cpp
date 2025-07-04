@@ -308,7 +308,7 @@ int main(int argc, char * argv[]) {
     std::cout << "Dot product time: " << opt_times[1] << "\n";
     std::cout << "WAXPBY time: " << opt_times[2] << "\n";
     std::cout << "SPMV time: " << opt_times[3] << "\n";
-    std::cout << "MG time: " << opt_times[4] << "\n";
+    std::cout << "MG time: " << opt_times[5] << "\n";
   }
 
 #ifndef HPCG_NO_MPI

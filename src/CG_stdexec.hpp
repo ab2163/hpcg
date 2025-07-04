@@ -152,6 +152,7 @@ using stdexec::just;
 
 #define TW TIMING_WRAPPER
 #define TIMING_SCHEDULER scheduler
+#define NUM_MG_LEVELS 4
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -170,24 +171,24 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double dot_local_copy; //for passing into MPIAllReduce within dot product
 
   //variables needed for MG computation
-  std::vector<const SparseMatrix*> matrix_ptrs(4);
-  std::vector<const Vector*> res_ptrs(4);
-  std::vector<Vector*> zval_ptrs(4);
-  std::vector<double*> Axfv_ptrs(3);
-  std::vector<double*> rfv_ptrs(3);
-  std::vector<double*> rcv_ptrs(3);
-  std::vector<local_int_t*> f2c_ptrs(3);
-  std::vector<double*> xfv_ptrs(3);
-  std::vector<double*> xcv_ptrs(3);
+  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
+  std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
+  std::vector<Vector*> zval_ptrs(NUM_MG_LEVELS);
+  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
   matrix_ptrs[0] = &A;
   res_ptrs[0] = &r;
   zval_ptrs[0] = &z;
-  for(int cnt = 1; cnt < 4; cnt++){
+  for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
     matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
     res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
     zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
   }
-  for(int cnt = 0; cnt < 3; cnt++){
+  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
     Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
     rfv_ptrs[cnt] = res_ptrs[cnt]->values;
     rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
