@@ -15,6 +15,22 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 
+#ifdef TIMING_ON
+#define TIMING_WRAPPER(func, timeVar) \
+  (std::invoke([&](){ \
+    double startTime = mytimer(); \
+    sync_wait(schedule(TIMING_SCHEDULER) | (func)); \
+    (timeVar) += mytimer() - startTime; \
+    return then([](){}); \
+  }))
+#else
+#define TIMING_WRAPPER(func, timeVar) (func)
+#endif
+
+#define TW TIMING_WRAPPER
+#define TIMING_SCHEDULER scheduler
+#define NUM_MG_LEVELS 4
+
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ dot_local_result = 0.0; }) \
@@ -115,11 +131,11 @@ using stdexec::just;
     SYMGS((A), (r), (x)) \
     t_SYMGS += mytimer() - t_tmp; \
   }) \
-  | SPMV((A), (x), *((A).mgData->Axf)) \
-  | RESTRICTION((A), (r), (level))
+  | TW(SPMV((A), (x), *((A).mgData->Axf)), t_SPMV) \
+  | TW(RESTRICTION((A), (r), (level)), t_restrict)
 
 #define POST_RECURSION_MG(A, r, x, level) \
-  PROLONGATION((A), (x), (level)) \
+  TW(PROLONGATION((A), (x), (level)), t_prolong) \
   | then([&](){ \
     t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
@@ -144,22 +160,6 @@ using stdexec::just;
   | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
   | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
-
-#ifdef TIMING_ON
-#define TIMING_WRAPPER(func, timeVar) \
-  (std::invoke([&](){ \
-    double startTime = mytimer(); \
-    sync_wait(schedule(TIMING_SCHEDULER) | (func)); \
-    (timeVar) += mytimer() - startTime; \
-    return then([](){}); \
-  }))
-#else
-#define TIMING_WRAPPER(func, timeVar) (func)
-#endif
-
-#define TW TIMING_WRAPPER
-#define TIMING_SCHEDULER scheduler
-#define NUM_MG_LEVELS 4
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -308,6 +308,11 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     times[4] += 0.0; //AllReduce time
     times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
+    std::cout << "ADDITIONAL TIME DATA:\n";
+    std::cout << "Zero Vector Time : " << t_zeroVector << "\n";
+    std::cout << "SYMGS Time : " << t_SYMGS << "\n";
+    std::cout << "Restriction Time : " << t_restrict << "\n";
+    std::cout << "Prolongation Time : " << t_prolong << "\n";
   });
   sync_wait(std::move(store_times));
   return 0;
