@@ -8,10 +8,6 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
-//Use TICK and TOCK to time a code section in MATLAB-like fashion
-#define TICK()  t0 = mytimer() //!< record current time in 't0'
-#define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
-
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -214,11 +210,11 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
-    std::cerr << "Unable to determine thread pool size.\n";
+    std::cerr << "ERROR: CANNOT DETERMINE THREAD POOL SIZE.\n";
     std::exit(EXIT_FAILURE);
   }
   else{
-    std::cout << "Thread pool size is " << num_threads << ".\n";
+    std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
