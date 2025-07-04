@@ -108,8 +108,12 @@ using stdexec::just;
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x, level) \
   then([&](){ \
+    t_tmp = mytimer(); \
     ZeroVector((x)); \
+    t_zeroVector += mytimer() - t_tmp; \
+    t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
+    t_SYMGS += mytimer() - t_tmp; \
   }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
   | RESTRICTION((A), (r), (level))
@@ -117,12 +121,19 @@ using stdexec::just;
 #define POST_RECURSION_MG(A, r, x, level) \
   PROLONGATION((A), (x), (level)) \
   | then([&](){ \
+    t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
+    t_SYMGS += mytimer() - t_tmp; \
   })
 
 #define TERMINAL_MG(A, r, x) \
-  then([&](){ ZeroVector((x)); \
+  then([&](){ \
+    t_tmp = mytimer(); \
+    ZeroVector((x)); \
+    t_zeroVector += mytimer() - t_tmp; \
+    t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
+    t_SYMGS += mytimer() - t_tmp; \
   })
   
 #define COMPUTE_MG() \
@@ -158,6 +169,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
+  double t_zeroVector = 0.0, t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
