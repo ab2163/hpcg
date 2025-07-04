@@ -139,18 +139,19 @@ using stdexec::just;
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
 
 #ifdef TIMING_ON
-#define TIMING_WRAPPER(func, timeVar, sched) \
+#define TIMING_WRAPPER(func, timeVar) \
   (std::invoke([&](){ \
     double startTime = mytimer(); \
-    sync_wait(schedule((sched)) | (func)); \
+    sync_wait(schedule(TIMING_SCHEDULER) | (func)); \
     (timeVar) += mytimer() - startTime; \
     return then([](){}); \
   }))
 #else
-#define TIMING_WRAPPER(func, funcTime, sched) (func)
+#define TIMING_WRAPPER(func, timeVar) (func)
 #endif
 
 #define TW TIMING_WRAPPER
+#define TIMING_SCHEDULER scheduler
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -159,7 +160,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0 , dummy_time = 0.0;
+  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -220,7 +221,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
-  auto& s = scheduler; //for timing wrapper - avoids clutter
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -229,17 +229,17 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
 
   sender auto pre_loop_work = schedule(scheduler)
-  | TW(WAXPBY(1, xVals, 0, xVals, pVals), t2, s)
-  | TW(SPMV(A, p, Ap), t3, s) //SPMV: Ap = A*p
-  | TW(WAXPBY(1, bVals, -1, ApVals, rVals), t2, s) //WAXPBY: r = b - Ax (x stored in p)
-  | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t1, s)
+  | TW(WAXPBY(1, xVals, 0, xVals, pVals), t_WAXPBY)
+  | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
+  | TW(WAXPBY(1, bVals, -1, ApVals, rVals), t_WAXPBY) //WAXPBY: r = b - Ax (x stored in p)
+  | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
   | TW(then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
 #endif
     normr0 = normr; //Record initial residual for convergence testing
-  }), dummy_time, s);
+  }), dummy_time);
   sync_wait(std::move(pre_loop_work));
   
   int k = 1;
@@ -247,15 +247,15 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   sender auto first_loop = schedule(scheduler)
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-    | TW(COMPUTE_MG(), t5, s)
-    | TW(WAXPBY(1, zVals, 0, zVals, pVals), t2, s)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t1, s) //rtz = r'*z
-    | TW(SPMV(A, p, Ap), t3, s) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t1, s) //alpha = p'*Ap
-    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time, s)
-    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t2, s) //WAXPBY: x = x + alpha*p
-    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t2, s) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t1, s)
+    | TW(COMPUTE_MG(), t_MG)
+    | TW(WAXPBY(1, zVals, 0, zVals, pVals), t_WAXPBY)
+    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
+    | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
+    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
+    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
+    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
+    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
+    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
     | TW(then([&](){ 
       normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -263,24 +263,24 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
       niters = 1;
-    }), dummy_time, s);
+    }), dummy_time);
     sync_wait(std::move(first_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
     sender auto subsequent_loop = schedule(scheduler)
-    | TW(COMPUTE_MG(), t5, s)
-    | TW(then([&](){ oldrtz = rtz; }), dummy_time, s)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t1, s) //rtz = r'*z
-    | TW(then([&](){ beta = rtz/oldrtz; }), dummy_time, s)
-    | TW(WAXPBY(1, zVals, beta, pVals, pVals), t2, s) //WAXPBY: p = beta*p + z
-    | TW(SPMV(A, p, Ap), t3, s) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t1, s) //alpha = p'*Ap
-    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time, s)
-    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t2, s) //WAXPBY: x = x + alpha*p
-    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t2, s) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t1, s)
+    | TW(COMPUTE_MG(), t_MG)
+    | TW(then([&](){ oldrtz = rtz; }), dummy_time)
+    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
+    | TW(then([&](){ beta = rtz/oldrtz; }), dummy_time)
+    | TW(WAXPBY(1, zVals, beta, pVals, pVals), t_WAXPBY) //WAXPBY: p = beta*p + z
+    | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
+    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
+    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
+    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
+    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
+    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
     | TW(then([&](){ 
       normr = sqrt(normr); 
 #ifdef HPCG_DEBUG
@@ -288,16 +288,16 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
       niters = k;
-    }), dummy_time, s);
+    }), dummy_time);
     sync_wait(std::move(subsequent_loop));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
-    times[1] += t1; //dot-product time
-    times[2] += t2; //WAXPBY time
-    times[3] += t3; //SPMV time
-    times[4] += t4; //AllReduce time
-    times[5] += t5; //preconditioner apply time
+    times[1] += t_dotProd; //dot-product time
+    times[2] += t_WAXPBY; //WAXPBY time
+    times[3] += t_SPMV; //SPMV time
+    times[4] += 0.0; //AllReduce time
+    times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
   });
   sync_wait(std::move(store_times));
