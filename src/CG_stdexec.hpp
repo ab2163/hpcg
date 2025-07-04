@@ -6,6 +6,7 @@
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
+#include "../stdexec/include/exec/static_thread_pool.hpp"
 
 //Already included in main.cpp:
 //#include <fstream>
@@ -148,7 +149,7 @@ using stdexec::bulk;
   | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0])
 
-auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
+auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
 
@@ -182,6 +183,18 @@ auto CG_stdexec(auto scheduler, const SparseMatrix & A, CGData & data, const Vec
   double **matrixDiagonal;
   double *rv;
   double *xv;
+
+  //scheduler for CPU execution
+  unsigned int num_threads = std::thread::hardware_concurrency();
+  if(num_threads == 0){
+    std::cerr << "Unable to determine thread pool size.\n";
+    std::exit(EXIT_FAILURE);
+  }
+  else{
+    std::cout << "Thread pool size is " << num_threads << ".\n";
+  }
+  exec::static_thread_pool pool(num_threads);
+  auto scheduler = pool.get_scheduler();
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 

@@ -61,7 +61,6 @@ using std::endl;
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 #include "CG_stdexec.hpp"
-#include "../stdexec/include/exec/static_thread_pool.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
@@ -73,17 +72,6 @@ using std::endl;
 
 */
 int main(int argc, char * argv[]) {
-
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0){
-    std::cerr << "Unable to determine thread pool size.\n";
-    std::exit(EXIT_FAILURE);
-  }
-  else{
-    std::cout << "Thread pool size is " << num_threads << "\n";
-  }
-  exec::static_thread_pool pool(num_threads);
-  auto sched = pool.get_scheduler();
 
 #ifndef HPCG_NO_MPI
   MPI_Init(&argc, &argv);
@@ -298,7 +286,7 @@ int main(int argc, char * argv[]) {
     ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
-    CG_stdexec(sched, A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+    CG_stdexec(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
 #endif
     // Convergence check accepts an error of no more than 6 significant digits of relTolerance
     if (normr / normr0 > refTolerance * (1.0 + 1.0e-6)) ++tolerance_failures; // the number of failures to reduce residual
@@ -364,7 +352,7 @@ int main(int argc, char * argv[]) {
     ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
     if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
 #else
-    CG_stdexec(sched, A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
+    CG_stdexec(A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
 #endif
     if (rank==0) HPCG_fout << "Call [" << i << "] Scaled Residual [" << normr/normr0 << "]" << endl;
     testnorms_data.values[i] = normr/normr0; // Record scaled residual from this run
