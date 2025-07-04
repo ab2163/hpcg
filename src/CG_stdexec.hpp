@@ -8,11 +8,6 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
-//Already included in main.cpp:
-//#include <fstream>
-//#include "CGData.hpp"
-//#include "hpcg.hpp"
-
 //Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
 #define TOCK(t) t += mytimer() - t0 //!< store time difference in 't' using time in 't0'
@@ -40,12 +35,12 @@ using stdexec::bulk;
 #endif
 
 #define WAXPBY(ALPHA, X, BETA, Y, W) \
-  bulk(stdexec::par, nrow, [&](local_int_t i){ (W).values[i] = (ALPHA)*(X).values[i] + (BETA)*(Y).values[i]; })
+  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (W).values[i] = (ALPHA)*(X).values[i] + (BETA)*(Y).values[i]; })
 
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -57,7 +52,7 @@ using stdexec::bulk;
   })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par, (A).localNumberOfRows, [&](local_int_t i){ \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -102,7 +97,7 @@ using stdexec::bulk;
   }
 
 #define RESTRICTION(A, rf) \
-  bulk(stdexec::par, (A).mgData->rc->localLength, \
+  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
     double * Axfv = (A).mgData->Axf->values; \
     double * rfv = (rf).values; \
@@ -112,7 +107,7 @@ using stdexec::bulk;
   })
 
 #define PROLONGATION(Af, xf) \
-  bulk(stdexec::par, (Af).mgData->rc->localLength, \
+  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
     double * xfv = (xf).values; \
     double * xcv = (Af).mgData->xc->values; \
