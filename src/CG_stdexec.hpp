@@ -34,8 +34,8 @@ using stdexec::bulk;
   | then([&](){ (RESULT) = dot_local_result.load(); })
 #endif
 
-#define WAXPBY(ALPHA, X, BETA, Y, W) \
-  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (W).values[i] = (ALPHA)*(X).values[i] + (BETA)*(Y).values[i]; })
+#define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
+  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
@@ -201,7 +201,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     CopyVector(x, p); //p is of length ncols, copy x to p for sparse MV operation
   })
   | SPMV(A, p, Ap) //SPMV: Ap = A*p
-  | WAXPBY(1, b, -1, Ap, r) //WAXPBY: r = b - Ax (x stored in p)
+  | WAXPBY(1, b.values, -1, Ap.values, r.values) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(r, r, normr)
   | then([&](){
     normr = sqrt(normr);
@@ -223,8 +223,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, x, alpha, p, x) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r, -alpha, Ap, r) //WAXPBY: r = r - alpha*Ap
+    | WAXPBY(1, x.values, alpha, p.values, x.values) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r.values, -alpha, Ap.values, r.values) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ 
       normr = sqrt(normr);
@@ -244,12 +244,12 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(r, z, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | WAXPBY(1, z, beta, p, p) //WAXPBY: p = beta*p + z
+    | WAXPBY(1, z.values, beta, p.values, p.values) //WAXPBY: p = beta*p + z
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(p, Ap, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, x, alpha, p, x) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r, -alpha, Ap, r) //WAXPBY: r = r - alpha*Ap
+    | WAXPBY(1, x.values, alpha, p.values, x.values) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r.values, -alpha, Ap.values, r.values) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r, r, normr)
     | then([&](){ 
       normr = sqrt(normr); 
