@@ -151,7 +151,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
+  double t0 = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -205,9 +205,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   int print_freq = 1;
 #endif
 
-  sender auto pre_loop_work = schedule(scheduler) | then([&](){
-    CopyVector(x, p); //p is of length ncols, copy x to p for sparse MV operation
-  })
+  sender auto pre_loop_work = schedule(scheduler)
+  | WAXPBY(1, xVals, 0, xVals, pVals)
   | SPMV(A, p, Ap) //SPMV: Ap = A*p
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
@@ -226,7 +225,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sender auto first_loop = schedule(scheduler)
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | COMPUTE_MG()
-    | then([&](){ CopyVector(z, p); }) //Copy Mr to p
+    | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
