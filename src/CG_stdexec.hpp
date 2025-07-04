@@ -96,36 +96,29 @@ using stdexec::bulk;
     xv[i] = sum/currentDiagonal; \
   }
 
-#define RESTRICTION(A, rf) \
+#define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
-    double * Axfv = (A).mgData->Axf->values; \
-    double * rfv = (rf).values; \
-    double * rcv = (A).mgData->rc->values; \
-    local_int_t * f2c = (A).mgData->f2cOperator; \
-    rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; \
+    rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
   })
 
-#define PROLONGATION(Af, xf) \
+#define PROLONGATION(Af, xf, level) \
   bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
-    double * xfv = (xf).values; \
-    double * xcv = (Af).mgData->xc->values; \
-    local_int_t * f2c = (Af).mgData->f2cOperator; \
-    xfv[f2c[i]] += xcv[i]; \
+    xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define PRE_RECURSION_MG(A, r, x) \
+#define PRE_RECURSION_MG(A, r, x, level) \
   then([&](){ \
     ZeroVector((x)); \
     SYMGS((A), (r), (x)) \
   }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
-  | RESTRICTION((A), (r))
+  | RESTRICTION((A), (r), (level))
 
-#define POST_RECURSION_MG(A, r, x) \
-  PROLONGATION((A), (x)) \
+#define POST_RECURSION_MG(A, r, x, level) \
+  PROLONGATION((A), (x), (level)) \
   | then([&](){ \
     SYMGS((A), (r), (x)) \
   })
@@ -136,13 +129,13 @@ using stdexec::bulk;
   })
   
 #define COMPUTE_MG() \
-  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]) \
-  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
-  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
+  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
+  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
+  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
   | TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
-  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]) \
-  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]) \
-  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0])
+  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
+  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
+  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -151,7 +144,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t0 = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -164,6 +156,12 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   std::vector<const SparseMatrix*> matrix_ptrs(4);
   std::vector<const Vector*> res_ptrs(4);
   std::vector<Vector*> zval_ptrs(4);
+  std::vector<double*> Axfv_ptrs(3);
+  std::vector<double*> rfv_ptrs(3);
+  std::vector<double*> rcv_ptrs(3);
+  std::vector<local_int_t*> f2c_ptrs(3);
+  std::vector<double*> xfv_ptrs(3);
+  std::vector<double*> xcv_ptrs(3);
   matrix_ptrs[0] = &A;
   res_ptrs[0] = &r;
   zval_ptrs[0] = &z;
@@ -171,6 +169,14 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
     res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
     zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
+  }
+  for(int cnt = 0; cnt < 3; cnt++){
+    Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
+    rfv_ptrs[cnt] = res_ptrs[cnt]->values;
+    rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
+    f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
+    xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
+    xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
 
   //used in SYMGS - declare here to avoid redeclarations
