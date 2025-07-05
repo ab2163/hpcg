@@ -83,11 +83,11 @@ using stdexec::just;
   rv = (r).values; \
   xv = (x).values; \
   for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
+    currentValues = (A).matrixValues[i]; \
+    currentColIndices = (A).mtxIndL[i]; \
+    currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    currentDiagonal = matrixDiagonal[i][0]; \
+    sum = rv[i]; \
     for(int j = 0; j < currentNumberOfNonzeros; j++){ \
       local_int_t curCol = currentColIndices[j]; \
       sum -= currentValues[j] * xv[curCol]; \
@@ -96,11 +96,11 @@ using stdexec::just;
     xv[i] = sum/currentDiagonal; \
   } \
   for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
+    currentValues = (A).matrixValues[i]; \
+    currentColIndices = (A).mtxIndL[i]; \
+    currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    currentDiagonal = matrixDiagonal[i][0]; \
+    sum = rv[i]; \
     for(int j = 0; j < currentNumberOfNonzeros; j++){ \
       local_int_t curCol = currentColIndices[j]; \
       sum -= currentValues[j]*xv[curCol]; \
@@ -210,6 +210,11 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double **matrixDiagonal;
   double *rv;
   double *xv;
+  double *currentValues;
+  local_int_t *currentColIndices;
+  int currentNumberOfNonzeros;
+  double  currentDiagonal;
+  double sum;
 
   //used in dot product and WAXPBY calculations
   double *rVals = r.values;
