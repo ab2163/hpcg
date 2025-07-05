@@ -23,6 +23,8 @@
 #endif
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
+#include <iostream>
+#include "mytimer.hpp"
 
 /*!
   Computes one step of symmetric Gauss-Seidel:
@@ -53,6 +55,10 @@
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
+  static int callCount = 0;
+  callCount++;
+  std::cout << "Calling SYMGS (Call Count: " << callCount << ").\n";
+  double runtime = mytimer();
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
 #ifndef HPCG_NO_MPI
@@ -98,6 +104,9 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
     xv[i] = sum/currentDiagonal;
   }
+
+  runtime = mytimer() - runtime;
+  std::cout << "Call runtime was: " << runtime << "s.\n";
 
   return 0;
 }
