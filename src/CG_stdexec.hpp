@@ -8,8 +8,6 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
-#include "ComputeSYMGS_ref.hpp"
-
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -80,12 +78,36 @@ using stdexec::just;
 #endif
 
 #define SYMGS(A, r, x) \
-  callCount++; \
-  std::cout << "Call Count of SYMGS: " << callCount << ".\n"; \
-  t_debug = mytimer(); \
-  ComputeSYMGS_ref((A), (r), (x)); \
-  t_debug = mytimer() - t_debug; \
-  std::cout << "Time taken for SYMGS call: " <<  t_debug << ".\n";
+  nrow_SYMGS = (A).localNumberOfRows; \
+  matrixDiagonal = (A).matrixDiagonal; \
+  rv = (r).values; \
+  xv = (x).values; \
+  for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j] * xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  } \
+  for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j]*xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  }
 
 #define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
@@ -148,7 +170,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
   double t_zeroVector = 0.0, t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
-  double t_debug = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -215,8 +236,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #ifdef HPCG_DEBUG
   int print_freq = 1;
 #endif
-
-  static int callCount = 0;
 
   sender auto pre_loop_work = schedule(scheduler)
   | TW(WAXPBY(1, xVals, 0, xVals, pVals), t_WAXPBY)

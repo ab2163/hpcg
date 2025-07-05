@@ -266,8 +266,6 @@ int main(int argc, char * argv[]) {
   // Optimized CG Setup Phase //
   //////////////////////////////
 
-  std::cout << "STARTING OPTIMISED SETUP PHASE\n";
-
   niters = 0;
   normr = 0.0;
   normr0 = 0.0;
