@@ -9,6 +9,8 @@
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
+#include "ComputeSPMV_ref.hpp"
+#include "ComputeDotProduct_ref.hpp"
 
 using stdexec::sender;
 using stdexec::then;
@@ -44,19 +46,11 @@ using stdexec::continues_on;
 #endif
 
 #ifndef HPCG_NO_MPI
-#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([&](){ dot_local_result = 0.0; }) \
-  | bulk(stdexec::par, nrow, [&](local_int_t i){ \
-    dot_local_result.fetch_add((VEC1VALS)[i]*(VEC2VALS)[i], std::memory_order_relaxed); }) \
-  | then([&](){ \
-    dot_local_copy = dot_local_result.load(); \
-    MPI_Allreduce(&dot_local_copy, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);})
+#define COMPUTE_DOT_PRODUCT(VEC1, VEC2, RESULT) \
+  then([&](){ ComputeDotProduct_ref(nrow, (VEC1), (VEC2), (RESULT), dummy_time); })
 #else
-#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([&](){ dot_local_result = 0.0; }) \
-  | bulk(stdexec::par, nrow, [&](local_int_t i){ \
-    dot_local_result.fetch_add((VEC1VALS)[i]*(VEC2VALS)[i], std::memory_order_relaxed); }) \
-  | then([&](){ (RESULT) = dot_local_result.load(); })
+#define COMPUTE_DOT_PRODUCT(VEC1, VEC2, RESULT) \
+  then([&](){ ComputeDotProduct_ref(nrow, (VEC1), (VEC2), (RESULT), dummy_time); })
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
@@ -64,29 +58,10 @@ using stdexec::continues_on;
 
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
-  then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  })
+  then([&](){ ComputeSPMV_ref((A), (x), (y)); })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  })
+  then([&](){ ComputeSPMV_ref((A), (x), (y)); })
 #endif
 
 #define RESTRICTION(A, rf, level) \
@@ -225,7 +200,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   | TW(WAXPBY(1, xVals, 0, xVals, pVals), t_WAXPBY)
   | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
   | TW(WAXPBY(1, bVals, -1, ApVals, rVals), t_WAXPBY) //WAXPBY: r = b - Ax (x stored in p)
-  | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
+  | TW(COMPUTE_DOT_PRODUCT(r, r, normr), t_dotProd)
   | TW(then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -242,13 +217,13 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
     | TW(COMPUTE_MG(), t_MG)
     | TW(WAXPBY(1, zVals, 0, zVals, pVals), t_WAXPBY)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
+    | TW(COMPUTE_DOT_PRODUCT(r, z, rtz), t_dotProd) //rtz = r'*z
     | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
+    | TW(COMPUTE_DOT_PRODUCT(p, Ap, pAp), t_dotProd) //alpha = p'*Ap
     | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
     | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
     | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
+    | TW(COMPUTE_DOT_PRODUCT(r, r, normr), t_dotProd)
     | TW(then([&](){ 
       normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -265,15 +240,15 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     sender auto subsequent_loop = schedule(scheduler)
     | TW(COMPUTE_MG(), t_MG)
     | TW(then([&](){ oldrtz = rtz; }), dummy_time)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
+    | TW(COMPUTE_DOT_PRODUCT(r, z, rtz), t_dotProd) //rtz = r'*z
     | TW(then([&](){ beta = rtz/oldrtz; }), dummy_time)
     | TW(WAXPBY(1, zVals, beta, pVals, pVals), t_WAXPBY) //WAXPBY: p = beta*p + z
     | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
+    | TW(COMPUTE_DOT_PRODUCT(p, Ap, pAp), t_dotProd) //alpha = p'*Ap
     | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
     | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
     | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
+    | TW(COMPUTE_DOT_PRODUCT(r, r, normr), t_dotProd)
     | TW(then([&](){ 
       normr = sqrt(normr); 
 #ifdef HPCG_DEBUG
