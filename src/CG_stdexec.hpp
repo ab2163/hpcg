@@ -8,6 +8,7 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+#include "ComputeSYMGS_ref.hpp"
 
 using stdexec::sender;
 using stdexec::then;
@@ -88,40 +89,6 @@ using stdexec::continues_on;
   })
 #endif
 
-#define SYMGS(A, r, x) \
-  NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec") \
-  nrow_SYMGS = (A).localNumberOfRows; \
-  matrixDiagonal = (A).matrixDiagonal; \
-  rv = (r).values; \
-  xv = (x).values; \
-  for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
-    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
-      local_int_t curCol = currentColIndices[j]; \
-      sum -= currentValues[j] * xv[curCol]; \
-    } \
-    sum += xv[i]*currentDiagonal; \
-    xv[i] = sum/currentDiagonal; \
-  } \
-  for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
-    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
-      local_int_t curCol = currentColIndices[j]; \
-      sum -= currentValues[j]*xv[curCol]; \
-    } \
-    sum += xv[i]*currentDiagonal; \
-    xv[i] = sum/currentDiagonal; \
-  } \
-  NVTX_RANGE_END
-
 #define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
@@ -142,7 +109,7 @@ using stdexec::continues_on;
     ZeroVector((x)); \
     t_zeroVector += mytimer() - t_tmp; \
     t_tmp = mytimer(); \
-    SYMGS((A), (r), (x)) \
+    ComputeSYMGS_ref((A), (r), (x)); \
     t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler) \
@@ -154,7 +121,7 @@ using stdexec::continues_on;
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
     t_tmp = mytimer(); \
-    SYMGS((A), (r), (x)) \
+    ComputeSYMGS_ref((A), (r), (x)); \
     t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler)
@@ -166,7 +133,7 @@ using stdexec::continues_on;
     ZeroVector((x)); \
     t_zeroVector += mytimer() - t_tmp; \
     t_tmp = mytimer(); \
-    SYMGS((A), (r), (x)) \
+    ComputeSYMGS_ref((A), (r), (x)); \
     t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler)
@@ -223,12 +190,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
     xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
-
-  //used in SYMGS - declare here to avoid redeclarations
-  local_int_t nrow_SYMGS;
-  double **matrixDiagonal;
-  double *rv;
-  double *xv;
 
   //used in dot product and WAXPBY calculations
   double *rVals = r.values;
