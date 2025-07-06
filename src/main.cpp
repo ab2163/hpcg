@@ -311,6 +311,8 @@ int main(int argc, char * argv[]) {
     std::cout << "MG time: " << opt_times[5] << "\n";
   }
 
+  return 0;
+
 #ifndef HPCG_NO_MPI
 // Get the absolute worst time across all MPI ranks (time in CG can be different)
   double local_opt_worst_time = opt_worst_time;

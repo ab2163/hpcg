@@ -24,6 +24,8 @@
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
 
+#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -52,6 +54,7 @@
   @see ComputeSYMGS
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+  NVTX3_FUNC_RANGE();
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#Needed for NVC compiler
-#otherwise I get a segmentation fault
-#increase stack size from 8MB to 16MB
 ulimit -s 16384
 
 mkdir build

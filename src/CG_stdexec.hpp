@@ -8,6 +8,8 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 
+#include "ComputeSYMGS_ref.hpp"
+
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -77,37 +79,7 @@ using stdexec::just;
   })
 #endif
 
-#define SYMGS(A, r, x) \
-  nrow_SYMGS = (A).localNumberOfRows; \
-  matrixDiagonal = (A).matrixDiagonal; \
-  rv = (r).values; \
-  xv = (x).values; \
-  for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
-    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
-      local_int_t curCol = currentColIndices[j]; \
-      sum -= currentValues[j] * xv[curCol]; \
-    } \
-    sum += xv[i]*currentDiagonal; \
-    xv[i] = sum/currentDiagonal; \
-  } \
-  for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
-    const double * const currentValues = (A).matrixValues[i]; \
-    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
-    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
-    const double  currentDiagonal = matrixDiagonal[i][0]; \
-    double sum = rv[i]; \
-    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
-      local_int_t curCol = currentColIndices[j]; \
-      sum -= currentValues[j]*xv[curCol]; \
-    } \
-    sum += xv[i]*currentDiagonal; \
-    xv[i] = sum/currentDiagonal; \
-  }
+#define SYMGS(A, r, x) ComputeSYMGS_ref((A), (r), (x));
 
 #define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \

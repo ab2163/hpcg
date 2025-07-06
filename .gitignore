@@ -7,4 +7,5 @@ bin/hpcg20*.txt
 .DS_Store
 build/
 src/.vscode/
+nsight-reports/
 
