@@ -33,6 +33,18 @@ using stdexec::just;
 #define TIMING_SCHEDULER scheduler
 #define NUM_MG_LEVELS 4
 
+#ifdef TIMING_ON
+#define TIMING_WRAPPER_SINGLE_THREAD(func, timeVar) \
+  (std::invoke([&](){ \
+    double startTime = mytimer(); \
+    sync_wait(schedule(scheduler_single_thread) | (func)); \
+    (timeVar) += mytimer() - startTime; \
+    return then([](){}); \
+  }))
+#else
+#define TIMING_WRAPPER_SINGLE_THREAD(func, timeVar) (func)
+#endif
+
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ dot_local_result = 0.0; }) \
@@ -95,34 +107,24 @@ using stdexec::just;
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x, level) \
-  then([&](){ \
-    t_tmp = mytimer(); \
+  TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
     ZeroVector((x)); \
-    t_zeroVector += mytimer() - t_tmp; \
-    t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
-    t_SYMGS += mytimer() - t_tmp; \
-  }) \
+  }), t_SYMGS) \
   | TW(SPMV((A), (x), *((A).mgData->Axf)), t_SPMV) \
   | TW(RESTRICTION((A), (r), (level)), t_restrict)
 
 #define POST_RECURSION_MG(A, r, x, level) \
   TW(PROLONGATION((A), (x), (level)), t_prolong) \
-  | then([&](){ \
-    t_tmp = mytimer(); \
+  | TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
     SYMGS((A), (r), (x)) \
-    t_SYMGS += mytimer() - t_tmp; \
-  })
+  }), t_SYMGS)
 
 #define TERMINAL_MG(A, r, x) \
-  then([&](){ \
-    t_tmp = mytimer(); \
+  TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
     ZeroVector((x)); \
-    t_zeroVector += mytimer() - t_tmp; \
-    t_tmp = mytimer(); \
     SYMGS((A), (r), (x)) \
-    t_SYMGS += mytimer() - t_tmp; \
-  })
+  }), t_SYMGS)
   
 #define COMPUTE_MG() \
   PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
@@ -202,6 +204,10 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
+
+  //scheduler for SYMGS execution
+  exec::static_thread_pool pool_single_thread(1);
+  auto scheduler_single_thread = pool_single_thread.get_scheduler();
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
