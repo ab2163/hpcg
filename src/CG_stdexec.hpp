@@ -7,8 +7,7 @@
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
-
-#include "ComputeSYMGS_ref.hpp"
+#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 
 using stdexec::sender;
 using stdexec::then;
@@ -34,15 +33,11 @@ using stdexec::just;
 #define NUM_MG_LEVELS 4
 
 #ifdef TIMING_ON
-#define TIMING_WRAPPER_SINGLE_THREAD(func, timeVar) \
-  (std::invoke([&](){ \
-    double startTime = mytimer(); \
-    sync_wait(schedule(scheduler_single_thread) | (func)); \
-    (timeVar) += mytimer() - startTime; \
-    return then([](){}); \
-  }))
+#define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
+#define NVTX_RANGE_END nvtxRangePop();
 #else
-#define TIMING_WRAPPER_SINGLE_THREAD(func, timeVar) (func)
+#define NVTX_RANGE_BEGIN(message)
+#define NVTX_RANGE_END
 #endif
 
 #ifndef HPCG_NO_MPI
@@ -91,7 +86,39 @@ using stdexec::just;
   })
 #endif
 
-#define SYMGS(A, r, x) ComputeSYMGS_ref((A), (r), (x));
+#define SYMGS(A, r, x) \
+  NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec") \
+  nrow_SYMGS = (A).localNumberOfRows; \
+  matrixDiagonal = (A).matrixDiagonal; \
+  rv = (r).values; \
+  xv = (x).values; \
+  for(local_int_t i = 0; i < nrow_SYMGS; i++){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j] * xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  } \
+  for(local_int_t i = nrow_SYMGS - 1; i >= 0; i--){ \
+    const double * const currentValues = (A).matrixValues[i]; \
+    const local_int_t * const currentColIndices = (A).mtxIndL[i]; \
+    const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
+    const double  currentDiagonal = matrixDiagonal[i][0]; \
+    double sum = rv[i]; \
+    for(int j = 0; j < currentNumberOfNonzeros; j++){ \
+      local_int_t curCol = currentColIndices[j]; \
+      sum -= currentValues[j]*xv[curCol]; \
+    } \
+    sum += xv[i]*currentDiagonal; \
+    xv[i] = sum/currentDiagonal; \
+  } \
+  NVTX_RANGE_END
 
 #define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
@@ -107,24 +134,24 @@ using stdexec::just;
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x, level) \
-  TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
+  then([&](){ \
     ZeroVector((x)); \
     SYMGS((A), (r), (x)) \
-  }), t_SYMGS) \
+  }) \
   | TW(SPMV((A), (x), *((A).mgData->Axf)), t_SPMV) \
   | TW(RESTRICTION((A), (r), (level)), t_restrict)
 
 #define POST_RECURSION_MG(A, r, x, level) \
   TW(PROLONGATION((A), (x), (level)), t_prolong) \
-  | TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
+  | then([&](){ \
     SYMGS((A), (r), (x)) \
-  }), t_SYMGS)
+  })
 
 #define TERMINAL_MG(A, r, x) \
-  TIMING_WRAPPER_SINGLE_THREAD(then([&](){ \
+  then([&](){ \
     ZeroVector((x)); \
     SYMGS((A), (r), (x)) \
-  }), t_SYMGS)
+  })
   
 #define COMPUTE_MG() \
   PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
