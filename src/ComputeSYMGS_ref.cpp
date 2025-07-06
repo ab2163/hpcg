@@ -26,14 +26,6 @@
 
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 
-#ifdef TIMING_ON
-#define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
-#define NVTX_RANGE_END nvtxRangePop();
-#else
-#define NVTX_RANGE_BEGIN(message)
-#define NVTX_RANGE_END
-#endif
-
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -82,12 +74,10 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
 
-    NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec_forward_for")
     for (int j=0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
       sum -= currentValues[j] * xv[curCol];
     }
-    NVTX_RANGE_END
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
     xv[i] = sum/currentDiagonal;
@@ -103,12 +93,10 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
     double sum = rv[i]; // RHS value
 
-    NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec_forward_for")
     for (int j = 0; j< currentNumberOfNonzeros; j++) {
       local_int_t curCol = currentColIndices[j];
       sum -= currentValues[j]*xv[curCol];
     }
-    NVTX_RANGE_END
     sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
     xv[i] = sum/currentDiagonal;

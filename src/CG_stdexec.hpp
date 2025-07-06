@@ -100,12 +100,10 @@ using stdexec::continues_on;
     const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
     const double  currentDiagonal = matrixDiagonal[i][0]; \
     double sum = rv[i]; \
-    NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec_forward_for") \
     for(int j = 0; j < currentNumberOfNonzeros; j++){ \
       local_int_t curCol = currentColIndices[j]; \
       sum -= currentValues[j] * xv[curCol]; \
     } \
-    NVTX_RANGE_END \
     sum += xv[i]*currentDiagonal; \
     xv[i] = sum/currentDiagonal; \
   } \
@@ -115,12 +113,10 @@ using stdexec::continues_on;
     const int currentNumberOfNonzeros = (A).nonzerosInRow[i]; \
     const double  currentDiagonal = matrixDiagonal[i][0]; \
     double sum = rv[i]; \
-    NVTX_RANGE_BEGIN("ComputeSYMGS_stdexec_backwards_for") \
     for(int j = 0; j < currentNumberOfNonzeros; j++){ \
       local_int_t curCol = currentColIndices[j]; \
       sum -= currentValues[j]*xv[curCol]; \
     } \
-    NVTX_RANGE_END \
     sum += xv[i]*currentDiagonal; \
     xv[i] = sum/currentDiagonal; \
   } \
