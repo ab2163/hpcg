@@ -29,8 +29,8 @@ using stdexec::continues_on;
 #define SINGLE_THREAD 1
 
 #ifdef NVTX_ON
-#define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
-#define NVTX_RANGE_END nvtxRangePop();
+#define NVTX_RANGE_BEGIN(message) rangeID = nvtxRangeStartA((message));
+#define NVTX_RANGE_END nvtxRangeEnd(rangeID);
 #else
 #define NVTX_RANGE_BEGIN(message)
 #define NVTX_RANGE_END
@@ -39,23 +39,32 @@ using stdexec::continues_on;
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
+    NVTX_RANGE_BEGIN("Dot Product") \
     local_result = 0.0; \
     local_result = std::transform_reduce(std::execution::par, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
     MPI_Allreduce(&local_result, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); \
+    NVTX_RANGE_END \
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
+    NVTX_RANGE_BEGIN("Dot Product") \
     (RESULT) = std::transform_reduce(std::execution::par, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
+    NVTX_RANGE_END \
   })
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
-  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
+  then([&](){ NVTX_RANGE_BEGIN("WAXPBY") }) \
+  | bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; }) \
+  | then([&](){ NVTX_RANGE_END })
 
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
-  then([&](){ ExchangeHalo((A), (x)); }) \
+  then([&](){ \
+    NVTX_RANGE_BEGIN("SPMV") \
+    ExchangeHalo((A), (x)); \
+  }) \
   | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
@@ -65,10 +74,12 @@ using stdexec::continues_on;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  })
+  }) \
+  | then([&](){ NVTX_RANGE_END })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  then([&](){ NVTX_RANGE_BEGIN("SPMV") }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -77,20 +88,25 @@ using stdexec::continues_on;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  })
+  }) \
+  | then([&](){ NVTX_RANGE_END })
 #endif
 
 #define RESTRICTION(A, rf, level) \
-  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
+  then([&](){ NVTX_RANGE_BEGIN("Restriction") }) \
+  | bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
     rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
-  })
+  }) \
+  | then([&](){ NVTX_RANGE_END })
 
 #define PROLONGATION(Af, xf, level) \
-  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
+  then([&](){ NVTX_RANGE_BEGIN("Prolongation") }) \
+  | bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
-  })
+  }) \
+  | then([&](){ NVTX_RANGE_END })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x, level) \
@@ -181,6 +197,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double *xVals = x.values;
   double *bVals = b.values;
   double *ApVals = Ap.values;
+
+  nvtxRangeId_t rangeID;
 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();

@@ -53,7 +53,7 @@ HPCG_LIBS     =
 #    *) Build with OpenMP enabled.
 #    *) Not generate debugging output.
 #
-HPCG_OPTS     = -DHPCG_NO_MPI -DHPCG_DEBUG
+HPCG_OPTS     = -DHPCG_NO_MPI -DHPCG_DEBUG -DNVTX_ON
 #
 # ----------------------------------------------------------------------
 #
