@@ -25,24 +25,10 @@ using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
 
-#ifdef TIMING_ON
-#define TIMING_WRAPPER(func, timeVar) \
-  (std::invoke([&](){ \
-    double startTime = mytimer(); \
-    sync_wait(schedule(TIMING_SCHEDULER) | (func)); \
-    (timeVar) += mytimer() - startTime; \
-    return then([](){}); \
-  }))
-#else
-#define TIMING_WRAPPER(func, timeVar) (func)
-#endif
-
-#define TW TIMING_WRAPPER
-#define TIMING_SCHEDULER scheduler
 #define NUM_MG_LEVELS 4
 #define SINGLE_THREAD 1
 
-#ifdef TIMING_ON
+#ifdef NVTX_ON
 #define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
 #define NVTX_RANGE_END nvtxRangePop();
 #else
@@ -110,44 +96,36 @@ using stdexec::continues_on;
 #define PRE_RECURSION_MG(A, r, x, level) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    t_tmp = mytimer(); \
     ZeroVector((x)); \
-    t_zeroVector += mytimer() - t_tmp; \
-    t_tmp = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler) \
-  | TW(SPMV((A), (x), *((A).mgData->Axf)), t_SPMV) \
-  | TW(RESTRICTION((A), (r), (level)), t_restrict)
+  | SPMV((A), (x), *((A).mgData->Axf)) \
+  | RESTRICTION((A), (r), (level))
 
 #define POST_RECURSION_MG(A, r, x, level) \
-  TW(PROLONGATION((A), (x), (level)), t_prolong) \
+  PROLONGATION((A), (x), (level)) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
-    t_tmp = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler)
 
 #define TERMINAL_MG(A, r, x) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    t_tmp = mytimer(); \
     ZeroVector((x)); \
-    t_zeroVector += mytimer() - t_tmp; \
-    t_tmp = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - t_tmp; \
   }) \
   | continues_on(scheduler)
   
-#define COMPUTE_MG() \
+#define COMPUTE_MG_STAGE1() \
   PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
   | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
   | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
-  | TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
+
+#define COMPUTE_MG_STAGE2() \
+  TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
   | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
   | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
@@ -227,67 +205,83 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
 
   sender auto pre_loop_work = schedule(scheduler)
-  | TW(WAXPBY(1, xVals, 0, xVals, pVals), t_WAXPBY)
-  | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
-  | TW(WAXPBY(1, bVals, -1, ApVals, rVals), t_WAXPBY) //WAXPBY: r = b - Ax (x stored in p)
-  | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
-  | TW(then([&](){
+  | WAXPBY(1, xVals, 0, xVals, pVals)
+  | SPMV(A, p, Ap) //SPMV: Ap = A*p
+  | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
+  | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+  | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
 #endif
     normr0 = normr; //Record initial residual for convergence testing
-  }), dummy_time);
+  });
   sync_wait(std::move(pre_loop_work));
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
   //FIND A MORE ELEGANT WAY OF DOING THIS!
-  sender auto first_loop = schedule(scheduler)
-    //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-    | TW(COMPUTE_MG(), t_MG)
-    | TW(WAXPBY(1, zVals, 0, zVals, pVals), t_WAXPBY)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
-    | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
-    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
-    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
-    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
-    | TW(then([&](){ 
+  //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
+
+  sender auto mg_downwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE1();
+  sync_wait(std::move(mg_downwards));
+  
+  sender auto mg_upwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE2();
+  sync_wait(std::move(mg_upwards));
+
+  sender auto rest_of_loop = schedule(scheduler)
+    | WAXPBY(1, zVals, 0, zVals, pVals)
+    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
+    | then([&](){ alpha = rtz/pAp; })
+    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+    | then([&](){ 
       normr = sqrt(normr);
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
       niters = 1;
-    }), dummy_time);
-    sync_wait(std::move(first_loop));
+    });
+    sync_wait(std::move(rest_of_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
-    sender auto subsequent_loop = schedule(scheduler)
-    | TW(COMPUTE_MG(), t_MG)
-    | TW(then([&](){ oldrtz = rtz; }), dummy_time)
-    | TW(COMPUTE_DOT_PRODUCT(rVals, zVals, rtz), t_dotProd) //rtz = r'*z
-    | TW(then([&](){ beta = rtz/oldrtz; }), dummy_time)
-    | TW(WAXPBY(1, zVals, beta, pVals, pVals), t_WAXPBY) //WAXPBY: p = beta*p + z
-    | TW(SPMV(A, p, Ap), t_SPMV) //SPMV: Ap = A*p
-    | TW(COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp), t_dotProd) //alpha = p'*Ap
-    | TW(then([&](){ alpha = rtz/pAp; }), dummy_time)
-    | TW(WAXPBY(1, xVals, alpha, pVals, xVals), t_WAXPBY) //WAXPBY: x = x + alpha*p
-    | TW(WAXPBY(1, rVals, -alpha, ApVals, rVals), t_WAXPBY) //WAXPBY: r = r - alpha*Ap
-    | TW(COMPUTE_DOT_PRODUCT(rVals, rVals, normr), t_dotProd)
-    | TW(then([&](){ 
+
+    sender auto mg_downwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE1();
+    sync_wait(std::move(mg_downwards));
+  
+    sender auto mg_upwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE2();
+    sync_wait(std::move(mg_upwards));
+
+    sender auto rest_of_loop = schedule(scheduler)
+    | then([&](){ oldrtz = rtz; })
+    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
+    | then([&](){ beta = rtz/oldrtz; })
+    | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
+    | then([&](){ alpha = rtz/pAp; })
+    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+    | then([&](){ 
       normr = sqrt(normr); 
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
       niters = k;
-    }), dummy_time);
-    sync_wait(std::move(subsequent_loop));
+    });
+    sync_wait(std::move(rest_of_loop));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
