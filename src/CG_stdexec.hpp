@@ -1,3 +1,5 @@
+//COMMIT CREATED TO HIGHLIGHT COMPLEXITY LIMIT OF NVC COMPILER
+
 #include <cmath>
 #include <algorithm>
 #include <execution>
