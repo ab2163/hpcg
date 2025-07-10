@@ -10,7 +10,6 @@
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
-#include "../stdexec/include/exec/repeat_n.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
 
@@ -25,16 +24,13 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
-using exec::repeat_n;
 
 #define NUM_MG_LEVELS 4
 #define SINGLE_THREAD 1
-#define NUM_SYMGS_STEPS 7
-#define NOT_PRECON -1
 
 #ifdef NVTX_ON
-#define NVTX_RANGE_BEGIN(message) rangeID = nvtxRangeStartA((message));
-#define NVTX_RANGE_END nvtxRangeEnd(rangeID);
+#define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
+#define NVTX_RANGE_END nvtxRangePop();
 #else
 #define NVTX_RANGE_BEGIN(message)
 #define NVTX_RANGE_END
@@ -43,34 +39,24 @@ using exec::repeat_n;
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
-    NVTX_RANGE_BEGIN("Dot Product") \
     local_result = 0.0; \
     local_result = std::transform_reduce(std::execution::par, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
     MPI_Allreduce(&local_result, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); \
-    NVTX_RANGE_END \
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
-    NVTX_RANGE_BEGIN("Dot Product") \
     (RESULT) = std::transform_reduce(std::execution::par, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
-    NVTX_RANGE_END \
   })
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
-  then([&](){ NVTX_RANGE_BEGIN("WAXPBY") }) \
-  | bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; }) \
-  | then([&](){ NVTX_RANGE_END })
+  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
 #ifndef HPCG_NO_MPI
-#define SPMV(A, x, y, ind) \
-  then([&](){ \
-    NVTX_RANGE_BEGIN("SPMV") \
-    ExchangeHalo((A), (x)); \
-  }) \
-  | bulk(stdexec::par_unseq, ind < 0 ? (A).localNumberOfRows : spmv_lens[ind], \
-    [&](local_int_t i){ \
+#define SPMV(A, x, y) \
+  then([&](){ ExchangeHalo((A), (x)); }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -79,13 +65,10 @@ using exec::repeat_n;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  }) \
-  | then([&](){ NVTX_RANGE_END })
+  })
 #else
-#define SPMV(A, x, y, ind) \
-  then([&](){ NVTX_RANGE_BEGIN("SPMV") }) \
-  | bulk(stdexec::par_unseq, ind < 0 ? (A).localNumberOfRows : spmv_lens[ind], \
-    [&](local_int_t i){ \
+#define SPMV(A, x, y) \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -94,36 +77,58 @@ using exec::repeat_n;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  }) \
-  | then([&](){ NVTX_RANGE_END })
+  })
 #endif
 
-#define RESTRICTION(A, rf, ind) \
-  then([&](){ NVTX_RANGE_BEGIN("Restriction") }) \
-  | bulk(stdexec::par_unseq, restrict_lens[ind], \
+#define RESTRICTION(A, rf, level) \
+  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
-    rcv_ptrs[(ind)][i] = rfv_ptrs[(ind)][f2c_ptrs[(ind)][i]] - Axfv_ptrs[(ind)][f2c_ptrs[(ind)][i]]; \
-  }) \
-  | then([&](){ NVTX_RANGE_END })
+    rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
+  })
 
-#define PROLONGATION(Af, xf, ind) \
-  then([&](){ NVTX_RANGE_BEGIN("Prolongation") }) \
-  | bulk(stdexec::par_unseq, prolong_lens[ind], \
+#define PROLONGATION(Af, xf, level) \
+  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
-    xfv_ptrs[(ind)][f2c_ptrs[(ind)][i]] += xcv_ptrs[(ind)][i]; \
-  }) \
-  | then([&](){ NVTX_RANGE_END })
+    xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
+  })
 
-#define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
+#define PRE_RECURSION_MG(A, r, x, level) \
+  continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ZeroVector((x)); \
+    ComputeSYMGS_ref((A), (r), (x)); \
+  }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), indPC) \
-  | RESTRICTION(*A_ptrs[indPC], *rptrs[indPC], indPC) \
-  | then([&](){ indPC == (NUM_SYMGS_STEPS - 1) ? (indPC = 0) : indPC++; }) \
-  | repeat_n(NUM_SYMGS_STEPS - 1) \
+  | SPMV((A), (x), *((A).mgData->Axf)) \
+  | RESTRICTION((A), (r), (level))
+
+#define POST_RECURSION_MG(A, r, x, level) \
+  PROLONGATION((A), (x), (level)) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ComputeSYMGS_ref((A), (r), (x)); \
+  }) \
+  | continues_on(scheduler)
+
+#define TERMINAL_MG(A, r, x) \
+  continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ZeroVector((x)); \
+    ComputeSYMGS_ref((A), (r), (x)); \
+  }) \
+  | continues_on(scheduler)
+  
+#define COMPUTE_MG_STAGE1() \
+  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
+  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
+  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
+
+#define COMPUTE_MG_STAGE2() \
+  TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
+  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
+  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
+  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -142,77 +147,33 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double local_result;
   double dot_local_copy; //for passing into MPIAllReduce within dot product
 
-  //index used in MG preconditioning loop
-  int indPC = 0;
-
-  //declaring all the variables needed for MG computation
-  std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
-  std::vector<const Vector*> rptrs(NUM_SYMGS_STEPS);
-  std::vector<Vector*> zptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> Axfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> rfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> rcv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<local_int_t*> f2c_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> xfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> xcv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<local_int_t> prolong_lens(NUM_SYMGS_STEPS, 0);
-  std::vector<local_int_t> restrict_lens(NUM_SYMGS_STEPS, 0);
-  std::vector<local_int_t> spmv_lens(NUM_SYMGS_STEPS, 0);
-  std::vector<bool> zerovector_flags(NUM_SYMGS_STEPS, false);
-
-  //setting the values of A, r and z 
-  Aptrs[0] = &A;
-  rptrs[0] = &r;
-  zptrs[0] = &z;
+  //variables needed for MG computation
+  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
+  std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
+  std::vector<Vector*> zval_ptrs(NUM_MG_LEVELS);
+  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
+  matrix_ptrs[0] = &A;
+  res_ptrs[0] = &r;
+  zval_ptrs[0] = &z;
   for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
-    Aptrs[cnt] = Aptrs[cnt - 1]->Ac;
-    rptrs[cnt] = Aptrs[cnt - 1]->mgData->rc;
-    zptrs[cnt] = Aptrs[cnt - 1]->mgData->xc;
+    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
+    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
+    zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
   }
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    Aptrs[cnt] = Aptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rptrs[cnt] = rptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    zptrs[cnt] = zptrs[NUM_SYMGS_STEPS - (cnt+1)];
-  }
-
-  //setting values for variables used in prolongation and restriction
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    Axfv_ptrs[cnt] = Aptrs[cnt]->mgData->Axf->values;
-    rfv_ptrs[cnt] = rptrs[cnt]->values;
-    rcv_ptrs[cnt] = Aptrs[cnt]->mgData->rc->values;
-    f2c_ptrs[cnt] = Aptrs[cnt]->mgData->f2cOperator;
-    xfv_ptrs[cnt] = zptrs[cnt]->values;
-    xcv_ptrs[cnt] = Aptrs[cnt]->mgData->xc->values;
-  }
-  Axfv_ptrs[NUM_MG_LEVELS - 1] = Axfv_ptrs[NUM_MG_LEVELS - 2];
-  rfv_ptrs[NUM_MG_LEVELS - 1] = rfv_ptrs[NUM_MG_LEVELS - 2];
-  rcv_ptrs[NUM_MG_LEVELS - 1] = rcv_ptrs[NUM_MG_LEVELS - 2];
-  f2c_ptrs[NUM_MG_LEVELS - 1] = f2c_ptrs[NUM_MG_LEVELS - 2];
-  xfv_ptrs[NUM_MG_LEVELS - 1] = xfv_ptrs[NUM_MG_LEVELS - 2];
-  xcv_ptrs[NUM_MG_LEVELS - 1] = xcv_ptrs[NUM_MG_LEVELS - 2];
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    Axfv_ptrs[cnt] = Axfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rfv_ptrs[cnt] = rfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rcv_ptrs[cnt] = rcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    f2c_ptrs[cnt] = f2c_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    xfv_ptrs[cnt] = xfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    xcv_ptrs[cnt] = xcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
+    rfv_ptrs[cnt] = res_ptrs[cnt]->values;
+    rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
+    f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
+    xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
+    xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
 
-  //setting lengths of bulk calls in SPMV, prolongation, restriction
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    restrict_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
-    spmv_lens[cnt] = (*Aptrs[cnt]).localNumberOfRows;
-  }
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    prolong_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
-  }
-
-  //set zerovector flags
-  for(int cnt = 0; cnt < NUM_MG_LEVELS; cnt++){
-    zerovector_flags[cnt] = true;
-  }
-  
   //used in dot product and WAXPBY calculations
   double *rVals = r.values;
   double *zVals = z.values;
@@ -220,9 +181,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double *xVals = x.values;
   double *bVals = b.values;
   double *ApVals = Ap.values;
-
-  //for NVTX tracking
-  nvtxRangeId_t rangeID;
 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
@@ -248,7 +206,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | SPMV(A, p, Ap, NOT_PRECON) //SPMV: Ap = A*p
+  | SPMV(A, p, Ap) //SPMV: Ap = A*p
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
   | then([&](){
@@ -265,14 +223,18 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
 
-  sender auto mg_work = schedule(scheduler)
-    | COMPUTE_MG();
-  sync_wait(std::move(mg_work));
+  sender auto mg_downwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE1();
+  sync_wait(std::move(mg_downwards));
+  
+  sender auto mg_upwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE2();
+  sync_wait(std::move(mg_upwards));
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | SPMV(A, p, Ap, NOT_PRECON) //SPMV: Ap = A*p
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
@@ -292,16 +254,20 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
-    sender auto mg_work = schedule(scheduler)
-    | COMPUTE_MG();
-    sync_wait(std::move(mg_work));
+    sender auto mg_downwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE1();
+    sync_wait(std::move(mg_downwards));
+  
+    sender auto mg_upwards = schedule(scheduler)
+    | COMPUTE_MG_STAGE2();
+    sync_wait(std::move(mg_upwards));
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
     | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | SPMV(A, p, Ap, NOT_PRECON) //SPMV: Ap = A*p
+    | SPMV(A, p, Ap) //SPMV: Ap = A*p
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
