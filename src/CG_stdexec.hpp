@@ -135,61 +135,61 @@ using stdexec::continues_on;
 #include <iostream>
 
 #define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[0], *zptrs[0], 0, true) \
+  PROLONGATION(*Aptrs[0], *zptrs[0], 0, prolong_flags[0]) \
   | then([&](){ if(zerovector_flags[0]) ZeroVector(*zptrs[0]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[0], *zptrs[0], *((*Aptrs[0]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[0], *rptrs[0], 0, false) \
+  | RESTRICTION(*Aptrs[0], *rptrs[0], 0, restrict_flags[0]) \
   \
-  | PROLONGATION(*Aptrs[1], *zptrs[1], 1, true) \
+  | PROLONGATION(*Aptrs[1], *zptrs[1], 1, prolong_flags[1]) \
   | then([&](){ if(zerovector_flags[1]) ZeroVector(*zptrs[1]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[1], *rptrs[1], *zptrs[1]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[1], *rptrs[1], 1, false) \
+  | RESTRICTION(*Aptrs[1], *rptrs[1], 1, restrict_flags[1]) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, true) \
+  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, prolong_flags[2]) \
   | then([&](){ if(zerovector_flags[2]) ZeroVector(*zptrs[2]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, false) \
+  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, restrict_flags[2]) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, true) \
+  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, prolong_flags[3]) \
   | then([&](){ if(zerovector_flags[3]) ZeroVector(*zptrs[3]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[3], *rptrs[3], *zptrs[3]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), true) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, true) \
+  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, restrict_flags[3]) \
   \
-  | PROLONGATION(*Aptrs[4], *zptrs[4], 4, false) \
+  | PROLONGATION(*Aptrs[4], *zptrs[4], 4, prolong_flags[4]) \
   | then([&](){ if(zerovector_flags[4]) ZeroVector(*zptrs[4]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[4], *rptrs[4], *zptrs[4]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[4], *zptrs[4], *((*Aptrs[4]).mgData->Axf), true) \
-  | RESTRICTION(*Aptrs[4], *rptrs[4], 4, true) \
+  | RESTRICTION(*Aptrs[4], *rptrs[4], 4, restrict_flags[4]) \
   \
-  | PROLONGATION(*Aptrs[5], *zptrs[5], 5, false) \
+  | PROLONGATION(*Aptrs[5], *zptrs[5], 5, prolong_flags[5]) \
   | then([&](){ if(zerovector_flags[5]) ZeroVector(*zptrs[5]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[5], *rptrs[5], *zptrs[5]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[5], *zptrs[5], *((*Aptrs[5]).mgData->Axf), true) \
-  | RESTRICTION(*Aptrs[5], *rptrs[5], 5, true) \
+  | RESTRICTION(*Aptrs[5], *rptrs[5], 5, restrict_flags[5]) \
   \
-  | PROLONGATION(*Aptrs[6], *zptrs[6], 6, false) \
+  | PROLONGATION(*Aptrs[6], *zptrs[6], 6, prolong_flags[6]) \
   | then([&](){ if(zerovector_flags[6]) ZeroVector(*zptrs[6]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[6], *rptrs[6], *zptrs[6]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf), true) \
-  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, true)
+  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, restrict_flags[6])
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -225,6 +225,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   std::vector<local_int_t> restrict_lens(NUM_SYMGS_STEPS, 0);
   std::vector<local_int_t> spmv_lens(NUM_SYMGS_STEPS, 0);
   std::vector<bool> zerovector_flags(NUM_SYMGS_STEPS, false);
+  std::vector<bool> restrict_flags(NUM_SYMGS_STEPS, true);
+  std::vector<bool> prolong_flags(NUM_SYMGS_STEPS, true);
 
   //setting the values of A, r and z 
   Aptrs[0] = &A;
@@ -277,6 +279,16 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //set zerovector flags
   for(int cnt = 0; cnt < NUM_MG_LEVELS; cnt++){
     zerovector_flags[cnt] = true;
+  }
+
+  //set restriction flags
+  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
+    restrict_flags[cnt] = false;
+  }
+
+  //set prolongation flags
+  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
+    prolong_flags[cnt] = false;
   }
 
   //used in dot product and WAXPBY calculations
