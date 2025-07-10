@@ -135,46 +135,52 @@ using stdexec::continues_on;
 #include <iostream>
 
 #define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[0], *zptrs[0], 0, prolong_flags[0]) \
-  | then([&](){ if(zerovector_flags[0]) ZeroVector(*zptrs[0]); }) \
+  PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
+  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[0], *zptrs[0], *((*Aptrs[0]).mgData->Axf), restrict_flags[0]) \
-  | RESTRICTION(*Aptrs[0], *rptrs[0], 0, restrict_flags[0]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
+  | then([&](){ indPC++; }) \
   \
-  | PROLONGATION(*Aptrs[1], *zptrs[1], 1, prolong_flags[1]) \
-  | then([&](){ if(zerovector_flags[1]) ZeroVector(*zptrs[1]); }) \
+  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
+  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[1], *rptrs[1], *zptrs[1]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), restrict_flags[1]) \
-  | RESTRICTION(*Aptrs[1], *rptrs[1], 1, restrict_flags[1]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
+  | then([&](){ indPC++; }) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, prolong_flags[2]) \
-  | then([&](){ if(zerovector_flags[2]) ZeroVector(*zptrs[2]); }) \
+  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
+  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), restrict_flags[2]) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, restrict_flags[2]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
+  | then([&](){ indPC++; }) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, prolong_flags[3]) \
-  | then([&](){ if(zerovector_flags[3]) ZeroVector(*zptrs[3]); }) \
+  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
+  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[3], *rptrs[3], *zptrs[3]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), restrict_flags[3]) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, restrict_flags[3]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
+  | then([&](){ indPC++; }) \
   \
-  | PROLONGATION(*Aptrs[4], *zptrs[4], 4, prolong_flags[4]) \
-  | then([&](){ if(zerovector_flags[4]) ZeroVector(*zptrs[4]); }) \
+  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
+  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[4], *rptrs[4], *zptrs[4]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[4], *zptrs[4], *((*Aptrs[4]).mgData->Axf), restrict_flags[4]) \
-  | RESTRICTION(*Aptrs[4], *rptrs[4], 4, restrict_flags[4]) \
-  \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
+  | then([&](){ indPC++; })
+
+  /*
   | PROLONGATION(*Aptrs[5], *zptrs[5], 5, prolong_flags[5]) \
   | then([&](){ if(zerovector_flags[5]) ZeroVector(*zptrs[5]); }) \
   | continues_on(scheduler_single_thread) \
@@ -189,7 +195,7 @@ using stdexec::continues_on;
   | then([&](){ ComputeSYMGS_ref(*Aptrs[6], *rptrs[6], *zptrs[6]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf), restrict_flags[6]) \
-  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, restrict_flags[6])
+  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, restrict_flags[6])*/
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
