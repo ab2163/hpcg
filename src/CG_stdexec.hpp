@@ -132,14 +132,24 @@ using stdexec::continues_on;
   | POST_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
   | POST_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0)
 
+#include <iostream>
+
 #define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[0], *zptrs[0], 0) \
+  then([&](){ std::cout<<"1\n"; }) \
+  | PROLONGATION(*Aptrs[0], *zptrs[0], 0) \
+  | then([&](){ std::cout<<"2\n"; }) \
   | then([&](){ ZeroVector(*zptrs[0]); }) \
+  | then([&](){ std::cout<<"3\n"; }) \
   | continues_on(scheduler_single_thread) \
+  | then([&](){ std::cout<<"4\n"; }) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
+  | then([&](){ std::cout<<"5\n"; }) \
   | continues_on(scheduler) \
+  | then([&](){ std::cout<<"6\n"; }) \
   | SPMV(*Aptrs[0], *zptrs[0], *((*Aptrs[0]).mgData->Axf)) \
+  | then([&](){ std::cout<<"7\n"; }) \
   | RESTRICTION(*Aptrs[0], *rptrs[0], 0) \
+  | then([&](){ std::cout<<"8\n"; }) \
   \
   | PROLONGATION(*Aptrs[1], *zptrs[1], 1) \
   | then([&](){ ZeroVector(*zptrs[1]); }) \
@@ -155,8 +165,9 @@ using stdexec::continues_on;
   | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf)) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2) \
-  \
+  | RESTRICTION(*Aptrs[2], *rptrs[2], 2) 
+  
+  /*
   | PROLONGATION(*Aptrs[3], *zptrs[3], 3) \
   | then([&](){ ZeroVector(*zptrs[3]); }) \
   | continues_on(scheduler_single_thread) \
@@ -187,7 +198,7 @@ using stdexec::continues_on;
   | then([&](){ ComputeSYMGS_ref(*Aptrs[6], *rptrs[6], *zptrs[6]); }) \
   | continues_on(scheduler) \
   | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf)) \
-  | RESTRICTION(*Aptrs[6], *rptrs[6], 6)
+  | RESTRICTION(*Aptrs[6], *rptrs[6], 6)*/
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
