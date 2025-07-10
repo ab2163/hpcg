@@ -6,6 +6,7 @@
 #include <atomic>
 #include <ranges>
 #include <numeric>
+#include <iostream>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
@@ -83,9 +84,14 @@ using exec::repeat_n;
   | then([&](){ NVTX_RANGE_END })
 #else
 #define SPMV(A, x, y, ind) \
-  then([&](){ NVTX_RANGE_BEGIN("SPMV") }) \
-  | bulk(stdexec::par_unseq, ind < 0 ? (A).localNumberOfRows : spmv_lens[ind], \
+  then([&](){ std::cout<<(*Aptrs[indPC]).localNumberOfRows<<"\n"; }) \
+  | bulk(stdexec::par_unseq, (*Aptrs[indPC]).localNumberOfRows, \
     [&](local_int_t i){ \
+    if(i > (*Aptrs[indPC]).localNumberOfRows){ \
+      std::cout<<indPC<<"\n"; \
+      std::cout<<i<<"\n"; \
+      std::cout<<(*Aptrs[indPC]).localNumberOfRows<<"\n"; \
+      std::cout<<"BAD INDEX\n"; exit(EXIT_FAILURE); } \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
