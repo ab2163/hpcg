@@ -140,30 +140,31 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double dot_local_copy; //for passing into MPIAllReduce within dot product
 
   //variables needed for MG computation
-  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
-  std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
-  std::vector<Vector*> zval_ptrs(NUM_MG_LEVELS);
-  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
-  matrix_ptrs[0] = &A;
-  res_ptrs[0] = &r;
-  zval_ptrs[0] = &z;
+  std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
+  std::vector<const Vector*> rptrs(NUM_SYMGS_STEPS);
+  std::vector<Vector*> zptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> Axfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> rfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> rcv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<local_int_t*> f2c_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> xfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> xcv_ptrs(NUM_SYMGS_STEPS);
+  Aptrs[0] = &A;
+  rptrs[0] = &r;
+  zptrs[0] = &z;
+  Aptrs[1] = 
   for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
-    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
-    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
-    zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
+    Aptrs[cnt] = Aptrs[cnt - 1]->Ac;
+    rptrs[cnt] = Aptrs[cnt - 1]->mgData->rc;
+    zptrs[cnt] = Aptrs[cnt - 1]->mgData->xc;
   }
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
-    rfv_ptrs[cnt] = res_ptrs[cnt]->values;
-    rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
-    f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
-    xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
-    xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
+    Axfv_ptrs[cnt] = Aptrs[cnt]->mgData->Axf->values;
+    rfv_ptrs[cnt] = rptrs[cnt]->values;
+    rcv_ptrs[cnt] = Aptrs[cnt]->mgData->rc->values;
+    f2c_ptrs[cnt] = Aptrs[cnt]->mgData->f2cOperator;
+    xfv_ptrs[cnt] = zptrs[cnt]->values;
+    xcv_ptrs[cnt] = Aptrs[cnt]->mgData->xc->values;
   }
 
   //used in dot product and WAXPBY calculations
