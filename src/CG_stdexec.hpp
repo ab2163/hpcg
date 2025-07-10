@@ -86,10 +86,12 @@ using exec::repeat_n;
 #define SPMV(A, x, y, ind) \
   then([&](){ std::cout<<(*Aptrs[indPC]).localNumberOfRows<<"\n"; }) \
   | bulk(stdexec::par_unseq, (*Aptrs[indPC]).localNumberOfRows, \
-    [&](local_int_t i){ \
+    [&](int i){ \
     if(i > (*Aptrs[indPC]).localNumberOfRows){ \
       std::cout<<indPC<<"\n"; \
       std::cout<<i<<"\n"; \
+      std::cout << "sizeof(i): " << sizeof(i) << "\n"; \
+      std::cout << "sizeof(A.local...): " << sizeof((*Aptrs[indPC]).localNumberOfRows) << "\n"; \
       std::cout<<(*Aptrs[indPC]).localNumberOfRows<<"\n"; \
       std::cout<<"BAD INDEX\n"; exit(EXIT_FAILURE); } \
     double sum = 0.0; \
