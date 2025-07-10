@@ -17,6 +17,8 @@
 #include <mpi.h>
 #endif
 
+#define NUM_SYMGS_STEPS 7
+
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -120,56 +122,56 @@ using stdexec::continues_on;
   | continues_on(scheduler)
   
 #define COMPUTE_MG_STAGE1() \
-  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
-  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
+  PRE_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0) \
+  | PRE_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
+  | PRE_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2) \
 
 #define COMPUTE_MG_STAGE2() \
-  TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
-  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
-  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
+  TERMINAL_MG(*Aptrs[3], *rptrs[3], *zptrs[3]) \
+  | POST_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2) \
+  | POST_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
+  | POST_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0)
 
 #define COMPUTE_MG() \
-  then([&](){ ZeroVector(*zval_ptrs[0]); }) \
+  then([&](){ ZeroVector(*zptrs[0]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
   | continues_on(scheduler) \
-  | SPMV(*matrix_ptrs[0], *zval_ptrs[0], *((*matrix_ptrs[0]).mgData->Axf)) \
-  | RESTRICTION(*matrix_ptrs[0], *res_ptrs[0], 0) \
+  | SPMV(*Aptrs[0], *zptrs[0], *((*Aptrs[0]).mgData->Axf)) \
+  | RESTRICTION(*Aptrs[0], *rptrs[0], 0) \
   \
-  | then([&](){ ZeroVector(*zval_ptrs[1]); }) \
+  | then([&](){ ZeroVector(*zptrs[1]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[1], *rptrs[1], *zptrs[1]); }) \
   | continues_on(scheduler) \
-  | SPMV(*matrix_ptrs[1], *zval_ptrs[1], *((*matrix_ptrs[1]).mgData->Axf)) \
-  | RESTRICTION(*matrix_ptrs[1], *res_ptrs[1], 1) \
+  | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf)) \
+  | RESTRICTION(*Aptrs[1], *rptrs[1], 1) \
   \
-  | then([&](){ ZeroVector(*zval_ptrs[2]); }) \
+  | then([&](){ ZeroVector(*zptrs[2]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
   | continues_on(scheduler) \
-  | SPMV(*matrix_ptrs[2], *zval_ptrs[2], *((*matrix_ptrs[2]).mgData->Axf)) \
-  | RESTRICTION(*matrix_ptrs[2], *res_ptrs[2], 2) \
+  | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf)) \
+  | RESTRICTION(*Aptrs[2], *rptrs[2], 2) \
   \
-  | then([&](){ ZeroVector(*zval_ptrs[3]); }) \
+  | then([&](){ ZeroVector(*zptrs[3]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]); }) \
-  | continues_on(scheduler) \
-  \
-  | PROLONGATION(*matrix_ptrs[2], *zval_ptrs[2], 2) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[3], *rptrs[3], *zptrs[3]); }) \
   | continues_on(scheduler) \
   \
-  | PROLONGATION(*matrix_ptrs[1], *zval_ptrs[1], 1) \
+  | PROLONGATION(*Aptrs[2], *zptrs[2], 2) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
   | continues_on(scheduler) \
   \
-  | PROLONGATION(*matrix_ptrs[0], *zval_ptrs[0], 0) \
+  | PROLONGATION(*Aptrs[1], *zptrs[1], 1) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]); }) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[1], *rptrs[1], *zptrs[1]); }) \
+  | continues_on(scheduler) \
+  \
+  | PROLONGATION(*Aptrs[0], *zptrs[0], 0) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
   | continues_on(scheduler)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
@@ -189,31 +191,75 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double local_result;
   double dot_local_copy; //for passing into MPIAllReduce within dot product
 
-  //variables needed for MG computation
-  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
-  std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
-  std::vector<Vector*> zval_ptrs(NUM_MG_LEVELS);
-  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
-  matrix_ptrs[0] = &A;
-  res_ptrs[0] = &r;
-  zval_ptrs[0] = &z;
+  //index used in MG preconditioning loop
+  int indPC = 0;
+
+  //declaring all the variables needed for MG computation
+  std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
+  std::vector<const Vector*> rptrs(NUM_SYMGS_STEPS);
+  std::vector<Vector*> zptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> Axfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> rfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> rcv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<local_int_t*> f2c_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> xfv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<double*> xcv_ptrs(NUM_SYMGS_STEPS);
+  std::vector<local_int_t> prolong_lens(NUM_SYMGS_STEPS, 0);
+  std::vector<local_int_t> restrict_lens(NUM_SYMGS_STEPS, 0);
+  std::vector<local_int_t> spmv_lens(NUM_SYMGS_STEPS, 0);
+  std::vector<bool> zerovector_flags(NUM_SYMGS_STEPS, false);
+
+  //setting the values of A, r and z 
+  Aptrs[0] = &A;
+  rptrs[0] = &r;
+  zptrs[0] = &z;
   for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
-    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
-    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
-    zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
+    Aptrs[cnt] = Aptrs[cnt - 1]->Ac;
+    rptrs[cnt] = Aptrs[cnt - 1]->mgData->rc;
+    zptrs[cnt] = Aptrs[cnt - 1]->mgData->xc;
   }
+  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
+    Aptrs[cnt] = Aptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    rptrs[cnt] = rptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    zptrs[cnt] = zptrs[NUM_SYMGS_STEPS - (cnt+1)];
+  }
+
+  //setting values for variables used in prolongation and restriction
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
-    rfv_ptrs[cnt] = res_ptrs[cnt]->values;
-    rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
-    f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
-    xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
-    xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
+    Axfv_ptrs[cnt] = Aptrs[cnt]->mgData->Axf->values;
+    rfv_ptrs[cnt] = rptrs[cnt]->values;
+    rcv_ptrs[cnt] = Aptrs[cnt]->mgData->rc->values;
+    f2c_ptrs[cnt] = Aptrs[cnt]->mgData->f2cOperator;
+    xfv_ptrs[cnt] = zptrs[cnt]->values;
+    xcv_ptrs[cnt] = Aptrs[cnt]->mgData->xc->values;
+  }
+  Axfv_ptrs[NUM_MG_LEVELS - 1] = Axfv_ptrs[NUM_MG_LEVELS - 2];
+  rfv_ptrs[NUM_MG_LEVELS - 1] = rfv_ptrs[NUM_MG_LEVELS - 2];
+  rcv_ptrs[NUM_MG_LEVELS - 1] = rcv_ptrs[NUM_MG_LEVELS - 2];
+  f2c_ptrs[NUM_MG_LEVELS - 1] = f2c_ptrs[NUM_MG_LEVELS - 2];
+  xfv_ptrs[NUM_MG_LEVELS - 1] = xfv_ptrs[NUM_MG_LEVELS - 2];
+  xcv_ptrs[NUM_MG_LEVELS - 1] = xcv_ptrs[NUM_MG_LEVELS - 2];
+  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
+    Axfv_ptrs[cnt] = Axfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    rfv_ptrs[cnt] = rfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    rcv_ptrs[cnt] = rcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    f2c_ptrs[cnt] = f2c_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    xfv_ptrs[cnt] = xfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+    xcv_ptrs[cnt] = xcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
+  }
+
+  //setting lengths of bulk calls in SPMV, prolongation, restriction
+  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
+    restrict_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
+    spmv_lens[cnt] = (*Aptrs[cnt]).localNumberOfRows;
+  }
+  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
+    prolong_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
+  }
+
+  //set zerovector flags
+  for(int cnt = 0; cnt < NUM_MG_LEVELS; cnt++){
+    zerovector_flags[cnt] = true;
   }
 
   //used in dot product and WAXPBY calculations
