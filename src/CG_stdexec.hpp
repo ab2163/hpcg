@@ -135,7 +135,7 @@ using stdexec::continues_on;
 #include <iostream>
 
 #define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[0], *zptrs[0], 0, false) \
+  PROLONGATION(*Aptrs[0], *zptrs[0], 0, true) \
   | then([&](){ ZeroVector(*zptrs[0]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[0], *rptrs[0], *zptrs[0]); }) \
@@ -143,7 +143,7 @@ using stdexec::continues_on;
   | SPMV(*Aptrs[0], *zptrs[0], *((*Aptrs[0]).mgData->Axf), false) \
   | RESTRICTION(*Aptrs[0], *rptrs[0], 0, false) \
   \
-  | PROLONGATION(*Aptrs[1], *zptrs[1], 1, false) \
+  | PROLONGATION(*Aptrs[1], *zptrs[1], 1, true) \
   | then([&](){ ZeroVector(*zptrs[1]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[1], *rptrs[1], *zptrs[1]); }) \
@@ -151,7 +151,7 @@ using stdexec::continues_on;
   | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), false) \
   | RESTRICTION(*Aptrs[1], *rptrs[1], 1, false) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, false) \
+  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, true) \
   | then([&](){ ZeroVector(*zptrs[2]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[2], *rptrs[2], *zptrs[2]); }) \
@@ -159,37 +159,37 @@ using stdexec::continues_on;
   | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), false) \
   | RESTRICTION(*Aptrs[2], *rptrs[2], 2, false) \
   \
-  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, false) \
+  | PROLONGATION(*Aptrs[2], *zptrs[2], 2, true) \
   | then([&](){ ZeroVector(*zptrs[3]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[3], *rptrs[3], *zptrs[3]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, false) \
+  | SPMV(*Aptrs[2], *zptrs[2], *((*Aptrs[2]).mgData->Axf), true) \
+  | RESTRICTION(*Aptrs[2], *rptrs[2], 2, true) \
   \
   | PROLONGATION(*Aptrs[4], *zptrs[4], 4, false) \
   | then([&](){ ZeroVector(*zptrs[4]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[4], *rptrs[4], *zptrs[4]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[4], *zptrs[4], *((*Aptrs[4]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[4], *rptrs[4], 4, false) \
+  | SPMV(*Aptrs[4], *zptrs[4], *((*Aptrs[4]).mgData->Axf), true) \
+  | RESTRICTION(*Aptrs[4], *rptrs[4], 4, true) \
   \
   | PROLONGATION(*Aptrs[5], *zptrs[5], 5, false) \
   | then([&](){ ZeroVector(*zptrs[5]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[5], *rptrs[5], *zptrs[5]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[5], *zptrs[5], *((*Aptrs[5]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[5], *rptrs[5], 5, false) \
+  | SPMV(*Aptrs[5], *zptrs[5], *((*Aptrs[5]).mgData->Axf), true) \
+  | RESTRICTION(*Aptrs[5], *rptrs[5], 5, true) \
   \
   | PROLONGATION(*Aptrs[6], *zptrs[6], 6, false) \
   | then([&](){ ZeroVector(*zptrs[6]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[6], *rptrs[6], *zptrs[6]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf), false) \
-  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, false)
+  | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf), true) \
+  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, true)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
