@@ -10,6 +10,7 @@
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
+#include "../stdexec/include/exec/repeat_n.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
 
@@ -24,9 +25,11 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
+using exec::repeat_n;
 
 #define NUM_MG_LEVELS 4
 #define SINGLE_THREAD 1
+#define NUM_SYMGS_STEPS 7
 
 #ifdef NVTX_ON
 #define NVTX_RANGE_BEGIN(message) rangeID = nvtxRangeStartA((message));
@@ -60,12 +63,12 @@ using stdexec::continues_on;
   | then([&](){ NVTX_RANGE_END })
 
 #ifndef HPCG_NO_MPI
-#define SPMV(A, x, y) \
+#define SPMV(A, x, y, len) \
   then([&](){ \
     NVTX_RANGE_BEGIN("SPMV") \
     ExchangeHalo((A), (x)); \
   }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par_unseq, len, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -77,9 +80,9 @@ using stdexec::continues_on;
   }) \
   | then([&](){ NVTX_RANGE_END })
 #else
-#define SPMV(A, x, y) \
+#define SPMV(A, x, y, len) \
   then([&](){ NVTX_RANGE_BEGIN("SPMV") }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par_unseq, len, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -92,59 +95,32 @@ using stdexec::continues_on;
   | then([&](){ NVTX_RANGE_END })
 #endif
 
-#define RESTRICTION(A, rf, level) \
+#define RESTRICTION(A, rf, level, len) \
   then([&](){ NVTX_RANGE_BEGIN("Restriction") }) \
-  | bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
+  | bulk(stdexec::par_unseq, len, \
     [&](int i){ \
     rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
   }) \
   | then([&](){ NVTX_RANGE_END })
 
-#define PROLONGATION(Af, xf, level) \
+#define PROLONGATION(Af, xf, level, len) \
   then([&](){ NVTX_RANGE_BEGIN("Prolongation") }) \
-  | bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
+  | bulk(stdexec::par_unseq, len, \
     [&](int i){ \
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   }) \
   | then([&](){ NVTX_RANGE_END })
 
-//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define PRE_RECURSION_MG(A, r, x, level) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler) \
-  | SPMV((A), (x), *((A).mgData->Axf)) \
-  | RESTRICTION((A), (r), (level))
-
-#define POST_RECURSION_MG(A, r, x, level) \
-  PROLONGATION((A), (x), (level)) \
+#define COMPUTE_MG() \
+  PROLONGATION(*Aptrs[indPC], *zptrs[indPC], lvl[indPC], len[indPC]) \
+  | then([&](){ ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler)
-
-#define TERMINAL_MG(A, r, x) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler)
-  
-#define COMPUTE_MG_STAGE1() \
-  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
-  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
-
-#define COMPUTE_MG_STAGE2() \
-  TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
-  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
-  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
+  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *zptrs[indPC], *zptrs[indPC]); }) \
+  | continues_on(scheduler) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *(*Aptrs[indPC].mgData->Axf), len[indPC]) \
+  | RESTRICTION(*A_ptrs[indPC], *rptrs[indPC], lvl[indPC], len[indPC]) \
+  | then([&](){ SYMGS_ind++; }) \
+  | repeat_n(NUM_SYMGS_STEPS - 1) \
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -198,6 +174,10 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double *bVals = b.values;
   double *ApVals = Ap.values;
 
+  //index used in MG preconditioning loop
+  int indPC = 0;
+
+  //for NVTX tracking
   nvtxRangeId_t rangeID;
 
   //scheduler for CPU execution
