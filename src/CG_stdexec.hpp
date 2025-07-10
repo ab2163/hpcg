@@ -130,6 +130,48 @@ using stdexec::continues_on;
   | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
   | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
 
+#define COMPUTE_MG() \
+  then([&](){ ZeroVector(*zval_ptrs[0]); }) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]); }) \
+  | continues_on(scheduler) \
+  | SPMV(*matrix_ptrs[0], *zval_ptrs[0], *((*matrix_ptrs[0]).mgData->Axf)) \
+  | RESTRICTION(*matrix_ptrs[0], *res_ptrs[0], 0) \
+  \
+  | then([&](){ ZeroVector(*zval_ptrs[1]); }) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]); }) \
+  | continues_on(scheduler) \
+  | SPMV(*matrix_ptrs[1], *zval_ptrs[1], *((*matrix_ptrs[1]).mgData->Axf)) \
+  | RESTRICTION(*matrix_ptrs[1], *res_ptrs[1], 1) \
+  \
+  | then([&](){ ZeroVector(*zval_ptrs[2]); }) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]); }) \
+  | continues_on(scheduler) \
+  | SPMV(*matrix_ptrs[2], *zval_ptrs[2], *((*matrix_ptrs[2]).mgData->Axf)) \
+  | RESTRICTION(*matrix_ptrs[2], *res_ptrs[2], 2) \
+  \
+  | then([&](){ ZeroVector(*zval_ptrs[3]); }) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]); }) \
+  | continues_on(scheduler) \
+  \
+  | PROLONGATION(*matrix_ptrs[2], *zval_ptrs[2], 2) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2]); }) \
+  | continues_on(scheduler) \
+  \
+  | PROLONGATION(*matrix_ptrs[1], *zval_ptrs[1], 1) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1]); }) \
+  | continues_on(scheduler) \
+  \
+  | PROLONGATION(*matrix_ptrs[0], *zval_ptrs[0], 0) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0]); }) \
+  | continues_on(scheduler)
+
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
@@ -223,13 +265,9 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
 
-  sender auto mg_downwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE1();
-  sync_wait(std::move(mg_downwards));
-  
-  sender auto mg_upwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE2();
-  sync_wait(std::move(mg_upwards));
+  sender auto my_work = schedule(scheduler)
+    | COMPUTE_MG();
+  sync_wait(std::move(my_work));
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, zVals, 0, zVals, pVals)
