@@ -10,6 +10,7 @@
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
+#include "../stdexec/include/exec/repeat_n.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
 
@@ -149,59 +150,7 @@ using stdexec::continues_on;
   | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; }) \
-  \
-  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
-  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
-  | then([&](){ indPC++; }) \
-  \
-  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
-  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
-  | then([&](){ indPC++; }) \
-  \
-  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
-  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
-  | then([&](){ indPC++; })
-  
-  /*
-  | PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
-  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
-  | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
-  \
-  | PROLONGATION(*Aptrs[5], *zptrs[5], 5, prolong_flags[5]) \
-  | then([&](){ if(zerovector_flags[5]) ZeroVector(*zptrs[5]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[5], *rptrs[5], *zptrs[5]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[5], *zptrs[5], *((*Aptrs[5]).mgData->Axf), restrict_flags[5]) \
-  | RESTRICTION(*Aptrs[5], *rptrs[5], 5, restrict_flags[5]) \
-  \
-  | PROLONGATION(*Aptrs[6], *zptrs[6], 6, prolong_flags[6]) \
-  | then([&](){ if(zerovector_flags[6]) ZeroVector(*zptrs[6]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[6], *rptrs[6], *zptrs[6]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[6], *zptrs[6], *((*Aptrs[6]).mgData->Axf), restrict_flags[6]) \
-  | RESTRICTION(*Aptrs[6], *rptrs[6], 6, restrict_flags[6])*/
+  | exec::repeat_n(NUM_SYMGS_STEPS)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
