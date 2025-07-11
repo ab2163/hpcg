@@ -134,13 +134,18 @@ using stdexec::continues_on;
 
 #include <iostream>
 
+#define NROWS0 1124864
+#define NROWS1 140608
+#define NROWS2 17576
+#define LEN(indVal) (indVal) == 0 ? NROWS0 : ( (indVal) == 1 ? NROWS1 : ( (indVal) == 2 ? NROWS2 : 0) ) 
+
 #define COMPUTE_MG() \
   PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
   | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), spmv_lens[indPC]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), LEN(indPC)) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
   \
@@ -150,7 +155,7 @@ using stdexec::continues_on;
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
   | then([&](){ std::cout<<"1\n"; }) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), indPC == 1 ? 140608 : 0) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), LEN(indPC)) \
   | then([&](){ std::cout<<"2\n"; }) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
@@ -160,7 +165,7 @@ using stdexec::continues_on;
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), spmv_lens[indPC]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), LEN(indPC)) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
   \
@@ -169,7 +174,7 @@ using stdexec::continues_on;
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), spmv_lens[indPC]) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), LEN(indPC)) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; })
   
