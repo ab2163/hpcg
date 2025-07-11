@@ -150,7 +150,7 @@ using stdexec::continues_on;
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
   | then([&](){ std::cout<<"1\n"; }) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), restrict_flags[1]) \
   | then([&](){ std::cout<<"2\n"; }) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
@@ -217,7 +217,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double dot_local_copy; //for passing into MPIAllReduce within dot product
 
   //index used in MG preconditioning loop
-  int indPC = 0;
+  std::vector<int>::size_type indPC = 0;
 
   //declaring all the variables needed for MG computation
   std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
