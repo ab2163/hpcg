@@ -134,20 +134,8 @@ using stdexec::continues_on;
 
 #include <iostream>
 
-//index used in MG preconditioning loop
-int indPC = 0;
-
 int gInd(){
-  switch(indPC){
-    case 0: return 0;
-    case 1: return 1;
-    case 2: return 2;
-    case 3: return 3;
-    case 4: return 4;
-    case 5: return 5;
-    case 6: return 6;
-    default: std::cout << "ERROR in index switching.\n"; exit(EXIT_FAILURE);
-  }
+  return 1;
 }
 
 #define COMPUTE_MG() \
@@ -231,6 +219,9 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   Vector & Ap = data.Ap;
   double local_result;
   double dot_local_copy; //for passing into MPIAllReduce within dot product
+
+  //index used in MG preconditioning loop
+  std::vector<int>::size_type indPC = 0;
 
   //declaring all the variables needed for MG computation
   std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
