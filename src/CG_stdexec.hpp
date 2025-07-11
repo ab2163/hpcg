@@ -328,13 +328,9 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
-    sender auto mg_downwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE1();
-    sync_wait(std::move(mg_downwards));
-  
-    sender auto mg_upwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE2();
-    sync_wait(std::move(mg_upwards));
+    sender auto my_work = schedule(scheduler)
+    | COMPUTE_MG();
+    sync_wait(std::move(my_work));
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([&](){ oldrtz = rtz; })
