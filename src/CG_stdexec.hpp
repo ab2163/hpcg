@@ -134,10 +134,6 @@ using stdexec::continues_on;
 
 #include <iostream>
 
-int gInd(){
-  return 1;
-}
-
 #define COMPUTE_MG() \
   PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
   | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
@@ -154,7 +150,7 @@ int gInd(){
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
   | then([&](){ std::cout<<"1\n"; }) \
-  | SPMV(*Aptrs[gInd()], *zptrs[gInd()], *((*Aptrs[gInd()]).mgData->Axf), restrict_flags[gInd()]) \
+  | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), restrict_flags[1]) \
   | then([&](){ std::cout<<"2\n"; }) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
