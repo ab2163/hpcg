@@ -1,11 +1,10 @@
-//COMMIT CREATED TO HIGHLIGHT COMPLEXITY LIMIT OF NVC COMPILER
-
 #include <cmath>
 #include <algorithm>
 #include <execution>
 #include <atomic>
 #include <ranges>
 #include <numeric>
+#include <iostream>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
@@ -18,8 +17,6 @@
 #include <mpi.h>
 #endif
 
-#define NUM_SYMGS_STEPS 7
-
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -29,6 +26,7 @@ using stdexec::just;
 using stdexec::continues_on;
 
 #define NUM_MG_LEVELS 4
+#define NUM_SYMGS_STEPS 7
 #define SINGLE_THREAD 1
 
 #ifdef NVTX_ON
@@ -101,46 +99,6 @@ using stdexec::continues_on;
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   })
 
-//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define PRE_RECURSION_MG(A, r, x, level) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler) \
-  | SPMV((A), (x), *((A).mgData->Axf), false) \
-  | RESTRICTION((A), (r), (level), false)
-
-#define POST_RECURSION_MG(A, r, x, level) \
-  PROLONGATION((A), (x), (level), false) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler)
-
-#define TERMINAL_MG(A, r, x) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler)
-  
-#define COMPUTE_MG_STAGE1() \
-  PRE_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0) \
-  | PRE_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
-  | PRE_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2) \
-
-#define COMPUTE_MG_STAGE2() \
-  TERMINAL_MG(*Aptrs[3], *rptrs[3], *zptrs[3]) \
-  | POST_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2) \
-  | POST_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
-  | POST_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0)
-
-#include <iostream>
-
 #define COMPUTE_MG() \
   PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
   | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
@@ -159,15 +117,13 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
-  double t_zeroVector = 0.0, t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
+  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 ;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
   Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
   double local_result;
-  double dot_local_copy; //for passing into MPIAllReduce within dot product
 
   //index used in MG preconditioning loop
   int indPC = 0;
@@ -182,9 +138,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   std::vector<local_int_t*> f2c_ptrs(NUM_SYMGS_STEPS);
   std::vector<double*> xfv_ptrs(NUM_SYMGS_STEPS);
   std::vector<double*> xcv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<local_int_t> prolong_lens(NUM_SYMGS_STEPS, 0);
-  std::vector<local_int_t> restrict_lens(NUM_SYMGS_STEPS, 0);
-  std::vector<local_int_t> spmv_lens(NUM_SYMGS_STEPS, 0);
   std::vector<bool> zerovector_flags(NUM_SYMGS_STEPS, false);
   std::vector<bool> restrict_flags(NUM_SYMGS_STEPS, true);
   std::vector<bool> prolong_flags(NUM_SYMGS_STEPS, true);
@@ -226,15 +179,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     f2c_ptrs[cnt] = f2c_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
     xfv_ptrs[cnt] = xfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
     xcv_ptrs[cnt] = xcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-  }
-
-  //setting lengths of bulk calls in SPMV, prolongation, restriction
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    restrict_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
-    spmv_lens[cnt] = (*Aptrs[cnt]).localNumberOfRows;
-  }
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    prolong_lens[cnt] = (*Aptrs[cnt]).mgData->rc->localLength;
   }
 
   //set zerovector flags
@@ -301,11 +245,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //FIND A MORE ELEGANT WAY OF DOING THIS!
   //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
 
-  sender auto my_work = schedule(scheduler)
-    | COMPUTE_MG();
-  sync_wait(std::move(my_work));
-
-  sender auto rest_of_loop = schedule(scheduler)
+  sender auto first_loop = schedule(scheduler)
+    | COMPUTE_MG()
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
@@ -322,18 +263,15 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
       niters = 1;
     });
-    sync_wait(std::move(rest_of_loop));
+    sync_wait(std::move(first_loop));
 
   //Start iterations
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
     indPC = 0;
-    sender auto my_work = schedule(scheduler)
-    | COMPUTE_MG();
-    sync_wait(std::move(my_work));
-
-    sender auto rest_of_loop = schedule(scheduler)
+    sender auto loop_work = schedule(scheduler)
+    | COMPUTE_MG()
     | then([&](){ oldrtz = rtz; })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
@@ -352,7 +290,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
       niters = k;
     });
-    sync_wait(std::move(rest_of_loop));
+    sync_wait(std::move(loop_work));
   }
 
   sender auto store_times = schedule(scheduler) | then([&](){
@@ -362,11 +300,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     times[4] += 0.0; //AllReduce time
     times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
-    std::cout << "ADDITIONAL TIME DATA:\n";
-    std::cout << "Zero Vector Time : " << t_zeroVector << "\n";
-    std::cout << "SYMGS Time : " << t_SYMGS << "\n";
-    std::cout << "Restriction Time : " << t_restrict << "\n";
-    std::cout << "Prolongation Time : " << t_prolong << "\n";
   });
   sync_wait(std::move(store_times));
   return 0;
