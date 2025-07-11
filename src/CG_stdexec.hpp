@@ -328,6 +328,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   //Convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
+    indPC = 0;
     sender auto my_work = schedule(scheduler)
     | COMPUTE_MG();
     sync_wait(std::move(my_work));
