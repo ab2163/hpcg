@@ -38,6 +38,23 @@ using stdexec::continues_on;
 #define NVTX_RANGE_END
 #endif
 
+#include <iostream>
+#include <iomanip>
+#include <cstring>
+#include <typeinfo>
+
+template<typename T>
+void printmem(T& val){
+  unsigned char buffer[sizeof(T)];
+  std::memcpy(buffer, &val, sizeof(T));
+
+  std::cout << "0x";
+  for(size_t i = 0; i < sizeof(T); i++)
+    std::cout << std::hex << std::setw(2) << std::setfill('0')
+              << static_cast<int>(buffer[i]);
+  std::cout << std::dec << "\n";
+}
+
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
@@ -71,6 +88,12 @@ using stdexec::continues_on;
 #else
 #define SPMV(A, x, y, disable) \
   bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
+    if(i > (A).localNumberOfRows){ \
+      printmem(i); \
+      std::cout << "Type of i: " << typeid(i).name() << "\n"; \
+      printmem((A).localNumberOfRows); \
+      std::cout << "Type of (A).localNumberOfRows: " << typeid((A).localNumberOfRows).name() << "\n"; \
+    } \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -132,8 +155,6 @@ using stdexec::continues_on;
   | POST_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1) \
   | POST_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0)
 
-#include <iostream>
-
 #define COMPUTE_MG() \
   PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
   | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
@@ -149,9 +170,9 @@ using stdexec::continues_on;
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | then([&](){ std::cout<<"1\n"; }) \
-  | SPMV(*Aptrs[1], *zptrs[1], *((*Aptrs[1]).mgData->Axf), restrict_flags[1]) \
-  | then([&](){ std::cout<<"2\n"; }) \
+  | then([&](){ std::cout<<"START OF SPMV CALL:\n"; }) \
+  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | then([&](){ std::cout<<"END OF SPMV CALL\n"; }) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; std::cout<<"indPC incremented to "<<indPC<<"\n"; }) \
   \
