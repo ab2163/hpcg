@@ -10,6 +10,8 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "../stdexec/include/exec/repeat_n.hpp"
+#include "../stdexec/include/exec/variant_sender.hpp"
+#include "../stdexec/include/exec/repeat_effect_until.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
 
@@ -24,6 +26,8 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
+using stdexec::let_value;
+using exec::repeat_effect_until;
 
 #define NUM_MG_LEVELS 4
 #define NUM_SYMGS_STEPS 7
@@ -241,57 +245,51 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sync_wait(std::move(pre_loop_work));
   
   int k = 1;
-  //ITERATION FOR FIRST LOOP
-  //FIND A MORE ELEGANT WAY OF DOING THIS!
-  //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
 
-  sender auto first_loop = schedule(scheduler)
-    | COMPUTE_MG()
-    | WAXPBY(1, zVals, 0, zVals, pVals)
-    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
-    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
-    | then([&](){ 
-      normr = sqrt(normr);
+  stdexec::sender auto sndr_first = stdexec::schedule(scheduler) 
+  | COMPUTE_MG()
+  | WAXPBY(1, zVals, 0, zVals, pVals)
+  | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz); //rtz = r'*z
+
+  stdexec::sender auto sndr_second = stdexec::schedule(scheduler) 
+  | COMPUTE_MG()
+  | then([&](){ oldrtz = rtz; })
+  | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
+  | then([&](){ beta = rtz/oldrtz; })
+  | WAXPBY(1, zVals, beta, pVals, pVals); //WAXPBY: p = beta*p + z
+
+  using loop_one_t = decltype(sndr_first);
+  using loop_two_t = decltype(sndr_second);
+  exec::variant_sender<loop_one_t, loop_two_t> switch_sndr = sndr_first;
+
+  sender auto loop_work = let_value(stdexec::schedule(scheduler), [&](){
+    if(k == 2){
+      switch_sndr.emplace<1>(sndr_second);
+      return switch_sndr;
+    }else{
+      return switch_sndr;
+    }
+  })
+  | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+  | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
+  | then([&](){ alpha = rtz/pAp; })
+  | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
+  | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
+  | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+  | then([&](){ 
+    normr = sqrt(normr);
 #ifdef HPCG_DEBUG
-      if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
+    if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
+      HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
 #endif
-      niters = 1;
-    });
-    sync_wait(std::move(first_loop));
-
-  //Start iterations
-  //Convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
-
+    niters = k;
+    k++;
     indPC = 0;
-    sender auto loop_work = schedule(scheduler)
-    | COMPUTE_MG()
-    | then([&](){ oldrtz = rtz; })
-    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | then([&](){ beta = rtz/oldrtz; })
-    | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
-    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
-    | then([&](){ 
-      normr = sqrt(normr); 
-#ifdef HPCG_DEBUG
-      if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
-#endif
-      niters = k;
-    });
-    sync_wait(std::move(loop_work));
-  }
+    return !(k <= max_iter && normr/normr0 > tolerance);
+  })
+  | repeat_effect_until();
+  
+  sync_wait(std::move(loop_work));
 
   sender auto store_times = schedule(scheduler) | then([&](){
     times[1] += t_dotProd; //dot-product time
@@ -304,4 +302,3 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sync_wait(std::move(store_times));
   return 0;
 }
-
