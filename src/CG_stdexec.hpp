@@ -54,34 +54,21 @@ using stdexec::continues_on;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
-#ifndef HPCG_NO_MPI
-#define SPMV(A, x, y, disable) \
-  then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  })
-#else
-#define SPMV(A, x, y, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
-    if(disable){ return; } \
-    if(i >= (A).localNumberOfRows){ return; } \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  })
-#endif
+
+auto spmv(const SparseMatrix &A, Vector &x, Vector &y, bool disable){
+  return bulk(stdexec::par_unseq, disable ? 0 : A.localNumberOfRows, [&](local_int_t i){
+    if(disable){ return; }
+    if(i >= A.localNumberOfRows){ return; }
+    double sum = 0.0;
+    double *cur_vals = A.matrixValues[i];
+    local_int_t *cur_inds = A.mtxIndL[i];
+    int cur_nnz = A.nonzerosInRow[i];
+    double *xv = x.values;
+    for(int j = 0; j < cur_nnz; j++)
+      sum += cur_vals[j]*xv[cur_inds[j]];
+    y.values[i] = sum;
+  });
+}
 
 #define RESTRICTION(A, rf, level, disable) \
   bulk(stdexec::par_unseq, disable ? 0 : (A).mgData->rc->localLength, \
@@ -105,7 +92,7 @@ using stdexec::continues_on;
   | continues_on(scheduler_single_thread) \
   | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
   | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
+  | spmv(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
   | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
   | then([&](){ indPC++; }) \
   | exec::repeat_n(NUM_SYMGS_STEPS)
@@ -117,12 +104,12 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 ;
+  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_spmv = 0.0, t_MG = 0.0 ;
   local_int_t nrow = A.localNumberOfRows;
-  Vector & r = data.r; //Residual vector
-  Vector & z = data.z; //Preconditioned residual vector
-  Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
-  Vector & Ap = data.Ap;
+  Vector &r = data.r; //Residual vector
+  Vector &z = data.z; //Preconditioned residual vector
+  Vector &p = data.p; //Direction vector (in MPI mode ncol>=nrow)
+  Vector &Ap = data.Ap;
   double local_result;
 
   //index used in MG preconditioning loop
@@ -228,7 +215,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+  | spmv(A, p, Ap, false) //spmv: Ap = A*p
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
   | then([&](){
@@ -249,7 +236,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     | COMPUTE_MG()
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+    | spmv(A, p, Ap, false) //spmv: Ap = A*p
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
@@ -276,7 +263,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
     | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+    | spmv(A, p, Ap, false) //spmv: Ap = A*p
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
@@ -296,7 +283,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sender auto store_times = schedule(scheduler) | then([&](){
     times[1] += t_dotProd; //dot-product time
     times[2] += t_WAXPBY; //WAXPBY time
-    times[3] += t_SPMV; //SPMV time
+    times[3] += t_spmv; //spmv time
     times[4] += 0.0; //AllReduce time
     times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
