@@ -13,6 +13,7 @@
 #include "../stdexec/include/exec/repeat_n.hpp"
 #include "../stdexec/include/exec/variant_sender.hpp"
 #include "../stdexec/include/exec/repeat_effect_until.hpp"
+#include "../stdexec/include/exec/inline_scheduler.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "CG_stdexec.hpp"
 #include "ComputeSYMGS_ref.hpp"
@@ -69,7 +70,7 @@ bool disable_spmv;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
-void spmv_kernel(local_int_t i){
+inline void spmv_kernel(local_int_t i){
   if(disable_spmv){ return; } 
   if(i >= A_spmv->localNumberOfRows){ return; }
   double sum = 0.0;
@@ -89,7 +90,7 @@ void spmv_kernel(local_int_t i){
 #else
 #define SPMV(A, x, y, disable) \
   then([&](){ t_tmp = mytimer(); A_spmv = &(A); x_spmv = &(x); if(!disable){ y_spmv = &(y); } disable_spmv = (disable); }) \
-  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, spmv_kernel) \
+  | bulk(stdexec::seq, disable ? 0 : (A).localNumberOfRows, spmv_kernel) \
   | then([&](){ t_SPMV += mytimer() - t_tmp; })
 #endif
 
@@ -216,6 +217,7 @@ int CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector &
   double *bVals = b.values;
   double *ApVals = Ap.values;
 
+  
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
@@ -227,6 +229,10 @@ int CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector &
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
+  
+
+  //INLINE SCHEDULER CREATION
+  exec::inline_scheduler sched_inl;
 
   //scheduler for SYMGS execution
   exec::static_thread_pool pool_single_thread(SINGLE_THREAD);
@@ -254,12 +260,12 @@ int CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector &
   
   int k = 1;
 
-  stdexec::sender auto sndr_first = stdexec::schedule(scheduler) 
+  stdexec::sender auto sndr_first = stdexec::schedule(sched_inl) 
   | COMPUTE_MG()
   | WAXPBY(1, zVals, 0, zVals, pVals)
   | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz); //rtz = r'*z
 
-  stdexec::sender auto sndr_second = stdexec::schedule(scheduler) 
+  stdexec::sender auto sndr_second = stdexec::schedule(sched_inl) 
   | COMPUTE_MG()
   | then([&](){ oldrtz = rtz; })
   | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
@@ -270,7 +276,7 @@ int CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector &
   using loop_two_t = decltype(sndr_second);
   exec::variant_sender<loop_one_t, loop_two_t> switch_sndr = sndr_first;
 
-  sender auto loop_work = let_value(stdexec::schedule(scheduler), [&](){
+  sender auto loop_work = let_value(stdexec::schedule(sched_inl), [&](){
     if(k == 2){
       switch_sndr.emplace<1>(sndr_second);
       return switch_sndr;
