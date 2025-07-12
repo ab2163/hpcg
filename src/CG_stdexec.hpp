@@ -73,7 +73,8 @@ using exec::repeat_effect_until;
   })
 #else
 #define SPMV(A, x, y, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
+  then([&](){ t_tmp = mytimer(); }) \
+  |  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
     if(disable){ return; } \
     if(i >= (A).localNumberOfRows){ return; } \
     double sum = 0.0; \
@@ -84,24 +85,29 @@ using exec::repeat_effect_until;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  })
+  }) \
+  | then([&](){ t_SPMV += mytimer() - t_tmp; })
 #endif
 
 #define RESTRICTION(A, rf, level, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).mgData->rc->localLength, \
+  then([&](){ t_tmp = mytimer(); }) \
+  | bulk(stdexec::par_unseq, disable ? 0 : (A).mgData->rc->localLength, \
     [&](int i){ \
     if(disable){ return; } \
     if(i >= (A).mgData->rc->localLength){ return; } \
     rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
-  })
+  }) \
+  | then([&](){ t_restrict += mytimer() - t_tmp; })
 
 #define PROLONGATION(Af, xf, level, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (Af).mgData->rc->localLength, \
+  then([&](){ t_tmp = mytimer(); }) \
+  | bulk(stdexec::par_unseq, disable ? 0 : (Af).mgData->rc->localLength, \
     [&](int i){ \
     if(disable){ return; } \
     if(i >= (A).mgData->rc->localLength){ return; } \
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
-  })
+  }) \
+  | then([&](){ t_prolong += mytimer() - t_tmp; })
 
 #define COMPUTE_MG() \
   PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
@@ -121,7 +127,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 ;
+  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0, t_tmp = 0.0;
+  double t_restrict = 0.0, t_prolong = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -298,6 +305,9 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     times[4] += 0.0; //AllReduce time
     times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
+
+    std::cout << "t_restrict: " << t_restrict << "\n";
+    std::cout << "t_prolong: " << t_prolong << "\n";
   });
   sync_wait(std::move(store_times));
   return 0;
