@@ -45,6 +45,13 @@ using exec::repeat_effect_until;
 #define NVTX_RANGE_END
 #endif
 
+//index used in MG preconditioning loop
+int indPC = 0;
+const SparseMatrix* A_spmv; 
+Vector* x_spmv; 
+Vector* y_spmv;
+bool disable_spmv;
+
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
@@ -62,34 +69,27 @@ using exec::repeat_effect_until;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
+void spmv_kernel(local_int_t i){
+  if(disable_spmv){ return; } 
+  if(i >= A_spmv->localNumberOfRows){ return; }
+  double sum = 0.0;
+  double *cur_vals = A_spmv->matrixValues[i];
+  local_int_t *cur_inds = A_spmv->mtxIndL[i];
+  int cur_nnz = A_spmv->nonzerosInRow[i];
+  double *xv = x_spmv->values;
+  for(int j = 0; j < cur_nnz; j++)
+    sum += cur_vals[j]*xv[cur_inds[j]];
+  y_spmv->values[i] = sum;
+}
+
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y, disable) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  })
+  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, spmv_kernel)
 #else
 #define SPMV(A, x, y, disable) \
-  then([&](){ t_tmp = mytimer(); }) \
-  |  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
-    if(disable){ return; } \
-    if(i >= (A).localNumberOfRows){ return; } \
-    double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
-  }) \
+  then([&](){ t_tmp = mytimer(); A_spmv = &(A); x_spmv = &(x); if(!disable){ y_spmv = &(y); } disable_spmv = (disable); }) \
+  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, spmv_kernel) \
   | then([&](){ t_SPMV += mytimer() - t_tmp; })
 #endif
 
@@ -139,9 +139,6 @@ int CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector &
   Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
   double local_result;
-
-  //index used in MG preconditioning loop
-  int indPC = 0;
 
   //declaring all the variables needed for MG computation
   std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
