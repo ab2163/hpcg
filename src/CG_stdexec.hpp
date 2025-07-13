@@ -28,9 +28,9 @@ using stdexec::just;
 using stdexec::continues_on;
 using stdexec::let_value;
 using exec::repeat_effect_until;
+using exec::repeat_n;
 
 #define NUM_MG_LEVELS 4
-#define NUM_SYMGS_STEPS 7
 #define SINGLE_THREAD 1
 
 #ifdef NVTX_ON
@@ -59,9 +59,9 @@ using exec::repeat_effect_until;
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
 #ifndef HPCG_NO_MPI
-#define SPMV(A, x, y, disable) \
+#define SPMV(A, x, y) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -72,10 +72,8 @@ using exec::repeat_effect_until;
     (y).values[i] = sum; \
   })
 #else
-#define SPMV(A, x, y, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
-    if(disable){ return; } \
-    if(i >= (A).localNumberOfRows){ return; } \
+#define SPMV(A, x, y) \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -87,32 +85,35 @@ using exec::repeat_effect_until;
   })
 #endif
 
-#define RESTRICTION(A, rf, level, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).mgData->rc->localLength, \
-    [&](int i){ \
-    if(disable){ return; } \
-    if(i >= (A).mgData->rc->localLength){ return; } \
+#define RESTRICTION(A, rf, level) \
+  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, [&](int i){ \
     rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
   })
 
-#define PROLONGATION(Af, xf, level, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (Af).mgData->rc->localLength, \
-    [&](int i){ \
-    if(disable){ return; } \
-    if(i >= (A).mgData->rc->localLength){ return; } \
+#define PROLONGATION(Af, xf, level) \
+  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, [&](int i){ \
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   })
 
-#define COMPUTE_MG() \
-  PROLONGATION(*Aptrs[indPC], *zptrs[indPC], indPC, prolong_flags[indPC]) \
-  | then([&](){ if(zerovector_flags[indPC]) ZeroVector(*zptrs[indPC]); }) \
-  | continues_on(scheduler_single_thread) \
-  | then([&](){ ComputeSYMGS_ref(*Aptrs[indPC], *rptrs[indPC], *zptrs[indPC]); }) \
-  | continues_on(scheduler) \
-  | SPMV(*Aptrs[indPC], *zptrs[indPC], *((*Aptrs[indPC]).mgData->Axf), restrict_flags[indPC]) \
-  | RESTRICTION(*Aptrs[indPC], *rptrs[indPC], indPC, restrict_flags[indPC]) \
-  | then([&](){ indPC++; }) \
-  | exec::repeat_n(NUM_SYMGS_STEPS)
+#define SYMGS(A, r, x) \
+  continues_on(scheduler_single_thread) \
+  | then([&](){ ComputeSYMGS_ref((A), (r), (x)); }) \
+  | continues_on(scheduler)
+
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
+#define PRE_RECURSION_MG(A, r, x, level) \
+  then([&](){ ZeroVector((x)); }) \
+  | SYMGS((A), (r), (x)) \
+  | SPMV((A), (x), *((A).mgData->Axf)) \
+  | RESTRICTION((A), (r), (level))
+
+#define POST_RECURSION_MG(A, r, x, level) \
+  PROLONGATION((A), (x), (level)) \
+  | SYMGS((A), (r), (x))
+
+#define TERMINAL_MG(A, r, x) \
+  then([&](){ ZeroVector((x)); }) \
+  | SYMGS((A), (r), (x))
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -129,22 +130,16 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   Vector & Ap = data.Ap;
   double local_result;
 
-  //index used in MG preconditioning loop
-  int indPC = 0;
-
   //declaring all the variables needed for MG computation
-  std::vector<const SparseMatrix*> Aptrs(NUM_SYMGS_STEPS);
-  std::vector<const Vector*> rptrs(NUM_SYMGS_STEPS);
-  std::vector<Vector*> zptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> Axfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> rfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> rcv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<local_int_t*> f2c_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> xfv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<double*> xcv_ptrs(NUM_SYMGS_STEPS);
-  std::vector<bool> zerovector_flags(NUM_SYMGS_STEPS, false);
-  std::vector<bool> restrict_flags(NUM_SYMGS_STEPS, true);
-  std::vector<bool> prolong_flags(NUM_SYMGS_STEPS, true);
+  std::vector<const SparseMatrix*> Aptrs(NUM_MG_LEVELS);
+  std::vector<const Vector*> rptrs(NUM_MG_LEVELS);
+  std::vector<Vector*> zptrs(NUM_MG_LEVELS);
+  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
+  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
 
   //setting the values of A, r and z 
   Aptrs[0] = &A;
@@ -155,11 +150,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     rptrs[cnt] = Aptrs[cnt - 1]->mgData->rc;
     zptrs[cnt] = Aptrs[cnt - 1]->mgData->xc;
   }
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    Aptrs[cnt] = Aptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rptrs[cnt] = rptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    zptrs[cnt] = zptrs[NUM_SYMGS_STEPS - (cnt+1)];
-  }
 
   //setting values for variables used in prolongation and restriction
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
@@ -169,35 +159,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     f2c_ptrs[cnt] = Aptrs[cnt]->mgData->f2cOperator;
     xfv_ptrs[cnt] = zptrs[cnt]->values;
     xcv_ptrs[cnt] = Aptrs[cnt]->mgData->xc->values;
-  }
-  Axfv_ptrs[NUM_MG_LEVELS - 1] = Axfv_ptrs[NUM_MG_LEVELS - 2];
-  rfv_ptrs[NUM_MG_LEVELS - 1] = rfv_ptrs[NUM_MG_LEVELS - 2];
-  rcv_ptrs[NUM_MG_LEVELS - 1] = rcv_ptrs[NUM_MG_LEVELS - 2];
-  f2c_ptrs[NUM_MG_LEVELS - 1] = f2c_ptrs[NUM_MG_LEVELS - 2];
-  xfv_ptrs[NUM_MG_LEVELS - 1] = xfv_ptrs[NUM_MG_LEVELS - 2];
-  xcv_ptrs[NUM_MG_LEVELS - 1] = xcv_ptrs[NUM_MG_LEVELS - 2];
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    Axfv_ptrs[cnt] = Axfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rfv_ptrs[cnt] = rfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    rcv_ptrs[cnt] = rcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    f2c_ptrs[cnt] = f2c_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    xfv_ptrs[cnt] = xfv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-    xcv_ptrs[cnt] = xcv_ptrs[NUM_SYMGS_STEPS - (cnt+1)];
-  }
-
-  //set zerovector flags
-  for(int cnt = 0; cnt < NUM_MG_LEVELS; cnt++){
-    zerovector_flags[cnt] = true;
-  }
-
-  //set restriction flags
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    restrict_flags[cnt] = false;
-  }
-
-  //set prolongation flags
-  for(int cnt = NUM_MG_LEVELS; cnt < NUM_SYMGS_STEPS; cnt++){
-    prolong_flags[cnt] = false;
   }
 
   //used in dot product and WAXPBY calculations
@@ -232,7 +193,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+  | SPMV(A, p, Ap) //SPMV: Ap = A*p
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
   | then([&](){
@@ -246,23 +207,65 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   
   int k = 1;
 
-  stdexec::sender auto sndr_first = stdexec::schedule(scheduler) 
-  | COMPUTE_MG()
+  sender auto mg_stage1 = schedule(scheduler) | PRE_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0);
+  sender auto mg_stage2 = schedule(scheduler) | PRE_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1);
+  sender auto mg_stage3 = schedule(scheduler) | PRE_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2);
+  sender auto mg_stage4 = schedule(scheduler) | TERMINAL_MG(*Aptrs[3], *rptrs[3], *zptrs[3]);
+  sender auto mg_stage5 = schedule(scheduler) | POST_RECURSION_MG(*Aptrs[2], *rptrs[2], *zptrs[2], 2);
+  sender auto mg_stage6 = schedule(scheduler) | POST_RECURSION_MG(*Aptrs[1], *rptrs[1], *zptrs[1], 1);
+  sender auto mg_stage7 = schedule(scheduler) | POST_RECURSION_MG(*Aptrs[0], *rptrs[0], *zptrs[0], 0);
+
+  exec::variant_sender<decltype(mg_stage1),
+                        decltype(mg_stage2),
+                        decltype(mg_stage3),
+                        decltype(mg_stage4),
+                        decltype(mg_stage5),
+                        decltype(mg_stage6),
+                        decltype(mg_stage7)> switch_mg = mg_stage1;
+
+  //index used in MG preconditioning loop
+  int indPC = 1;
+
+  sender auto compute_mg = let_value(schedule(scheduler), [&](){
+    switch(indPC){
+      case 1:
+        switch_mg.emplace<0>(mg_stage1);
+        return switch_mg;
+      case 2:
+        switch_mg.emplace<1>(mg_stage2);
+        return switch_mg;
+      case 3:
+        switch_mg.emplace<2>(mg_stage3);
+        return switch_mg;
+      case 4:
+        switch_mg.emplace<3>(mg_stage4);
+        return switch_mg;
+      case 5:
+        switch_mg.emplace<4>(mg_stage5);
+        return switch_mg;
+      case 6:
+        switch_mg.emplace<5>(mg_stage6);
+        return switch_mg;
+      case 7:
+        switch_mg.emplace<6>(mg_stage7);
+        return switch_mg;
+    }
+  })
+  | repeat_n(7);
+
+  sender auto sndr_first = compute_mg
   | WAXPBY(1, zVals, 0, zVals, pVals)
   | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz); //rtz = r'*z
 
-  stdexec::sender auto sndr_second = stdexec::schedule(scheduler) 
-  | COMPUTE_MG()
+  sender auto sndr_second = compute_mg
   | then([&](){ oldrtz = rtz; })
   | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
   | then([&](){ beta = rtz/oldrtz; })
   | WAXPBY(1, zVals, beta, pVals, pVals); //WAXPBY: p = beta*p + z
 
-  using loop_one_t = decltype(sndr_first);
-  using loop_two_t = decltype(sndr_second);
-  exec::variant_sender<loop_one_t, loop_two_t> switch_sndr = sndr_first;
+  exec::variant_sender<decltype(sndr_first), decltype(sndr_second)> switch_sndr = sndr_first;
 
-  sender auto loop_work = let_value(stdexec::schedule(scheduler), [&](){
+  sender auto loop_work = let_value(schedule(scheduler), [&](){
     if(k == 2){
       switch_sndr.emplace<1>(sndr_second);
       return switch_sndr;
@@ -270,7 +273,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
       return switch_sndr;
     }
   })
-  | SPMV(A, p, Ap, false) //SPMV: Ap = A*p
+  | SPMV(A, p, Ap) //SPMV: Ap = A*p
   | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
   | then([&](){ alpha = rtz/pAp; })
   | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
@@ -284,7 +287,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
     niters = k;
     k++;
-    indPC = 0;
+    indPC = 1;
+    std::cout << k << "\n";
     return !(k <= max_iter && normr/normr0 > tolerance);
   })
   | repeat_effect_until();
