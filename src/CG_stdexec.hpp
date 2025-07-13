@@ -12,6 +12,7 @@
 #include "../stdexec/include/exec/repeat_n.hpp"
 #include "../stdexec/include/exec/variant_sender.hpp"
 #include "../stdexec/include/exec/repeat_effect_until.hpp"
+#include "../stdexec/include/exec/inline_scheduler.hpp"
 #include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
 
@@ -73,9 +74,14 @@ using exec::repeat_effect_until;
   })
 #else
 #define SPMV(A, x, y, disable) \
-  bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
+  then([&](){ std::cout << "STARTING SPMV\n"; }) \
+  | bulk(stdexec::par_unseq, disable ? 0 : (A).localNumberOfRows, [&](local_int_t i){ \
     if(disable){ return; } \
-    if(i >= (A).localNumberOfRows){ return; } \
+    if(i >= (A).localNumberOfRows){ \
+      std::cout << "DETECTED OVER-LIMIT\n"; \
+      std::cout << "INDEX (i): " << i << "\n"; \
+      std::cout << "A.LOCALNUMBEROFROWS: " << (A).localNumberOfRows << "\n"; \
+    } \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -84,7 +90,8 @@ using exec::repeat_effect_until;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  })
+  }) \
+  | then([&](){ std::cout << "FINISHED SPMV\n"; })
 #endif
 
 #define RESTRICTION(A, rf, level, disable) \
@@ -208,6 +215,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   double *bVals = b.values;
   double *ApVals = Ap.values;
 
+  /*
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
@@ -219,6 +227,10 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
+  */
+
+  //INLINE SCHEDULER CREATION
+  exec::inline_scheduler scheduler;
 
   //scheduler for SYMGS execution
   exec::static_thread_pool pool_single_thread(SINGLE_THREAD);
