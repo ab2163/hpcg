@@ -119,15 +119,15 @@ using stdexec::continues_on;
   | continues_on(scheduler)
   
 #define COMPUTE_MG_STAGE1() \
-  PRE_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0) \
-  | PRE_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | PRE_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
+  PRE_RECURSION_MG(A0, r0, z0, 0) \
+  | PRE_RECURSION_MG(A1, r1, z1, 1) \
+  | PRE_RECURSION_MG(A2, r2, z2, 2)
 
 #define COMPUTE_MG_STAGE2() \
-  TERMINAL_MG(*matrix_ptrs[3], *res_ptrs[3], *zval_ptrs[3]) \
-  | POST_RECURSION_MG(*matrix_ptrs[2], *res_ptrs[2], *zval_ptrs[2], 2) \
-  | POST_RECURSION_MG(*matrix_ptrs[1], *res_ptrs[1], *zval_ptrs[1], 1) \
-  | POST_RECURSION_MG(*matrix_ptrs[0], *res_ptrs[0], *zval_ptrs[0], 0)
+  TERMINAL_MG(A3, r3, z3) \
+  | POST_RECURSION_MG(A2, r2, z2, 2) \
+  | POST_RECURSION_MG(A1, r1, z1, 1) \
+  | POST_RECURSION_MG(A0, r0, z0, 0)
 
 auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
@@ -173,6 +173,22 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
     xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
+
+  // Caching dereferenced pointers
+  auto& A0 = *matrix_ptrs[0];
+  auto& A1 = *matrix_ptrs[1];
+  auto& A2 = *matrix_ptrs[2];
+  auto& A3 = *matrix_ptrs[3];
+
+  auto& r0 = *res_ptrs[0];
+  auto& r1 = *res_ptrs[1];
+  auto& r2 = *res_ptrs[2];
+  auto& r3 = *res_ptrs[3];
+
+  auto& z0 = *zval_ptrs[0];
+  auto& z1 = *zval_ptrs[1];
+  auto& z2 = *zval_ptrs[2];
+  auto& z3 = *zval_ptrs[3];
 
   //used in dot product and WAXPBY calculations
   double *rVals = r.values;
