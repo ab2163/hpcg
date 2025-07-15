@@ -29,8 +29,8 @@ using stdexec::continues_on;
 #define SINGLE_THREAD 1
 
 #ifdef NVTX_ON
-#define NVTX_RANGE_BEGIN(message) nvtxRangePushA((message));
-#define NVTX_RANGE_END nvtxRangePop();
+#define NVTX_RANGE_BEGIN(message) rangeID = nvtxRangeStartA((message))
+#define NVTX_RANGE_END nvtxRangeEnd(rangeID)
 #else
 #define NVTX_RANGE_BEGIN(message)
 #define NVTX_RANGE_END
@@ -68,7 +68,8 @@ using stdexec::continues_on;
   })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  then([&](){ dummy_time = mytimer(); NVTX_RANGE_BEGIN("SPMV_stdexec"); }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -77,7 +78,8 @@ using stdexec::continues_on;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  })
+  }) \
+  | then([&](){ t_SPMV += mytimer() - dummy_time; NVTX_RANGE_END; })
 #endif
 
 #define RESTRICTION(A, rf, level) \
@@ -97,7 +99,9 @@ using stdexec::continues_on;
   continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector((x)); \
+    dummy_time = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
+    t_SYMGS += mytimer() - dummy_time; \
   }) \
   | continues_on(scheduler) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
@@ -107,7 +111,9 @@ using stdexec::continues_on;
   PROLONGATION((A), (x), (level)) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
+    dummy_time = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
+    t_SYMGS += mytimer() - dummy_time; \
   }) \
   | continues_on(scheduler)
 
@@ -115,7 +121,9 @@ using stdexec::continues_on;
   continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector((x)); \
+    dummy_time = mytimer(); \
     ComputeSYMGS_ref((A), (r), (x)); \
+    t_SYMGS += mytimer() - dummy_time; \
   }) \
   | continues_on(scheduler)
   
@@ -203,6 +211,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #ifdef HPCG_DEBUG
   int print_freq = 1;
 #endif
+
+  nvtxRangeId_t rangeID;
 
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
