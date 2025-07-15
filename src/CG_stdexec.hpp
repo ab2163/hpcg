@@ -10,8 +10,8 @@
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
-#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 #include "ComputeSYMGS_ref.hpp"
+#include "NVTX_timing.hpp"
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
@@ -27,14 +27,6 @@ using stdexec::continues_on;
 
 #define NUM_MG_LEVELS 4
 #define SINGLE_THREAD 1
-
-#ifdef NVTX_ON
-#define NVTX_RANGE_BEGIN(message) rangeID = nvtxRangeStartA((message))
-#define NVTX_RANGE_END nvtxRangeEnd(rangeID)
-#else
-#define NVTX_RANGE_BEGIN(message)
-#define NVTX_RANGE_END
-#endif
 
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
@@ -68,7 +60,7 @@ using stdexec::continues_on;
   })
 #else
 #define SPMV(A, x, y) \
-  then([&](){ dummy_time = mytimer(); NVTX_RANGE_BEGIN("SPMV_stdexec"); }) \
+  then([&](){ dummy_time = mytimer(); start_timing_ref("SPMV_stdexec", 0xFF00FF00, rangeID); }) \
   | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
@@ -79,7 +71,7 @@ using stdexec::continues_on;
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
   }) \
-  | then([&](){ t_SPMV += mytimer() - dummy_time; NVTX_RANGE_END; })
+  | then([&](){ t_SPMV += mytimer() - dummy_time; end_timing(rangeID); })
 #endif
 
 #define RESTRICTION(A, rf, level) \
@@ -104,8 +96,11 @@ using stdexec::continues_on;
     t_SYMGS += mytimer() - dummy_time; \
   }) \
   | continues_on(scheduler) \
+  | then([&](){ std::cout << "Test connection.\n"; }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
-  | RESTRICTION((A), (r), (level))
+  | then([&](){ std::cout << "Test connection.\n"; }) \
+  | RESTRICTION((A), (r), (level)) \
+  | then([&](){ std::cout << "Test connection.\n"; })
 
 #define POST_RECURSION_MG(A, r, x, level) \
   PROLONGATION((A), (x), (level)) \
@@ -215,10 +210,15 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   nvtxRangeId_t rangeID;
 
   sender auto pre_loop_work = schedule(scheduler)
+  | then([&](){ std::cout << "Test connection.\n"; })
   | WAXPBY(1, xVals, 0, xVals, pVals)
+  | then([&](){ std::cout << "Test connection.\n"; })
   | SPMV(A, p, Ap) //SPMV: Ap = A*p
+  | then([&](){ std::cout << "Test connection.\n"; })
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
+  | then([&](){ std::cout << "Test connection.\n"; })
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+  | then([&](){ std::cout << "Test connection.\n"; })
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -242,6 +242,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sync_wait(std::move(mg_upwards));
 
   sender auto rest_of_loop = schedule(scheduler)
+    | then([&](){ std::cout << "Test connection.\n"; })
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
