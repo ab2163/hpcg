@@ -8,10 +8,13 @@
 #include <mpi.h>
 #include "mytimer.hpp"
 #endif
+#include "NVTX_timing.hpp"
 
 int ComputeDotProduct_stdpar(const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("DotProd_stdpar", rangeID);
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
@@ -38,5 +41,6 @@ int ComputeDotProduct_stdpar(const local_int_t n, const Vector & x, const Vector
   result = local_result;
 #endif
 
+  end_timing(rangeID);
   return 0;
 }

@@ -24,6 +24,7 @@
 #endif
 
 #include "ComputeRestriction_ref.hpp"
+#include "NVTX_timing.hpp"
 
 /*!
   Routine to compute the coarse residual vector.
@@ -39,6 +40,8 @@
 */
 int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("Restrict_ref", rangeID);
   double * Axfv = A.mgData->Axf->values;
   double * rfv = rf.values;
   double * rcv = A.mgData->rc->values;
@@ -50,5 +53,6 @@ int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
 #endif
   for (local_int_t i=0; i<nc; ++i) rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]];
 
+  end_timing(rangeID);
   return 0;
 }

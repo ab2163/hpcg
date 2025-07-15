@@ -23,8 +23,7 @@
 #endif
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
-
-#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+#include "NVTX_timing.hpp"
 
 /*!
   Computes one step of symmetric Gauss-Seidel:
@@ -54,14 +53,8 @@
   @see ComputeSYMGS
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
-  nvtxEventAttributes_t eventAttrib = {0};
-  eventAttrib.version = NVTX_VERSION;
-  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
-  eventAttrib.colorType = NVTX_COLOR_ARGB;
-  eventAttrib.color = 0xFF880000;
-  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
-  eventAttrib.message.ascii = "ComputeSYMGS_ref";
-  nvtxRangeId_t rangeId = nvtxRangeStartEx(&eventAttrib);
+  nvtxRangeId_t rangeID = 0;
+  start_timing("SYMGS_ref", rangeID);
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
@@ -109,7 +102,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     xv[i] = sum/currentDiagonal;
   }
 
-  nvtxRangeEnd(rangeId);
+  end_timing(rangeID);
   return 0;
 }
 

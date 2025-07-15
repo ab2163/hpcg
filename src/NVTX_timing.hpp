@@ -9,9 +9,8 @@
 #define SPMV_COL 0xFF0000FF
 #define SYMGS_COL 0xFF8B00FF
 #define WAXPBY_COL 0xFFFF1493
-#define ZEROVEC_COL 0xFF00FA9A
 
-void start_timing(const std::string& message, nvtxRangeId_t &range_id){
+inline void start_timing(const std::string& message, nvtxRangeId_t &range_id){
   if(range_id != 0){
     nvtxRangeEnd(range_id);
   }
@@ -36,8 +35,6 @@ void start_timing(const std::string& message, nvtxRangeId_t &range_id){
     eventAttrib.color = SYMGS_COL;
   }else if(message.find("WAXPBY") != std::string::npos){
     eventAttrib.color = WAXPBY_COL;
-  }else if(message.find("Zero") != std::string::npos){
-    eventAttrib.color = ZEROVEC_COL;
   }else{
     eventAttrib.color = 0xFF888888;
   }
@@ -47,7 +44,7 @@ void start_timing(const std::string& message, nvtxRangeId_t &range_id){
   range_id = nvtxRangeStartEx(&eventAttrib);
 }
 
-void end_timing(nvtxRangeId_t &range_id){
+inline void end_timing(nvtxRangeId_t &range_id){
   nvtxRangeEnd(range_id);
   range_id = 0;
 }

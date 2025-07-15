@@ -9,8 +9,11 @@
 #include "ComputeProlongation_stdpar.hpp"
 #include <cassert>
 #include <iostream>
+#include "NVTX_timing.hpp"
 
 int ComputeMG_stdpar(const SparseMatrix & A, const Vector & r, Vector & x) {
+  nvtxRangeId_t rangeID = 0;
+  start_timing("MG_stdpar", rangeID);
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
   ZeroVector(x); // initialize x to zero
@@ -33,6 +36,7 @@ int ComputeMG_stdpar(const SparseMatrix & A, const Vector & r, Vector & x) {
     ierr = ComputeSYMGS_stdpar(A, r, x);
     if (ierr!=0) return ierr;
   }
+  end_timing(rangeID);
   return 0;
 }
 

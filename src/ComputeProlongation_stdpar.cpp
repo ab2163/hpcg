@@ -3,9 +3,12 @@
 #include <execution>
 
 #include "ComputeProlongation_stdpar.hpp"
+#include "NVTX_timing.hpp"
 
 int ComputeProlongation_stdpar(const SparseMatrix & Af, Vector & xf) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("Prolong_stdpar", rangeID);
   double * xfv = xf.values;
   double * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;
@@ -16,5 +19,6 @@ int ComputeProlongation_stdpar(const SparseMatrix & Af, Vector & xf) {
   std::for_each(std::execution::par, range.begin(), range.end(),
               [&](int i) { xfv[f2c[i]] += xcv[i]; });
 
+  end_timing(rangeID);
   return 0;
 }

@@ -3,10 +3,13 @@
 #include <execution>
 
 #include "ComputeWAXPBY_stdpar.hpp"
+#include "NVTX_timing.hpp"
 
 int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("WAXPBY_stdpar", rangeID);
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
@@ -22,5 +25,6 @@ int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector &
     std::transform(std::execution::par_unseq, xv, xv + n, yv, wv, [&](double xi, double yi){ return alpha*xi + beta*yi; });
   }
 
+  end_timing(rangeID);
   return 0;
 }

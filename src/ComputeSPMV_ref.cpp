@@ -28,8 +28,7 @@
 #include <omp.h>
 #endif
 #include <cassert>
-
-#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+#include "NVTX_timing.hpp"
 
 /*!
   Routine to compute matrix vector product y = Ax where:
@@ -49,7 +48,8 @@
 
 int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
 
-  NVTX3_FUNC_RANGE();
+  nvtxRangeId_t rangeID = 0;
+  start_timing("SPMV_ref", rangeID);
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);
 
@@ -73,5 +73,6 @@ int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
     yv[i] = sum;
   }
 
+  end_timing(rangeID);
   return 0;
 }

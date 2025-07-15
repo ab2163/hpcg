@@ -10,9 +10,12 @@
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
+#include "NVTX_timing.hpp"
 
 int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("SPMV_stdpar", rangeID);
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);
 
@@ -39,5 +42,6 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
     );
   });
 
+  end_timing(rangeID);
   return 0;
 }

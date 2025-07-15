@@ -50,25 +50,27 @@ using stdexec::continues_on;
   then([&](){ ExchangeHalo((A), (x)); }) \
   | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
+    const double * const cur_vals = (A).matrixValues[i]; \
+    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
+    const int cur_nnz = (A).nonzerosInRow[i]; \
+    const double * const xv = (x).values; \
+    double * const yv = (y).values; \
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
+    yv[i] = sum; \
   })
 #else
 #define SPMV(A, x, y) \
   bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
-    double *cur_vals = (A).matrixValues[i]; \
-    local_int_t *cur_inds = (A).mtxIndL[i]; \
-    int cur_nnz = (A).nonzerosInRow[i]; \
-    double *xv = (x).values; \
+    const double * const cur_vals = (A).matrixValues[i]; \
+    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
+    const int cur_nnz = (A).nonzerosInRow[i]; \
+    const double * const xv = (x).values; \
+    double * const yv = (y).values; \
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
-    (y).values[i] = sum; \
+    yv[i] = sum; \
   })
 #endif
 
@@ -88,11 +90,8 @@ using stdexec::continues_on;
 #define PRE_RECURSION_MG(A, r, x, level) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("ZeroVector", rangeID); \
     ZeroVector((x)); \
-    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    end_timing(rangeID); \
   }) \
   | continues_on(scheduler) \
   | then([&](){ start_timing("SPMV_stdexec", rangeID); }) \
@@ -107,20 +106,15 @@ using stdexec::continues_on;
   | then([&](){ end_timing(rangeID); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    end_timing(rangeID); \
   }) \
   | continues_on(scheduler)
 
 #define TERMINAL_MG(A, r, x) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("ZeroVector", rangeID); \
     ZeroVector((x)); \
-    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    end_timing(rangeID); \
   }) \
   | continues_on(scheduler)
   
@@ -144,7 +138,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
-  double t_zeroVector = 0.0, t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
+  double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
   local_int_t nrow = A.localNumberOfRows;
   Vector & r = data.r; //Residual vector
   Vector & z = data.z; //Preconditioned residual vector
@@ -210,7 +204,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   int print_freq = 1;
 #endif
 
-  nvtxRangeId_t rangeID;
+  nvtxRangeId_t rangeID = 0;
 
   sender auto pre_loop_work = schedule(scheduler)
   | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
@@ -321,7 +315,6 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     times[5] += t_MG; //preconditioner apply time
     times[0] += mytimer() - t_begin;  //Total time
     std::cout << "ADDITIONAL TIME DATA:\n";
-    std::cout << "Zero Vector Time : " << t_zeroVector << "\n";
     std::cout << "SYMGS Time : " << t_SYMGS << "\n";
     std::cout << "Restriction Time : " << t_restrict << "\n";
     std::cout << "Prolongation Time : " << t_prolong << "\n";

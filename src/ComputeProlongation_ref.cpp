@@ -23,6 +23,7 @@
 #endif
 
 #include "ComputeProlongation_ref.hpp"
+#include "NVTX_timing.hpp"
 
 /*!
   Routine to compute the coarse residual vector.
@@ -37,6 +38,8 @@
 */
 int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
 
+  nvtxRangeId_t rangeID = 0;
+  start_timing("Prolong_ref", rangeID);
   double * xfv = xf.values;
   double * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;
@@ -48,5 +51,6 @@ int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
 // TODO: Somehow note that this loop can be safely vectorized since f2c has no repeated indices
   for (local_int_t i=0; i<nc; ++i) xfv[f2c[i]] += xcv[i]; // This loop is safe to vectorize
 
+  end_timing(rangeID);
   return 0;
 }
