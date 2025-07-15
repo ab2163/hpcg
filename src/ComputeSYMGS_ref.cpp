@@ -54,7 +54,14 @@
   @see ComputeSYMGS
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
-  NVTX3_FUNC_RANGE();
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  eventAttrib.color = 0xFF880000;
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = "ComputeSYMGS_ref";
+  nvtxRangeId_t rangeId = nvtxRangeStartEx(&eventAttrib);
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
@@ -102,6 +109,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     xv[i] = sum/currentDiagonal;
   }
 
+  nvtxRangeEnd(rangeId);
   return 0;
 }
 
