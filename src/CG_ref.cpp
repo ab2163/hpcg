@@ -30,7 +30,7 @@
 #include "ComputeMG_ref.hpp"
 #include "ComputeDotProduct_ref.hpp"
 #include "ComputeWAXPBY_ref.hpp"
-
+#include "NVTX_timing.hpp"
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
@@ -59,6 +59,7 @@ int CG_ref(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
     double * times, bool doPreconditioning) {
 
+  NVTX3_FUNC_RANGE();
   double t_begin = mytimer();  // Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;

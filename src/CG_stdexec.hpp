@@ -88,26 +88,26 @@ using stdexec::continues_on;
 #define PRE_RECURSION_MG(A, r, x, level) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("ZeroVector", ZEROVEC_COL, rangeID); \
+    start_timing("ZeroVector", rangeID); \
     ZeroVector((x)); \
-    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
+    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
     end_timing(rangeID); \
   }) \
   | continues_on(scheduler) \
-  | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); }) \
+  | then([&](){ start_timing("SPMV_stdexec", rangeID); }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
-  | then([&](){ start_timing("Restrict_stdexec", REST_COL, rangeID); }) \
+  | then([&](){ start_timing("Restrict_stdexec", rangeID); }) \
   | RESTRICTION((A), (r), (level)) \
   | then([&](){ end_timing(rangeID); })
 
 #define POST_RECURSION_MG(A, r, x, level) \
-  then([&](){ start_timing("Prolong_stdexec", PROL_COL, rangeID); }) \
+  then([&](){ start_timing("Prolong_stdexec", rangeID); }) \
   | PROLONGATION((A), (x), (level)) \
   | then([&](){ end_timing(rangeID); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
+    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
     end_timing(rangeID); \
   }) \
@@ -116,9 +116,9 @@ using stdexec::continues_on;
 #define TERMINAL_MG(A, r, x) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
-    start_timing("ZeroVector", ZEROVEC_COL, rangeID); \
+    start_timing("ZeroVector", rangeID); \
     ZeroVector((x)); \
-    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
+    start_timing("SYMGS_ref", rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
     end_timing(rangeID); \
   }) \
@@ -139,6 +139,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
   double * times, bool doPreconditioning){
 
+  NVTX3_FUNC_RANGE();
   double t_begin = mytimer();  //Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
@@ -212,13 +213,13 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   nvtxRangeId_t rangeID;
 
   sender auto pre_loop_work = schedule(scheduler)
-  | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+  | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
+  | then([&](){ start_timing("SPMV_stdexec", rangeID); })
   | SPMV(A, p, Ap) //SPMV: Ap = A*p
-  | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+  | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
-  | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+  | then([&](){ start_timing("DotProd_stdexec", rangeID); })
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
   | then([&](){
     end_timing(rangeID);
@@ -244,23 +245,23 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sync_wait(std::move(mg_upwards));
 
   sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+    | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
     | WAXPBY(1, zVals, 0, zVals, pVals)
-    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
+    | then([&](){ start_timing("SPMV_stdexec", rangeID); })
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
-    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ 
       end_timing(rangeID);
       alpha = rtz/pAp;
-      start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID);
+      start_timing("WAXPBY_stdexec", rangeID);
     })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+    | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
     | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
     | then([&](){ 
       end_timing(rangeID);
@@ -286,19 +287,19 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     sync_wait(std::move(mg_upwards));
 
     sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ oldrtz = rtz; start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ oldrtz = rtz; start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | then([&](){ beta = rtz/oldrtz; start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+    | then([&](){ beta = rtz/oldrtz; start_timing("WAXPBY_stdexec", rangeID); })
     | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
+    | then([&](){ start_timing("SPMV_stdexec", rangeID); })
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
-    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+    | then([&](){ alpha = rtz/pAp; start_timing("WAXPBY_stdexec", rangeID); })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
+    | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })
     | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
+    | then([&](){ start_timing("DotProd_stdexec", rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
     | then([&](){ 
       end_timing(rangeID);
