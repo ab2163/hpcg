@@ -60,8 +60,7 @@ using stdexec::continues_on;
   })
 #else
 #define SPMV(A, x, y) \
-  then([&](){ dummy_time = mytimer(); start_timing_ref("SPMV_stdexec", 0xFF00FF00, rangeID); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     double *cur_vals = (A).matrixValues[i]; \
     local_int_t *cur_inds = (A).mtxIndL[i]; \
@@ -70,8 +69,7 @@ using stdexec::continues_on;
     for(int j = 0; j < cur_nnz; j++) \
       sum += cur_vals[j]*xv[cur_inds[j]]; \
     (y).values[i] = sum; \
-  }) \
-  | then([&](){ t_SPMV += mytimer() - dummy_time; end_timing(rangeID); })
+  })
 #endif
 
 #define RESTRICTION(A, rf, level) \
@@ -90,35 +88,39 @@ using stdexec::continues_on;
 #define PRE_RECURSION_MG(A, r, x, level) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
+    start_timing("ZeroVector", ZEROVEC_COL, rangeID); \
     ZeroVector((x)); \
-    dummy_time = mytimer(); \
+    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - dummy_time; \
+    end_timing(rangeID); \
   }) \
   | continues_on(scheduler) \
-  | then([&](){ std::cout << "Test connection.\n"; }) \
+  | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); }) \
   | SPMV((A), (x), *((A).mgData->Axf)) \
-  | then([&](){ std::cout << "Test connection.\n"; }) \
+  | then([&](){ start_timing("Restrict_stdexec", REST_COL, rangeID); }) \
   | RESTRICTION((A), (r), (level)) \
-  | then([&](){ std::cout << "Test connection.\n"; })
+  | then([&](){ end_timing(rangeID); })
 
 #define POST_RECURSION_MG(A, r, x, level) \
-  PROLONGATION((A), (x), (level)) \
+  then([&](){ start_timing("Prolong_stdexec", PROL_COL, rangeID); }) \
+  | PROLONGATION((A), (x), (level)) \
+  | then([&](){ end_timing(rangeID); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
-    dummy_time = mytimer(); \
+    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - dummy_time; \
+    end_timing(rangeID); \
   }) \
   | continues_on(scheduler)
 
 #define TERMINAL_MG(A, r, x) \
   continues_on(scheduler_single_thread) \
   | then([&](){ \
+    start_timing("ZeroVector", ZEROVEC_COL, rangeID); \
     ZeroVector((x)); \
-    dummy_time = mytimer(); \
+    start_timing("SYMGS_ref", SYMGS_COL, rangeID); \
     ComputeSYMGS_ref((A), (r), (x)); \
-    t_SYMGS += mytimer() - dummy_time; \
+    end_timing(rangeID); \
   }) \
   | continues_on(scheduler)
   
@@ -210,16 +212,16 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   nvtxRangeId_t rangeID;
 
   sender auto pre_loop_work = schedule(scheduler)
-  | then([&](){ std::cout << "Test connection.\n"; })
+  | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | then([&](){ std::cout << "Test connection.\n"; })
+  | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
   | SPMV(A, p, Ap) //SPMV: Ap = A*p
-  | then([&](){ std::cout << "Test connection.\n"; })
+  | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
-  | then([&](){ std::cout << "Test connection.\n"; })
+  | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
-  | then([&](){ std::cout << "Test connection.\n"; })
   | then([&](){
+    end_timing(rangeID);
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
@@ -242,16 +244,26 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
   sync_wait(std::move(mg_upwards));
 
   sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ std::cout << "Test connection.\n"; })
+    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
     | WAXPBY(1, zVals, 0, zVals, pVals)
+    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
+    | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; })
+    | then([&](){ 
+      end_timing(rangeID);
+      alpha = rtz/pAp;
+      start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID);
+    })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
+    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
     | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
+    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
     | then([&](){ 
+      end_timing(rangeID);
       normr = sqrt(normr);
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
@@ -274,17 +286,22 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     sync_wait(std::move(mg_upwards));
 
     sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ oldrtz = rtz; })
+    | then([&](){ oldrtz = rtz; start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | then([&](){ beta = rtz/oldrtz; })
+    | then([&](){ beta = rtz/oldrtz; start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
     | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
+    | then([&](){ start_timing("SPMV_stdexec", SPMV_COL, rangeID); })
     | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; })
+    | then([&](){ alpha = rtz/pAp; start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
+    | then([&](){ start_timing("WAXPBY_stdexec", WAXPBY_COL, rangeID); })
     | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
+    | then([&](){ start_timing("DotProd_stdexec", DOT_PROD_COL, rangeID); })
     | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
     | then([&](){ 
+      end_timing(rangeID);
       normr = sqrt(normr); 
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
