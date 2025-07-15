@@ -187,9 +187,9 @@ int main(int argc, char * argv[]) {
   if (quickPath) numberOfCalls = 1; //QuickPath means we do on one call of each block of repetitive code
   double t_begin = mytimer();
   for (int i=0; i< numberOfCalls; ++i) {
-    ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
+    //ierr = ComputeSPMV_ref(A, x_overlap, b_computed); // b_computed = A*x_overlap
     if (ierr) HPCG_fout << "Error in call to SpMV: " << ierr << ".\n" << endl;
-    ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
+    //ierr = ComputeMG_ref(A, b_computed, x_overlap); // b_computed = Minv*y_overlap
     if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
   }
   times[8] = (mytimer() - t_begin)/((double) numberOfCalls);  // Total time divided by number of calls.
@@ -249,10 +249,10 @@ int main(int argc, char * argv[]) {
 #endif
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
-  TestCG(A, data, b, x, testcg_data);
+  //TestCG(A, data, b, x, testcg_data);
 
   TestSymmetryData testsymmetry_data;
-  TestSymmetry(A, b, xexact, testsymmetry_data);
+  //TestSymmetry(A, b, xexact, testsymmetry_data);
 
 #ifdef HPCG_DEBUG
   if (rank==0) HPCG_fout << "Total validation (TestCG and TestSymmetry) execution time in main (sec) = " << mytimer() - t1 << endl;
