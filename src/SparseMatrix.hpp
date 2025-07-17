@@ -35,6 +35,7 @@ typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
 #include <unordered_map>
 using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
+#include <vector>
 
 struct SparseMatrix_STRUCT {
   char  * title; //!< name of the sparse matrix
@@ -62,6 +63,7 @@ struct SparseMatrix_STRUCT {
   mutable struct SparseMatrix_STRUCT * Ac; // Coarse grid matrix
   mutable MGData * mgData; // Pointer to the coarse level data for this fine matrix
   void * optimizationData;  // pointer that can be used to store implementation-specific data
+  std::vector<int> colors; //for 8-coloring of 27-point stencil
 
 #ifndef HPCG_NO_MPI
   local_int_t numberOfExternalValues; //!< number of entries that are external to this process
