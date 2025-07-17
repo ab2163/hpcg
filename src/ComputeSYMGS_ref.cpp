@@ -52,7 +52,8 @@
 
   @see ComputeSYMGS
 */
-int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x, 
+    std::vector<int> & color) {
   nvtxRangeId_t rangeID = 0;
   start_timing("SYMGS_ref", rangeID);
 

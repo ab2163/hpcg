@@ -52,11 +52,11 @@
 
   @see ComputeSYMGS_ref
 */
-int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
+int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x, std::vector<int> & color) {
 
 #ifdef SELECT_STDPAR
   return ComputeSYMGS_stdpar(A, r, x);
 #else
-  return ComputeSYMGS_ref(A, r, x);
+  return ComputeSYMGS_ref(A, r, x, color);
 #endif  
 }

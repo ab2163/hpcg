@@ -38,6 +38,7 @@ using std::endl;
 #include "Geometry.hpp"
 #include "SparseMatrix.hpp"
 #include "TestSymmetry.hpp"
+#include <vector>
 
 /*!
   Tests symmetry-preserving properties of the sparse matrix vector multiply and multi-grid routines.
@@ -102,14 +103,15 @@ int TestSymmetry(SparseMatrix & A, Vector & b, Vector & xexact, TestSymmetryData
  // Test symmetry of multi-grid
 
  // Compute x'*Minv*y
- ierr = ComputeMG(A, y_ncol, z_ncol); // z_ncol = Minv*y_ncol
+ std::vector<int> dummyvec;
+ ierr = ComputeMG(A, y_ncol, z_ncol, dummyvec); // z_ncol = Minv*y_ncol
  if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
  double xtMinvy = 0.0;
  ierr = ComputeDotProduct(nrow, x_ncol, z_ncol, xtMinvy, t4, A.isDotProductOptimized); // x'*Minv*y
  if (ierr) HPCG_fout << "Error in call to dot: " << ierr << ".\n" << endl;
 
  // Next, compute z'*Minv*x
- ierr = ComputeMG(A, x_ncol, z_ncol); // z_ncol = Minv*x_ncol
+ ierr = ComputeMG(A, x_ncol, z_ncol, dummyvec); // z_ncol = Minv*x_ncol
  if (ierr) HPCG_fout << "Error in call to MG: " << ierr << ".\n" << endl;
  double ytMinvx = 0.0;
  ierr = ComputeDotProduct(nrow, y_ncol, z_ncol, ytMinvx, t4, A.isDotProductOptimized); // y'*Minv*x

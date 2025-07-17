@@ -4,6 +4,7 @@
 #include <atomic>
 #include <ranges>
 #include <numeric>
+#include <vector>
 
 #include "../stdexec/include/stdexec/execution.hpp"
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
@@ -89,7 +90,7 @@ using stdexec::continues_on;
   continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
+    ComputeSYMGS_ref((A), (r), (x), dummyvec); \
   }) \
   | continues_on(scheduler) \
   | then([&](){ start_timing("SPMV_stdexec", rangeID); }) \
@@ -104,7 +105,7 @@ using stdexec::continues_on;
   | then([&](){ end_timing(rangeID); }) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
-    ComputeSYMGS_ref((A), (r), (x)); \
+    ComputeSYMGS_ref((A), (r), (x), dummyvec); \
   }) \
   | continues_on(scheduler)
 
@@ -112,7 +113,7 @@ using stdexec::continues_on;
   continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
+    ComputeSYMGS_ref((A), (r), (x), dummyvec); \
   }) \
   | continues_on(scheduler)
   
@@ -219,6 +220,9 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #endif
 
   nvtxRangeId_t rangeID = 0;
+
+  //dummy vector for passing to SYMGS
+  std::vector<int> dummyvec;
 
   sender auto pre_loop_work = schedule(scheduler)
   | then([&](){ start_timing("WAXPBY_stdexec", rangeID); })

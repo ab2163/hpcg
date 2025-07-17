@@ -16,7 +16,9 @@
 #define COMPUTEMG_HPP
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+#include <vector>
 
-int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x);
+int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x,
+  std::vector<int> & color);
 
 #endif // COMPUTEMG_HPP

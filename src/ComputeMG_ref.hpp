@@ -16,7 +16,8 @@
 #define COMPUTEMG_REF_HPP
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
+#include <vector>
 
-int ComputeMG_ref(const SparseMatrix  & A, const Vector & r, Vector & x);
+int ComputeMG_ref(const SparseMatrix  & A, const Vector & r, Vector & x, std::vector<int> & color);
 
 #endif // COMPUTEMG_REF_HPP
