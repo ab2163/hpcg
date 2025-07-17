@@ -37,8 +37,7 @@
 
   @see ComputeMG
 */
-int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x,
-    std::vector<int> & color) {
+int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x) {
   nvtxRangeId_t rangeID = 0;
   start_timing("MG_ref", rangeID);
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
@@ -48,7 +47,7 @@ int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x,
   int ierr = 0;
   if (A.mgData!=0) { // Go to next coarse level if defined
     int numberOfPresmootherSteps = A.mgData->numberOfPresmootherSteps;
-    for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x, color);
+    for (int i=0; i< numberOfPresmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
     if (ierr!=0) return ierr;
     ierr = ComputeSPMV_ref(A, x, *A.mgData->Axf); if (ierr!=0) return ierr;
     // Perform restriction operation using simple injection
@@ -56,7 +55,7 @@ int ComputeMG_ref(const SparseMatrix & A, const Vector & r, Vector & x,
     ierr = ComputeMG_ref(*A.Ac,*A.mgData->rc, *A.mgData->xc);  if (ierr!=0) return ierr;
     ierr = ComputeProlongation_ref(A, x);  if (ierr!=0) return ierr;
     int numberOfPostsmootherSteps = A.mgData->numberOfPostsmootherSteps;
-    for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x, color);
+    for (int i=0; i< numberOfPostsmootherSteps; ++i) ierr += ComputeSYMGS_ref(A, r, x);
     if (ierr!=0) return ierr;
   }
   else {

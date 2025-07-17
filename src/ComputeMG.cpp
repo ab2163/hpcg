@@ -35,13 +35,12 @@
 
   @see ComputeMG_ref
 */
-int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x,
-  std::vector<int> & color) {
+int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
 
 #ifdef SELECT_STDPAR
   return ComputeMG_stdpar(A, r, x);
 #else
   A.isMgOptimized = false;
-  return ComputeMG_ref(A, r, x, color);
+  return ComputeMG_ref(A, r, x);
 #endif
 }

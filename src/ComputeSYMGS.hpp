@@ -16,8 +16,7 @@
 #define COMPUTESYMGS_HPP
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
-#include <vector>
 
-int ComputeSYMGS( const SparseMatrix  & A, const Vector & r, Vector & x, std::vector<int> & color);
+int ComputeSYMGS( const SparseMatrix  & A, const Vector & r, Vector & x);
 
 #endif // COMPUTESYMGS_HPP

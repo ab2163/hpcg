@@ -58,7 +58,7 @@
 */
 int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
-    double * times, bool doPreconditioning, std::vector<int> & color) {
+    double * times, bool doPreconditioning) {
 
   NVTX3_FUNC_RANGE();
   double t_begin = mytimer();  // Start timing right away
@@ -101,7 +101,7 @@ int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   for (int k=1; k<=max_iter && normr/normr0 > tolerance * (1.0 + 1.0e-6); k++ ) {
     TICK();
     if (doPreconditioning)
-      ComputeMG(A, r, z, color); // Apply preconditioner
+      ComputeMG(A, r, z); // Apply preconditioner
     else
       CopyVector (r, z); // copy r to z (no preconditioning)
     TOCK(t5); // Preconditioner apply time

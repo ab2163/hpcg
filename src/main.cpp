@@ -228,8 +228,7 @@ int main(int argc, char * argv[]) {
 
   // Call user-tunable set up function.
   double t7 = mytimer();
-  std::vector<int> color;
-  OptimizeProblem(A, data, b, x, xexact, color);
+  OptimizeProblem(A, data, b, x, xexact);
   t7 = mytimer() - t7;
   times[7] = t7;
 #ifdef HPCG_DEBUG
@@ -250,7 +249,7 @@ int main(int argc, char * argv[]) {
 #endif
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
-  //TestCG(A, data, b, x, testcg_data, color);
+  //TestCG(A, data, b, x, testcg_data);
 
   TestSymmetryData testsymmetry_data;
   //TestSymmetry(A, b, xexact, testsymmetry_data);
@@ -284,7 +283,7 @@ int main(int argc, char * argv[]) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
 #ifndef SELECT_STDEXEC
-    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true, color);
+    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
     CG_stdexec(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
@@ -356,7 +355,7 @@ int main(int argc, char * argv[]) {
   for (int i=0; i< numberOfCgSets; ++i) {
     ZeroVector(x); // Zero out x
 #ifndef SELECT_STDEXEC
-    ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true, color);
+    ierr = CG( A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);
     if (ierr) HPCG_fout << "Error in call to CG: " << ierr << ".\n" << endl;
 #else
     CG_stdexec(A, data, b, x, optMaxIters, optTolerance, niters, normr, normr0, &times[0], true);

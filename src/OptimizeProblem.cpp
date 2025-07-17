@@ -34,35 +34,11 @@
   @see GenerateGeometry
   @see GenerateProblem
 */
-
-void AssignColors(const SparseMatrix &A, std::vector<int> &color){
-  int nx = A.geom->nx;
-  int ny = A.geom->ny;
-  int nz = A.geom->nz;
-  int localNumberOfRows = A.localNumberOfRows;
-
-  color.resize(localNumberOfRows);
-
-  for(int iz = 0; iz < nz; iz++){
-    for(int iy = 0; iy < ny; iy++){
-      for(int ix = 0; ix < nx; ix++){
-        int idx = ix + (nx * iy) + (nx * ny * iz);
-        int el_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2); //each element has color from 0 to 7
-        color[idx] = el_color;
-      }
-    }
-  }
-}
-
-int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact, 
-  std::vector<int> & color){
+int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact) {
 
   // This function can be used to completely transform any part of the data structures.
   // Right now it does nothing, so compiling with a check for unused variables results in complaints
 
-  AssignColors(A, color);
-
-/*
 #if defined(HPCG_USE_MULTICOLORING)
   const local_int_t nrow = A.localNumberOfRows;
   std::vector<local_int_t> colors(nrow, nrow); // value `nrow' means `uninitialized'; initialized colors go from 0 to nrow-1
@@ -119,7 +95,7 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
   for (local_int_t i=0; i<nrow; ++i) // for each color `c'
     colors[i] = counters[colors[i]]++;
 #endif
-*/
+
   return 0;
 }
 
