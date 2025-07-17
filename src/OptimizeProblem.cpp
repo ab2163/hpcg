@@ -109,3 +109,22 @@ double OptimizeProblemMemoryUse(const SparseMatrix & A) {
   return 0.0;
 
 }
+
+void AssignColors(const SparseMatrix &A, std::vector<int> &color){
+  int nx = A.geom->nx;
+  int ny = A.geom->ny;
+  int nz = A.geom->nz;
+  int localNumberOfRows = A.localNumberOfRows;
+
+  color.resize(localNumberOfRows);
+
+  for(int iz = 0; iz < nz; iz++){
+    for(int iy = 0; iy < ny; iy++){
+      for(int ix = 0; ix < nx; ix++){
+        int idx = ix + (nx * iy) + (nx * ny * iz);
+        int el_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2); //each element has color from 0 to 7
+        color[idx] = el_color;
+      }
+    }
+  }
+}
