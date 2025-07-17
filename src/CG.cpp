@@ -58,7 +58,7 @@
 */
 int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
-    double * times, bool doPreconditioning) {
+    double * times, bool doPreconditioning, std::vector<int> & color) {
 
   NVTX3_FUNC_RANGE();
   double t_begin = mytimer();  // Start timing right away

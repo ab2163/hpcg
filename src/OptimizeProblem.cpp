@@ -34,11 +34,15 @@
   @see GenerateGeometry
   @see GenerateProblem
 */
-int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact) {
+int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vector & xexact, 
+  std::vector<int> & color){
 
   // This function can be used to completely transform any part of the data structures.
   // Right now it does nothing, so compiling with a check for unused variables results in complaints
 
+  
+
+/*
 #if defined(HPCG_USE_MULTICOLORING)
   const local_int_t nrow = A.localNumberOfRows;
   std::vector<local_int_t> colors(nrow, nrow); // value `nrow' means `uninitialized'; initialized colors go from 0 to nrow-1
@@ -95,7 +99,7 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
   for (local_int_t i=0; i<nrow; ++i) // for each color `c'
     colors[i] = counters[colors[i]]++;
 #endif
-
+*/
   return 0;
 }
 
