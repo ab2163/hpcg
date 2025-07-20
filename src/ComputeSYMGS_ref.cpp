@@ -25,7 +25,9 @@
 #include <cassert>
 #include "NVTX_timing.hpp"
 #include <vector>
+
 #include <iostream>
+#include <chrono>
 
 /*!
   Computes one step of symmetric Gauss-Seidel:
@@ -57,6 +59,7 @@
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   nvtxRangeId_t rangeID = 0;
   start_timing("SYMGS_ref", rangeID);
+  auto start = std::chrono::high_resolution_clock::now();
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
@@ -70,7 +73,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   double * const xv = x.values;
 
   if(A.colors.empty()){
-    std::cout << "Running serial SYMGS for matrix with " << nrow << " rows.\n";
+    std::cout << "Serial for matrix with " << nrow << " rows.\n";
     for (local_int_t i=0; i< nrow; i++) {
       const double * const currentValues = A.matrixValues[i];
       const local_int_t * const currentColIndices = A.mtxIndL[i];
@@ -87,7 +90,7 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
       xv[i] = sum/currentDiagonal;
     }
   }else{
-    std::cout << "Running parallel SYMGS for matrix with " << nrow << " rows.\n";
+    std::cout << "Parallel for matrix with " << nrow << " rows.\n";
     for(int c = 0; c < 8; c++){
       #pragma omp parallel for
       for (local_int_t i=0; i< nrow; i++) {
@@ -149,6 +152,9 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     }
   }
 
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> elapsed = end - start;
+  std::cout << "Function took " << elapsed.count() << " seconds.\n";
   end_timing(rangeID);
   return 0;
 }

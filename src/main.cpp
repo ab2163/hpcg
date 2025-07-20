@@ -155,7 +155,7 @@ int main(int argc, char * argv[]) {
   AssignColors(A);
 
   Vector b, x, xexact;
-  GenerateProblem(A, &b, &x, &xexact, true);
+  GenerateProblem(A, &b, &x, &xexact, false);
   SetupHalo(A);
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix * curLevelMatrix = &A;
@@ -230,12 +230,12 @@ int main(int argc, char * argv[]) {
   int totalNiters_ref = 0;
   double normr = 0.0;
   double normr0 = 0.0;
-  int refMaxIters = 200;
+  int refMaxIters = 50;
   numberOfCalls = 1; // Only need to run the residual reduction analysis once
 
   // Compute the residual reduction for the natural ordering and reference kernels
   std::vector< double > ref_times(9,0.0);
-  double tolerance = 4e-8; // Set tolerance to zero to make all runs do maxIters iterations
+  double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
@@ -303,7 +303,7 @@ int main(int argc, char * argv[]) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
 #ifndef SELECT_STDEXEC
-    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
+    ierr = CG( A, data, b, x, optMaxIters, 5e-8, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
     CG_stdexec(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
