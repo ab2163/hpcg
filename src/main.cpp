@@ -60,7 +60,7 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-#include "CG_stdexec.hpp"
+//#include "CG_stdexec.hpp"
 
 void AssignColors(SparseMatrix &A){
   int nx = A.geom->nx;
@@ -230,12 +230,12 @@ int main(int argc, char * argv[]) {
   int totalNiters_ref = 0;
   double normr = 0.0;
   double normr0 = 0.0;
-  int refMaxIters = 50;
+  int refMaxIters = 200;
   numberOfCalls = 1; // Only need to run the residual reduction analysis once
 
   // Compute the residual reduction for the natural ordering and reference kernels
   std::vector< double > ref_times(9,0.0);
-  double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  double tolerance = 4e-8; // Set tolerance to zero to make all runs do maxIters iterations
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
