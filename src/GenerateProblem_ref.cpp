@@ -34,7 +34,7 @@ using std::endl;
 #include <cassert>
 
 #include "GenerateProblem_ref.hpp"
-
+#include <iostream>
 
 /*!
   Reference version of GenerateProblem to generate the sparse matrix, right hand side, initial guess, and exact solution.
@@ -47,7 +47,7 @@ using std::endl;
   @see GenerateGeometry
 */
 
-void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
+void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact, bool orderByColor) {
 
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
@@ -102,13 +102,31 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
   }
 
 #ifndef HPCG_CONTIGUOUS_ARRAYS
-  // Now allocate the arrays pointed to
-  for (local_int_t i=0; i< localNumberOfRows; ++i)
-    mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
-  for (local_int_t i=0; i< localNumberOfRows; ++i)
-    matrixValues[i] = new double[numberOfNonzerosPerRow];
-  for (local_int_t i=0; i< localNumberOfRows; ++i)
-   mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
+  if(!orderByColor){
+    // Now allocate the arrays pointed to
+    for (local_int_t i=0; i< localNumberOfRows; ++i)
+      mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
+    for (local_int_t i=0; i< localNumberOfRows; ++i)
+      matrixValues[i] = new double[numberOfNonzerosPerRow];
+    for (local_int_t i=0; i< localNumberOfRows; ++i)
+      mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
+  }else{
+    std::cout << "Allocating memory for matrix A by color.\n";
+    for(int color = 0; color < 8; color++){
+      for (local_int_t i=0; i< localNumberOfRows; ++i){
+        if(A.colors[i] == color)
+          mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
+      }
+      for (local_int_t i=0; i< localNumberOfRows; ++i){
+        if(A.colors[i] == color)
+          matrixValues[i] = new double[numberOfNonzerosPerRow];
+      }
+      for (local_int_t i=0; i< localNumberOfRows; ++i){
+        if(A.colors[i] == color)
+          mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
+      }
+    }
+  }
 
 #else
   // Now allocate the arrays pointed to

@@ -17,5 +17,5 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact);
+void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact, bool orderByColor);
 #endif // GENERATEPROBLEM_REF_HPP

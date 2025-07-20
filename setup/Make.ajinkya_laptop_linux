@@ -66,7 +66,7 @@ HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
 USERFLAGS    =
 CXX          = /opt/nvidia/hpc_sdk/Linux_x86_64/2025/compilers/bin/nvc++
 #CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O1 -mp -stdpar=multicore -Wall -Wextra -Wpedantic -Mbounds -ftemplate-depth=2048 -ftemplate-backtrace-limit=0 -v $(USERFLAGS)
-CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -mp -stdpar=multicore -ftemplate-depth=2048 $(USERFLAGS)
+CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -g -O3 -mp -stdpar=multicore -ftemplate-depth=2048 $(USERFLAGS)
 #CXX          = /usr/bin/clang++
 #CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -ffast-math -fopenmp -Wall -Wextra -pedantic -fsanitize=address -fsanitize=leak -ftemplate-depth=2048 $(USERFLAGS)
 #
