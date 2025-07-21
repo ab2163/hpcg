@@ -64,6 +64,9 @@ struct SparseMatrix_STRUCT {
   mutable MGData * mgData; // Pointer to the coarse level data for this fine matrix
   void * optimizationData;  // pointer that can be used to store implementation-specific data
   std::vector<int> colors; //for 8-coloring of 27-point stencil
+  local_int_t startInds[8] = {};
+  local_int_t endInds[8] = {};
+  local_int_t *indMap;
 
 #ifndef HPCG_NO_MPI
   local_int_t numberOfExternalValues; //!< number of entries that are external to this process

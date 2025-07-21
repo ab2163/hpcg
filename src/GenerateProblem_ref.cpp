@@ -117,7 +117,11 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
     double *tmpVals = new double[total_nnz];
     global_int_t *tmpIndG = new global_int_t[total_nnz];
 
+    A.indMap = new local_int_t[localNumberOfRows];
+    local_int_t indCnt = 0;
+
     for(int color = 0; color < 8; color++){
+      A.startInds[color] = indCnt;
       for (local_int_t i = 0; i < localNumberOfRows; ++i){
         if(A.colors[i] == color){
           mtxIndL[i] = tmpIndL;
@@ -126,8 +130,11 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
           tmpIndL += numberOfNonzerosPerRow;
           tmpVals += numberOfNonzerosPerRow;
           tmpIndG += numberOfNonzerosPerRow;
+          A.indMap[indCnt] = i;
+          indCnt++;
         }
       }
+      A.endInds[color] = indCnt - 1;
     }
   }
 

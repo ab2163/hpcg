@@ -93,8 +93,8 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
     std::cout << "Parallel for matrix with " << nrow << " rows.\n";
     for(int c = 0; c < 8; c++){
       #pragma omp parallel for
-      for (local_int_t i=0; i< nrow; i++) {
-        if(A.colors[i] != c) continue;
+      for(local_int_t ind = A.startInds[c]; ind <= A.endInds[c]; ind++){
+        local_int_t i = A.indMap[ind];
         const double * const currentValues = A.matrixValues[i];
         const local_int_t * const currentColIndices = A.mtxIndL[i];
         const int currentNumberOfNonzeros = A.nonzerosInRow[i];
@@ -133,8 +133,8 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   }else{
     for(int c = 0; c < 8; c++){
       #pragma omp parallel for
-      for (local_int_t i=nrow-1; i>=0; i--) {
-        if(A.colors[i] != c) continue;
+      for(local_int_t ind = A.startInds[c]; ind <= A.endInds[c]; ind++){
+        local_int_t i = A.indMap[ind];
         const double * const currentValues = A.matrixValues[i];
         const local_int_t * const currentColIndices = A.mtxIndL[i];
         const int currentNumberOfNonzeros = A.nonzerosInRow[i];
