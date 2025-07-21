@@ -155,7 +155,7 @@ int main(int argc, char * argv[]) {
   AssignColors(A);
 
   Vector b, x, xexact;
-  GenerateProblem(A, &b, &x, &xexact, false);
+  GenerateProblem(A, &b, &x, &xexact, true);
   SetupHalo(A);
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix * curLevelMatrix = &A;

@@ -112,18 +112,21 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
       mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
   }else{
     std::cout << "Allocating memory for matrix A by color.\n";
+    local_int_t total_nnz = localNumberOfRows*numberOfNonzerosPerRow;
+    local_int_t *tmpIndL = new local_int_t[total_nnz];
+    double *tmpVals = new double[total_nnz];
+    global_int_t *tmpIndG = new global_int_t[total_nnz];
+
     for(int color = 0; color < 8; color++){
-      for (local_int_t i=0; i< localNumberOfRows; ++i){
-        if(A.colors[i] == color)
-          mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
-      }
-      for (local_int_t i=0; i< localNumberOfRows; ++i){
-        if(A.colors[i] == color)
-          matrixValues[i] = new double[numberOfNonzerosPerRow];
-      }
-      for (local_int_t i=0; i< localNumberOfRows; ++i){
-        if(A.colors[i] == color)
-          mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
+      for (local_int_t i = 0; i < localNumberOfRows; ++i){
+        if(A.colors[i] == color){
+          mtxIndL[i] = tmpIndL;
+          matrixValues[i] = tmpVals;
+          mtxIndG[i] = tmpIndG;
+          tmpIndL += numberOfNonzerosPerRow;
+          tmpVals += numberOfNonzerosPerRow;
+          tmpIndG += numberOfNonzerosPerRow;
+        }
       }
     }
   }
