@@ -60,7 +60,7 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-#include "CG_stdexec.hpp"
+//#include "CG_stdexec.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.

@@ -35,6 +35,18 @@ typedef std::map< global_int_t, local_int_t > GlobalToLocalMap;
 #include <unordered_map>
 using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
+#include <vector>
+
+#define STENCIL_SZ 27
+#define NUM_COLORS 8
+struct RowDataFlat{
+  int numNonzeros;
+  double diagVal;
+  local_int_t rowIndex;
+  double values[STENCIL_SZ];
+  local_int_t cols[STENCIL_SZ];
+};
+typedef struct RowDataFlat RowDataFlat;
 
 struct SparseMatrix_STRUCT {
   char  * title; //!< name of the sparse matrix
@@ -73,6 +85,12 @@ struct SparseMatrix_STRUCT {
   local_int_t * sendLength; //!< lenghts of messages sent to neighboring processes
   double * sendBuffer; //!< send buffer for non-blocking sends
 #endif
+
+  //added for memory optimisation and coloring purposes
+  RowDataFlat *rowStructs;
+  local_int_t startInds[NUM_COLORS];
+  local_int_t endInds[NUM_COLORS];
+  std::vector<int> colors; //for 8-coloring of 27-point stencil
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
@@ -114,6 +132,26 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
 #endif
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.
   A.Ac =0;
+
+  //create the vector of colors
+  //will not be used for reference timing phase
+  //but will be used in optimisation phase
+  int nx = A.geom->nx;
+  int ny = A.geom->ny;
+  int nz = A.geom->nz;
+  int localNumberOfRows = nx*ny*nz;
+  A.colors.resize(localNumberOfRows);
+
+  for(int iz = 0; iz < nz; iz++){
+    for(int iy = 0; iy < ny; iy++){
+      for(int ix = 0; ix < nx; ix++){
+        int idx = ix + nx * (iy + ny * iz);
+        int el_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2);
+        A.colors[idx] = el_color;
+      }
+    }
+  }
+
   return;
 }
 

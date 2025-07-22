@@ -19,6 +19,8 @@
  */
 
 #include "OptimizeProblem.hpp"
+#include <iostream>
+#define EXIT_FAILURE 1
 /*!
   Optimizes the data structures used for CG iteration to increase the
   performance of the benchmark version of the preconditioned CG algorithm.
@@ -39,6 +41,7 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
   // This function can be used to completely transform any part of the data structures.
   // Right now it does nothing, so compiling with a check for unused variables results in complaints
 
+  /*
 #if defined(HPCG_USE_MULTICOLORING)
   const local_int_t nrow = A.localNumberOfRows;
   std::vector<local_int_t> colors(nrow, nrow); // value `nrow' means `uninitialized'; initialized colors go from 0 to nrow-1
@@ -95,7 +98,46 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
   for (local_int_t i=0; i<nrow; ++i) // for each color `c'
     colors[i] = counters[colors[i]]++;
 #endif
+  */
 
+  A.rowStructs = new RowDataFlat[A.localNumberOfRows];
+  local_int_t indCnt = 0;
+  bool diagFound;
+
+  for(int color = 0; color < 8; color++){
+    A.startInds[color] = indCnt;
+    for(local_int_t i = 0; i < A.localNumberOfRows; i++){
+        if(A.colors[i] == color){
+          //populate the values of the relevant row data struct
+          A.rowStructs[indCnt].rowIndex = i; //the struct knows which row it belongs to
+          A.rowStructs[indCnt].numNonzeros = A.nonzerosInRow[i]; //struct knows how many nnz it has
+
+          //used to double check diagonal value found
+          diagFound = false;
+
+          double *rowVals = A.matrixValues[i];
+          local_int_t *colInds = A.mtxIndL[i];
+          //copy data from relevant data structures to row struct
+          for(int j = 0; j < A.nonzerosInRow[i]; j++){
+            A.rowStructs[indCnt].values[j] = rowVals[j];
+            A.rowStructs[indCnt].cols[j] = colInds[j];
+
+            //if you come across diagonal then store it
+            if(i == colInds[j]){
+              A.rowStructs[indCnt].diagVal = rowVals[j];
+              diagFound = true;
+            }
+          }
+
+          if(!diagFound){
+            std::cout << "Diagonal value not found.\n";
+            exit(EXIT_FAILURE);
+          }
+          indCnt++;
+        }
+      }
+      A.endInds[color] = indCnt - 1;
+    }
   return 0;
 }
 
