@@ -24,10 +24,6 @@
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
 #include "NVTX_timing.hpp"
-#include <vector>
-
-#include <iostream>
-#include <chrono>
 
 /*!
   Computes one step of symmetric Gauss-Seidel:
@@ -59,7 +55,6 @@
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   nvtxRangeId_t rangeID = 0;
   start_timing("SYMGS_ref", rangeID);
-  auto start = std::chrono::high_resolution_clock::now();
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
@@ -72,89 +67,41 @@ int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
   const double * const rv = r.values;
   double * const xv = x.values;
 
-  if(A.colors.empty()){
-    std::cout << "Serial for matrix with " << nrow << " rows.\n";
-    for (local_int_t i=0; i< nrow; i++) {
-      const double * const currentValues = A.matrixValues[i];
-      const local_int_t * const currentColIndices = A.mtxIndL[i];
-      const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-      const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-      double sum = rv[i]; // RHS value
+  for (local_int_t i=0; i< nrow; i++) {
+    const double * const currentValues = A.matrixValues[i];
+    const local_int_t * const currentColIndices = A.mtxIndL[i];
+    const int currentNumberOfNonzeros = A.nonzerosInRow[i];
+    const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+    double sum = rv[i]; // RHS value
 
-      for (int j=0; j< currentNumberOfNonzeros; j++) {
-        local_int_t curCol = currentColIndices[j];
-        sum -= currentValues[j] * xv[curCol];
-      }
-      sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
-
-      xv[i] = sum/currentDiagonal;
+    for (int j=0; j< currentNumberOfNonzeros; j++) {
+      local_int_t curCol = currentColIndices[j];
+      sum -= currentValues[j] * xv[curCol];
     }
-  }else{
-    std::cout << "Parallel for matrix with " << nrow << " rows.\n";
-    for(int c = 0; c < 8; c++){
-      #pragma omp parallel for
-      for(local_int_t ind = A.startInds[c]; ind <= A.endInds[c]; ind++){
-        local_int_t i = A.indMap[ind];
-        const double * const currentValues = A.matrixValues[i];
-        const local_int_t * const currentColIndices = A.mtxIndL[i];
-        const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-        const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-        double sum = rv[i]; // RHS value
+    sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
-        for (int j=0; j< currentNumberOfNonzeros; j++) {
-          local_int_t curCol = currentColIndices[j];
-          sum -= currentValues[j] * xv[curCol];
-        }
-        sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
+    xv[i] = sum/currentDiagonal;
 
-        xv[i] = sum/currentDiagonal;
-      }
-    }
   }
 
   // Now the back sweep.
-  
-  if(A.colors.empty()){
-    for (local_int_t i=nrow-1; i>=0; i--) {
-      const double * const currentValues = A.matrixValues[i];
-      const local_int_t * const currentColIndices = A.mtxIndL[i];
-      const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-      const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-      double sum = rv[i]; // RHS value
 
-      for (int j = 0; j< currentNumberOfNonzeros; j++) {
-        local_int_t curCol = currentColIndices[j];
-        sum -= currentValues[j]*xv[curCol];
-      }
-      sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
+  for (local_int_t i=nrow-1; i>=0; i--) {
+    const double * const currentValues = A.matrixValues[i];
+    const local_int_t * const currentColIndices = A.mtxIndL[i];
+    const int currentNumberOfNonzeros = A.nonzerosInRow[i];
+    const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
+    double sum = rv[i]; // RHS value
 
-      xv[i] = sum/currentDiagonal;
+    for (int j = 0; j< currentNumberOfNonzeros; j++) {
+      local_int_t curCol = currentColIndices[j];
+      sum -= currentValues[j]*xv[curCol];
     }
-  }else{
-    for(int c = 0; c < 8; c++){
-      #pragma omp parallel for
-      for(local_int_t ind = A.startInds[c]; ind <= A.endInds[c]; ind++){
-        local_int_t i = A.indMap[ind];
-        const double * const currentValues = A.matrixValues[i];
-        const local_int_t * const currentColIndices = A.mtxIndL[i];
-        const int currentNumberOfNonzeros = A.nonzerosInRow[i];
-        const double  currentDiagonal = matrixDiagonal[i][0]; // Current diagonal value
-        double sum = rv[i]; // RHS value
+    sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
 
-        for (int j = 0; j< currentNumberOfNonzeros; j++) {
-          local_int_t curCol = currentColIndices[j];
-          sum -= currentValues[j]*xv[curCol];
-        }
-        sum += xv[i]*currentDiagonal; // Remove diagonal contribution from previous loop
-
-        xv[i] = sum/currentDiagonal;
-      }
-    }
+    xv[i] = sum/currentDiagonal;
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> elapsed = end - start;
-  std::cout << "Function took " << elapsed.count() << " seconds.\n";
   end_timing(rangeID);
   return 0;
 }

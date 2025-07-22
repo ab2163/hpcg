@@ -34,7 +34,7 @@ using std::endl;
 #include <cassert>
 
 #include "GenerateProblem_ref.hpp"
-#include <iostream>
+
 
 /*!
   Reference version of GenerateProblem to generate the sparse matrix, right hand side, initial guess, and exact solution.
@@ -47,7 +47,7 @@ using std::endl;
   @see GenerateGeometry
 */
 
-void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact, bool orderByColor) {
+void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexact) {
 
   // Make local copies of geometry information.  Use global_int_t since the RHS products in the calculations
   // below may result in global range values.
@@ -102,41 +102,13 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
   }
 
 #ifndef HPCG_CONTIGUOUS_ARRAYS
-  if(!orderByColor){
-    // Now allocate the arrays pointed to
-    for (local_int_t i=0; i< localNumberOfRows; ++i)
-      mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
-    for (local_int_t i=0; i< localNumberOfRows; ++i)
-      matrixValues[i] = new double[numberOfNonzerosPerRow];
-    for (local_int_t i=0; i< localNumberOfRows; ++i)
-      mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
-  }else{
-    std::cout << "Allocating memory for matrix A by color.\n";
-    local_int_t total_nnz = localNumberOfRows*numberOfNonzerosPerRow;
-    local_int_t *tmpIndL = new local_int_t[total_nnz];
-    double *tmpVals = new double[total_nnz];
-    global_int_t *tmpIndG = new global_int_t[total_nnz];
-
-    A.indMap = new local_int_t[localNumberOfRows];
-    local_int_t indCnt = 0;
-
-    for(int color = 0; color < 8; color++){
-      A.startInds[color] = indCnt;
-      for (local_int_t i = 0; i < localNumberOfRows; ++i){
-        if(A.colors[i] == color){
-          mtxIndL[i] = tmpIndL;
-          matrixValues[i] = tmpVals;
-          mtxIndG[i] = tmpIndG;
-          tmpIndL += numberOfNonzerosPerRow;
-          tmpVals += numberOfNonzerosPerRow;
-          tmpIndG += numberOfNonzerosPerRow;
-          A.indMap[indCnt] = i;
-          indCnt++;
-        }
-      }
-      A.endInds[color] = indCnt - 1;
-    }
-  }
+  // Now allocate the arrays pointed to
+  for (local_int_t i=0; i< localNumberOfRows; ++i)
+    mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];
+  for (local_int_t i=0; i< localNumberOfRows; ++i)
+    matrixValues[i] = new double[numberOfNonzerosPerRow];
+  for (local_int_t i=0; i< localNumberOfRows; ++i)
+   mtxIndG[i] = new global_int_t[numberOfNonzerosPerRow];
 
 #else
   // Now allocate the arrays pointed to

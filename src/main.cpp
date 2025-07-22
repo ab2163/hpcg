@@ -60,26 +60,7 @@ using std::endl;
 #include "TestCG.hpp"
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
-//#include "CG_stdexec.hpp"
-
-void AssignColors(SparseMatrix &A){
-  int nx = A.geom->nx;
-  int ny = A.geom->ny;
-  int nz = A.geom->nz;
-  int localNumberOfRows = nx*ny*nz;
-
-  A.colors.resize(localNumberOfRows);
-
-  for(int iz = 0; iz < nz; iz++){
-    for(int iy = 0; iy < ny; iy++){
-      for(int ix = 0; ix < nx; ix++){
-        int idx = ix + nx * (iy + ny * iz);
-        int el_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2);
-        A.colors[idx] = el_color;
-      }
-    }
-  }
-}
+#include "CG_stdexec.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
@@ -152,10 +133,9 @@ int main(int argc, char * argv[]) {
 
   SparseMatrix A;
   InitializeSparseMatrix(A, geom);
-  AssignColors(A);
 
   Vector b, x, xexact;
-  GenerateProblem(A, &b, &x, &xexact, true);
+  GenerateProblem(A, &b, &x, &xexact);
   SetupHalo(A);
   int numberOfMgLevels = 4; // Number of levels including first
   SparseMatrix * curLevelMatrix = &A;
@@ -303,7 +283,7 @@ int main(int argc, char * argv[]) {
     ZeroVector(x); // start x at all zeros
     double last_cummulative_time = opt_times[0];
 #ifndef SELECT_STDEXEC
-    ierr = CG( A, data, b, x, optMaxIters, 5e-8, niters, normr, normr0, &opt_times[0], true);
+    ierr = CG( A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
 #else
     CG_stdexec(A, data, b, x, optMaxIters, refTolerance, niters, normr, normr0, &opt_times[0], true);
