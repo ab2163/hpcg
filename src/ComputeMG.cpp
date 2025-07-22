@@ -22,6 +22,8 @@
 
 #ifdef SELECT_STDPAR
 #include "ComputeMG_stdpar.hpp"
+#elif defined(SELECT_OPT)
+#include "ComputeMG_opt.hpp"
 #else
 #include "ComputeMG_ref.hpp"
 #endif
@@ -39,6 +41,8 @@ int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
 
 #ifdef SELECT_STDPAR
   return ComputeMG_stdpar(A, r, x);
+#elif defined(SELECT_OPT)
+  return ComputeMG_opt(A, r, x);
 #else
   A.isMgOptimized = false;
   return ComputeMG_ref(A, r, x);

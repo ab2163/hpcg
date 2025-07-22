@@ -22,9 +22,12 @@
 
 #ifdef SELECT_STDPAR
 #include "ComputeSYMGS_stdpar.hpp"
+#elif defined(SELECT_OPT)
+#include "ComputeSYMGS_opt.hpp"
 #else
 #include "ComputeSYMGS_ref.hpp"
 #endif
+#include <iostream>
 
 /*!
   Routine to compute one step of symmetric Gauss-Seidel:
@@ -56,6 +59,9 @@ int ComputeSYMGS( const SparseMatrix & A, const Vector & r, Vector & x) {
 
 #ifdef SELECT_STDPAR
   return ComputeSYMGS_stdpar(A, r, x);
+#elif defined(SELECT_OPT)
+  std::cout << "Running opt version!\n";
+  return ComputeSYMGS_opt(A, r, x);
 #else
   return ComputeSYMGS_ref(A, r, x);
 #endif  
