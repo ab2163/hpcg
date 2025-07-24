@@ -1,6 +1,6 @@
 #include <string>
-//#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
-#include "/home/abhalerao/nvhpc_2025_255_Linux_x86_64_cuda_12.9/install_components/Linux_x86_64/25.5/profilers/Nsight_Systems/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+#include "/opt/nvidia/nsight-systems/2025.3.1/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
+//#include "/home/abhalerao/nvhpc_2025_255_Linux_x86_64_cuda_12.9/install_components/Linux_x86_64/25.5/profilers/Nsight_Systems/target-linux-x64/nvtx/include/nvtx3/nvtx3.hpp"
 
 #define MAIN_COL 0xFFFF0000
 #define MG_COL 0xFFFF7F00

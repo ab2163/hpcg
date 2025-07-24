@@ -44,7 +44,7 @@ struct RowDataFlat{
   double diagVal;
   local_int_t rowIndex;
   double values[STENCIL_SZ];
-  local_int_t cols[STENCIL_SZ];
+  double *xVals[STENCIL_SZ];
 };
 typedef struct RowDataFlat RowDataFlat;
 
