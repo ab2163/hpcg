@@ -210,21 +210,38 @@ int main(int argc, char * argv[]) {
   int totalNiters_ref = 0;
   double normr = 0.0;
   double normr0 = 0.0;
-  int refMaxIters = 50;
+  int refMaxIters = 500;
   numberOfCalls = 1; // Only need to run the residual reduction analysis once
 
+  OptimizeProblem(A, data, b, x, xexact);
+  
   // Compute the residual reduction for the natural ordering and reference kernels
   std::vector< double > ref_times(9,0.0);
-  double tolerance = 0.0; // Set tolerance to zero to make all runs do maxIters iterations
+  double tolerance = 5e-8; // Set tolerance to zero to make all runs do maxIters iterations
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
-    ierr = CG_ref( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    ierr = CG( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
     if (ierr) ++err_count; // count the number of errors in CG
     totalNiters_ref += niters;
   }
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
   double refTolerance = normr / normr0;
+
+    std::cout << "RESULTS:\n";
+    std::cout << "Number of CG calls: " << numberOfCalls << "\n";
+    std::cout << "Tolerance specified: " << tolerance << "\n";
+    std::cout << "Tolerance (start): " << normr0 << "\n";
+    std::cout << "Tolerance (end): " << normr << "\n";
+    std::cout << "Maximum iterations specified: " << refMaxIters << "\n";
+    std::cout << "Iterations performed: " << niters << "\n";
+    std::cout << "Time taken: " << ref_times[0] << "\n";
+    std::cout << "Dot product time: " << ref_times[1] << "\n";
+    std::cout << "WAXPBY time: " << ref_times[2] << "\n";
+    std::cout << "SPMV time: " << ref_times[3] << "\n";
+    std::cout << "MG time: " << ref_times[5] << "\n";
+
+  return 0;
 
   // Call user-tunable set up function.
   double t7 = mytimer();

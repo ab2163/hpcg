@@ -8,4 +8,5 @@ bin/hpcg20*.txt
 build/
 src/.vscode/
 nsight-reports/
-
+perf.data
+perf.data.old
