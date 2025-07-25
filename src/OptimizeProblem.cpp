@@ -117,11 +117,10 @@ int OptimizeProblem(SparseMatrix & A, CGData & data, Vector & b, Vector & x, Vec
 
           double *rowVals = A.matrixValues[i];
           local_int_t *colInds = A.mtxIndL[i];
-          double *z = data.z.values;
           //copy data from relevant data structures to row struct
           for(int j = 0; j < A.nonzerosInRow[i]; j++){
             A.rowStructs[indCnt].values[j] = rowVals[j];
-            A.rowStructs[indCnt].xVals[j] = &z[colInds[j]];
+            A.rowStructs[indCnt].cols[j] = colInds[j];
 
             //if you come across diagonal then store it
             if(i == colInds[j]){

@@ -25,14 +25,15 @@ int ComputeSYMGS_opt(const SparseMatrix &A, const Vector &r, Vector &x){
     for(local_int_t ind = startInd; ind <= endInd; ind++){
       RowDataFlat *rowPtr = &A.rowStructs[ind];
       double *vals = rowPtr->values;
-      double **xVals = rowPtr->xVals;
+      local_int_t *cols = rowPtr->cols;
       int nnz = rowPtr->numNonzeros;
       double diagVal = rowPtr->diagVal;
       int i = rowPtr->rowIndex;
       double sum = rv[i]; //RHS value
 
       for (int j = 0; j < nnz; j++){
-        sum -= vals[j]*(*xVals[j]);
+        local_int_t curCol = cols[j];
+        sum -= vals[j]*xv[curCol];
       }
       sum += xv[i]*diagVal; //remove diagonal contribution from previous loop
       xv[i] = sum/diagVal;
@@ -48,14 +49,15 @@ int ComputeSYMGS_opt(const SparseMatrix &A, const Vector &r, Vector &x){
     for(local_int_t ind = startInd; ind <= endInd; ind++){
       RowDataFlat *rowPtr = &A.rowStructs[ind];
       double *vals = rowPtr->values;
-      double **xVals = rowPtr->xVals;
+      local_int_t *cols = rowPtr->cols;
       int nnz = rowPtr->numNonzeros;
       double diagVal = rowPtr->diagVal;
       int i = rowPtr->rowIndex;
       double sum = rv[i]; //RHS value
 
       for(int j = 0; j < nnz; j++){
-        sum -= vals[j]*(*xVals[j]);
+        local_int_t curCol = cols[j];
+        sum -= vals[j]*xv[curCol];
       }
       sum += xv[i]*diagVal; //remove diagonal contribution from previous loop
       xv[i] = sum/diagVal;
