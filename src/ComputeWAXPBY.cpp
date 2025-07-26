@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -44,8 +43,8 @@
 
   @see ComputeWAXPBY_ref
 */
-int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector & x,
-    const double beta, const Vector & y, Vector & w, bool & isOptimized) {
+int ComputeWAXPBY(const local_int_t n, const double alpha, const Vector &x,
+    const double beta, const Vector &y, Vector &w, bool &isOptimized){
 
 #ifdef SELECT_STDPAR
   return ComputeWAXPBY_stdpar(n, alpha, x, beta, y, w);

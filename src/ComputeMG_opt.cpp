@@ -5,12 +5,8 @@
 #include "ComputeRestriction_ref.hpp"
 #include "ComputeProlongation_ref.hpp"
 #include <cassert>
-#include <iostream>
-#include "NVTX_timing.hpp"
 
 int ComputeMG_opt(const SparseMatrix &A, const Vector &r, Vector &x){
-  nvtxRangeId_t rangeID = 0;
-  start_timing("MG_opt", rangeID);
   assert(x.localLength == A.localNumberOfColumns);
 
   ZeroVector(x); //initialize x to zero
@@ -33,7 +29,6 @@ int ComputeMG_opt(const SparseMatrix &A, const Vector &r, Vector &x){
     ierr = ComputeSYMGS_opt(A, r, x);
     if(ierr != 0) return ierr;
   }
-  end_timing(rangeID);
   return 0;
 }
 

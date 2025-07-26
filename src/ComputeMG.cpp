@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -37,7 +36,7 @@
 
   @see ComputeMG_ref
 */
-int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x) {
+int ComputeMG(const SparseMatrix  &A, const Vector &r, Vector &x){
 
 #ifdef SELECT_STDPAR
   return ComputeMG_stdpar(A, r, x);

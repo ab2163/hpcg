@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -17,6 +16,6 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeMG(const SparseMatrix  & A, const Vector & r, Vector & x);
+int ComputeMG(const SparseMatrix  &A, const Vector &r, Vector &x);
 
-#endif // COMPUTEMG_HPP
+#endif //COMPUTEMG_HPP

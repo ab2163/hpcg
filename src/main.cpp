@@ -266,10 +266,10 @@ int main(int argc, char * argv[]) {
 #endif
   TestCGData testcg_data;
   testcg_data.count_pass = testcg_data.count_fail = 0;
-  //TestCG(A, data, b, x, testcg_data);
+  TestCG(A, data, b, x, testcg_data);
 
   TestSymmetryData testsymmetry_data;
-  //TestSymmetry(A, b, xexact, testsymmetry_data);
+  TestSymmetry(A, b, xexact, testsymmetry_data);
 
 #ifdef HPCG_DEBUG
   if (rank==0) HPCG_fout << "Total validation (TestCG and TestSymmetry) execution time in main (sec) = " << mytimer() - t1 << endl;
@@ -313,22 +313,6 @@ int main(int argc, char * argv[]) {
 
     double current_time = opt_times[0] - last_cummulative_time;
     if (current_time > opt_worst_time) opt_worst_time = current_time;
-
-    std::cout << "OPTIMISED SETUP PHASE RESULTS:\n";
-    std::cout << "Number of CG calls: " << numberOfCalls << "\n";
-    std::cout << "Tolerance specified: " << refTolerance << "\n";
-    std::cout << "Tolerance (start): " << normr0 << "\n";
-    std::cout << "Tolerance (end): " << normr << "\n";
-    std::cout << "Maximum iterations specified: " << optMaxIters << "\n";
-    std::cout << "Iterations performed: " << niters << "\n";
-    std::cout << "Time taken: " << current_time << "\n";
-    std::cout << "Dot product time: " << opt_times[1] << "\n";
-    std::cout << "WAXPBY time: " << opt_times[2] << "\n";
-    std::cout << "SPMV time: " << opt_times[3] << "\n";
-    std::cout << "MG time: " << opt_times[5] << "\n";
-  }
-
-  return 0;
 
 #ifndef HPCG_NO_MPI
 // Get the absolute worst time across all MPI ranks (time in CG can be different)

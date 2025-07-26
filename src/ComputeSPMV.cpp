@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -42,7 +41,7 @@
 
   @see ComputeSPMV_ref
 */
-int ComputeSPMV( const SparseMatrix & A, Vector & x, Vector & y) {
+int ComputeSPMV(const SparseMatrix &A, Vector &x, Vector &y){
 
 #ifdef SELECT_STDPAR
   return ComputeSPMV_stdpar(A, x, y);

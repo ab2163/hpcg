@@ -37,6 +37,7 @@ using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
 #include <vector>
 
+//struct for memory optimisation purposes
 #define STENCIL_SZ 27
 #define NUM_COLORS 8
 struct RowDataFlat{
@@ -146,8 +147,8 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
     for(int iy = 0; iy < ny; iy++){
       for(int ix = 0; ix < nx; ix++){
         int idx = ix + nx * (iy + ny * iz);
-        int el_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2);
-        A.colors[idx] = el_color;
+        int row_color = (ix % 2) + 2 * (iy % 2) + 4 * (iz % 2);
+        A.colors[idx] = row_color;
       }
     }
   }

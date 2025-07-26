@@ -1,14 +1,12 @@
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
-#include "ComputeSYMGS_ref.hpp"
+
 #include <cassert>
-#include "NVTX_timing.hpp"
+#include "ComputeSYMGS_ref.hpp"
 #define NUM_COLORS 8
 
 int ComputeSYMGS_opt(const SparseMatrix &A, const Vector &r, Vector &x){
-  nvtxRangeId_t rangeID = 0;
-  start_timing("SYMGS_opt", rangeID);
   assert(x.localLength == A.localNumberOfColumns);
 #ifndef HPCG_NO_MPI
   ExchangeHalo(A,x);
@@ -64,7 +62,6 @@ int ComputeSYMGS_opt(const SparseMatrix &A, const Vector &r, Vector &x){
     }
   }
 
-  end_timing(rangeID);
   return 0;
 }
 

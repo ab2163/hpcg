@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -23,7 +22,6 @@
 #include <omp.h>
 #endif
 #include <cassert>
-#include "NVTX_timing.hpp"
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -43,8 +41,6 @@
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w) {
 
-  nvtxRangeId_t rangeID = 0;
-  start_timing("WAXPBY_ref", rangeID);
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 
@@ -69,6 +65,5 @@ int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
     for (local_int_t i=0; i<n; i++) wv[i] = alpha * xv[i] + beta * yv[i];
   }
 
-  end_timing(rangeID);
   return 0;
 }

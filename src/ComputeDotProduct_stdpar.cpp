@@ -8,28 +8,25 @@
 #include <mpi.h>
 #include "mytimer.hpp"
 #endif
-#include "NVTX_timing.hpp"
 
-int ComputeDotProduct_stdpar(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce) {
+int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector &y,
+    double &result, double &time_allreduce){
 
-  nvtxRangeId_t rangeID = 0;
-  start_timing("DotProd_stdpar", rangeID);
-  assert(x.localLength>=n); // Test vector lengths
-  assert(y.localLength>=n);
+  assert(x.localLength >= n); //test vector lengths
+  assert(y.localLength >= n);
 
   double local_result = 0.0;
-  double * xv = x.values;
-  double * yv = y.values;
-  if (yv == xv) {
+  double *xv = x.values;
+  double *yv = y.values;
+  if(yv == xv){
     local_result = std::transform_reduce(std::execution::par, xv, xv + n, xv, 0.0); 
   }
-  else {
+  else{
     local_result = std::transform_reduce(std::execution::par, xv, xv + n, yv, 0.0); 
   }
 
 #ifndef HPCG_NO_MPI
-  // Use MPI's reduce function to collect all partial sums
+  //use MPI's reduce function to collect all partial sums
   double t0 = mytimer();
   double global_result = 0.0;
   MPI_Allreduce(&local_result, &global_result, 1, MPI_DOUBLE, MPI_SUM,
@@ -41,6 +38,5 @@ int ComputeDotProduct_stdpar(const local_int_t n, const Vector & x, const Vector
   result = local_result;
 #endif
 
-  end_timing(rangeID);
   return 0;
 }

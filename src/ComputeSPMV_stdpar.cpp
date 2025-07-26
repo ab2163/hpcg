@@ -10,14 +10,11 @@
 #ifndef HPCG_NO_MPI
 #include "ExchangeHalo.hpp"
 #endif
-#include "NVTX_timing.hpp"
 
-int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
+int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
-  nvtxRangeId_t rangeID = 0;
-  start_timing("SPMV_stdpar", rangeID);
-  assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
-  assert(y.localLength>=A.localNumberOfRows);
+  assert(x.localLength >= A.localNumberOfColumns); //test vector lengths
+  assert(y.localLength >= A.localNumberOfRows);
 
   #ifndef HPCG_NO_MPI
     ExchangeHalo(A,x);
@@ -28,9 +25,9 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
   const local_int_t nrow = A.localNumberOfRows;
   auto rows = std::views::iota(local_int_t{0}, nrow);
 
-  // Create a view for xv values with "transform"
-  // Pass the view and the A values to "transform reduce"
-  std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [&](local_int_t i) {
+  //create a view for xv values with "transform"
+  //pass the view and the A values to "transform reduce"
+  std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [&](local_int_t i){
     yv[i] = std::transform_reduce(
       A.matrixValues[i],
       A.matrixValues[i] + A.nonzerosInRow[i],
@@ -42,6 +39,5 @@ int ComputeSPMV_stdpar(const SparseMatrix & A, Vector & x, Vector & y) {
     );
   });
 
-  end_timing(rangeID);
   return 0;
 }

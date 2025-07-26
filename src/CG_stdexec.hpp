@@ -9,7 +9,6 @@
 #include "../stdexec/include/stdexec/__detail/__senders_core.hpp"
 #include "../stdexec/include/exec/static_thread_pool.hpp"
 #include "ComputeSYMGS_ref.hpp"
-#include "NVTX_timing.hpp"
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
@@ -127,20 +126,19 @@ using stdexec::continues_on;
   | POST_RECURSION_MG(A1, r1, z1, 1) \
   | POST_RECURSION_MG(A0, r0, z0, 0)
 
-auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
-  const int max_iter, const double tolerance, int & niters, double & normr,  double & normr0,
-  double * times, bool doPreconditioning){
+auto CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
+  const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
+  double *times, bool doPreconditioning){
 
-  NVTX3_FUNC_RANGE();
-  double t_begin = mytimer();  //Start timing right away
+  double t_begin = mytimer();  //start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
   double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0, t_tmp = 0.0;
   local_int_t nrow = A.localNumberOfRows;
-  Vector & r = data.r; //Residual vector
-  Vector & z = data.z; //Preconditioned residual vector
-  Vector & p = data.p; //Direction vector (in MPI mode ncol>=nrow)
+  Vector & r = data.r; //residual vector
+  Vector & z = data.z; //preconditioned residual vector
+  Vector & p = data.p; //direction vector (in MPI mode ncol>=nrow)
   Vector & Ap = data.Ap;
   double local_result;
   double dot_local_copy; //for passing into MPIAllReduce within dot product
@@ -172,7 +170,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
 
-  // Caching dereferenced pointers
+  //caching dereferenced pointers
   auto& A0 = *matrix_ptrs[0];
   auto& A1 = *matrix_ptrs[1];
   auto& A2 = *matrix_ptrs[2];
@@ -235,15 +233,12 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
 #endif
-    normr0 = normr; //Record initial residual for convergence testing
+    normr0 = normr; //record initial residual for convergence testing
   });
   sync_wait(std::move(pre_loop_work));
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  //FIND A MORE ELEGANT WAY OF DOING THIS!
-  //NOTE - MUST FIND A MEANS OF MAKING PRECONDITIONING OPTIONAL!
-
   sender auto mg_downwards = schedule(scheduler)
     | COMPUTE_MG_STAGE1();
   sync_wait(std::move(mg_downwards));
@@ -282,8 +277,8 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     });
     sync_wait(std::move(rest_of_loop));
 
-  //Start iterations
-  //Convergence check accepts an error of no more than 6 significant digits of tolerance
+  //start iterations
+  //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
     sender auto mg_downwards = schedule(scheduler)
@@ -327,7 +322,7 @@ auto CG_stdexec(const SparseMatrix & A, CGData & data, const Vector & b, Vector 
     times[3] += t_SPMV; //SPMV time
     times[4] += 0.0; //AllReduce time
     times[5] += t_MG; //preconditioner apply time
-    times[0] += mytimer() - t_begin;  //Total time
+    times[0] += mytimer() - t_begin;  //total time
     std::cout << "ADDITIONAL TIME DATA:\n";
     std::cout << "SYMGS Time : " << t_SYMGS << "\n";
     std::cout << "Restriction Time : " << t_restrict << "\n";

@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -43,8 +42,8 @@
 
   @see ComputeDotProduct_ref
 */
-int ComputeDotProduct(const local_int_t n, const Vector & x, const Vector & y,
-    double & result, double & time_allreduce, bool & isOptimized) {
+int ComputeDotProduct(const local_int_t n, const Vector &x, const Vector &y,
+    double &result, double &time_allreduce, bool &isOptimized){
 
 #ifdef SELECT_STDPAR
   return ComputeDotProduct_stdpar(n, x, y, result, time_allreduce);
