@@ -14,7 +14,7 @@ int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf) {
 
   auto range = std::views::iota(0, nc);
 
-  std::for_each(std::execution::par, range.begin(), range.end(),
+  std::for_each(std::execution::par_unseq, range.begin(), range.end(),
               [&](int i) { rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; });
   
   return 0;
