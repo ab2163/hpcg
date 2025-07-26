@@ -19,10 +19,10 @@ int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector 
   double *xv = x.values;
   double *yv = y.values;
   if(yv == xv){
-    local_result = std::transform_reduce(std::execution::par, xv, xv + n, xv, 0.0); 
+    local_result = std::transform_reduce(std::execution::par_unseq, xv, xv + n, xv, 0.0); 
   }
   else{
-    local_result = std::transform_reduce(std::execution::par, xv, xv + n, yv, 0.0); 
+    local_result = std::transform_reduce(std::execution::par_unseq, xv, xv + n, yv, 0.0); 
   }
 
 #ifndef HPCG_NO_MPI
