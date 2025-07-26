@@ -15,6 +15,10 @@ case "$2" in
     echo "Using laptop path"
     /home/ajinkya/Documents/hpcg/configure ajinkya_laptop_linux
     ;;
+  vastai)
+    echo "Using path for Vast AI instance"
+    ~/hpcg/configure ajinkya_VastAI
+    ;;
   *)
     echo "Using laptop path"
     /home/ajinkya/Documents/hpcg/configure ajinkya_laptop_linux
