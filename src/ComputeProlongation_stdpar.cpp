@@ -14,7 +14,7 @@ int ComputeProlongation_stdpar(const SparseMatrix &Af, Vector &xf){
   auto range = std::views::iota(0, nc);
 
   std::for_each(std::execution::par_unseq, range.begin(), range.end(),
-              [&](int i) { xfv[f2c[i]] += xcv[i]; });
+              [=](int i) { xfv[f2c[i]] += xcv[i]; });
 
   return 0;
 }
