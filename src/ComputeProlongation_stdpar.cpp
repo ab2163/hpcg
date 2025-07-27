@@ -3,8 +3,10 @@
 #include <execution>
 
 #include "ComputeProlongation_stdpar.hpp"
+#include "NVTX_timing.hpp"
 
 int ComputeProlongation_stdpar(const SparseMatrix &Af, Vector &xf){
+  NVTX3_FUNC_RANGE();
 
   double * xfv = xf.values;
   double * xcv = Af.mgData->xc->values;

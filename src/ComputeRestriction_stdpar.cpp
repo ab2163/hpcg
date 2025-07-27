@@ -3,8 +3,10 @@
 #include <execution>
 
 #include "ComputeRestriction_stdpar.hpp"
+#include "NVTX_timing.hpp"
 
-int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf) {
+int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf){
+  NVTX3_FUNC_RANGE();
 
   double * Axfv = A.mgData->Axf->values;
   double * rfv = rf.values;
