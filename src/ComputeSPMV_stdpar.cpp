@@ -25,18 +25,14 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
   const local_int_t nrow = A.localNumberOfRows;
   auto rows = std::views::iota(local_int_t{0}, nrow);
 
-  //create a view for xv values with "transform"
-  //pass the view and the A values to "transform reduce"
   std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [&, xv, yv](local_int_t i){
-    yv[i] = std::transform_reduce(
-      A.matrixValues[i],
-      A.matrixValues[i] + A.nonzerosInRow[i],
-      std::views::transform(
-        std::span(A.mtxIndL[i], A.nonzerosInRow[i]),
-        [=](int idx) { return xv[idx]; }
-      ).begin(),
-      0.0
-    );
+    double sum = 0.0;
+    double *amv = A.matrixValues[i];
+    local_int_t *indv = A.mtxIndL[i];
+    for(int j = 0; j < A.nonzerosInRow[i]; ++j){
+      sum += amv[j] * xv[indv[j]];
+    }
+    yv[i] = sum;
   });
 
   return 0;
