@@ -22,9 +22,9 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
   const double * const xv = x.values;
   double * const yv = y.values;
-  double **amv = A.matrixValues;
-  local_int_t **indv = A.mtxIndL;
-  char *nnz = A.nonzerosInRow;
+  double * const * const amv = A.matrixValues;
+  const local_int_t * const * const indv = A.mtxIndL;
+  const char * const nnz = A.nonzerosInRow;
   const local_int_t nrow = A.localNumberOfRows;
   auto rows = std::views::iota(local_int_t{0}, nrow);
 
