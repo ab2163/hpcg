@@ -9,7 +9,7 @@
 int ComputeSYMGS_par(const SparseMatrix &A, const Vector &r, Vector &x){
   assert(x.localLength == A.localNumberOfColumns);
 #ifndef HPCG_NO_MPI
-  ExchangeHalo(A,x);
+  ExchangeHalo(A, x);
 #endif
 
   const local_int_t nrow = A.localNumberOfRows;

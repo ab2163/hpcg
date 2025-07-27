@@ -33,7 +33,7 @@ case "$1" in
     ;;
   stdpar)
     echo "Compiling for stdpar"
-    make USERFLAGS=-DSELECT_STDPAR 2>&1 | tee build.log
+    make USERFLAGS="-DSELECT_STDPAR -DPARALLEL_SYMGS" 2>&1 | tee build.log
     ;;
   baseline)
     echo "Compiling for baseline"
