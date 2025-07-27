@@ -22,7 +22,7 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
   const double * const xv = x.values;
   double * const yv = y.values;
-  double * const * const amv = A.matrixValues;
+  const double * const * const amv = A.matrixValues;
   const local_int_t * const * const indv = A.mtxIndL;
   const char * const nnz = A.nonzerosInRow;
   const local_int_t nrow = A.localNumberOfRows;

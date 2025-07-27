@@ -8,10 +8,10 @@
 int ComputeProlongation_stdpar(const SparseMatrix &Af, Vector &xf){
   NVTX3_FUNC_RANGE();
 
-  double * xfv = xf.values;
-  double * xcv = Af.mgData->xc->values;
-  local_int_t * f2c = Af.mgData->f2cOperator;
-  local_int_t nc = Af.mgData->rc->localLength;
+  double * const xfv = xf.values;
+  const double * const xcv = Af.mgData->xc->values;
+  const local_int_t * const f2c = Af.mgData->f2cOperator;
+  const local_int_t nc = Af.mgData->rc->localLength;
 
   auto range = std::views::iota(0, nc);
 

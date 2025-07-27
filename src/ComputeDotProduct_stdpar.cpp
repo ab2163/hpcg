@@ -16,8 +16,8 @@ int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector 
   assert(y.localLength >= n);
 
   double local_result = 0.0;
-  double *xv = x.values;
-  double *yv = y.values;
+  const double * const xv = x.values;
+  const double * const yv = y.values;
   if(yv == xv){
     local_result = std::transform_reduce(std::execution::par_unseq, xv, xv + n, xv, 0.0); 
   }
