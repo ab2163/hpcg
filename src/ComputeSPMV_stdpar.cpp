@@ -22,15 +22,16 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
   const double * const xv = x.values;
   double * const yv = y.values;
+  double **amv = A.matrixValues;
+  local_int_t **indv = A.mtxIndL;
+  char *nnz = A.nonzerosInRow;
   const local_int_t nrow = A.localNumberOfRows;
   auto rows = std::views::iota(local_int_t{0}, nrow);
 
-  std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [&, xv, yv](local_int_t i){
+  std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
     double sum = 0.0;
-    double *amv = A.matrixValues[i];
-    local_int_t *indv = A.mtxIndL[i];
-    for(int j = 0; j < A.nonzerosInRow[i]; ++j){
-      sum += amv[j] * xv[indv[j]];
+    for(int j = 0; j < nnz[i]; j++){
+      sum += amv[i][j] * xv[indv[i][j]];
     }
     yv[i] = sum;
   });
