@@ -10,3 +10,4 @@ src/.vscode/
 nsight-reports/
 perf.data
 perf.data.old
+profile_report.*
