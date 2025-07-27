@@ -36,13 +36,13 @@ HPCG_DEPS = src/CG.o \
 	    src/ComputeSYMGS.o \
 	    src/ComputeSYMGS_ref.o \
 	    src/ComputeSYMGS_stdpar.o \
-	    src/ComputeSYMGS_opt.o \
+	    src/ComputeSYMGS_par.o \
 	    src/ComputeWAXPBY.o \
 	    src/ComputeWAXPBY_ref.o \
 	    src/ComputeWAXPBY_stdpar.o \
 	    src/ComputeMG_ref.o \
 	    src/ComputeMG_stdpar.o \
-	    src/ComputeMG_opt.o \
+	    src/ComputeMG_par.o \
 	    src/ComputeMG.o \
 	    src/ComputeProlongation_ref.o \
 	    src/ComputeProlongation_stdpar.o \
@@ -179,7 +179,7 @@ src/ComputeSYMGS_ref.o: HPCG_SRC_PATH/src/ComputeSYMGS_ref.cpp HPCG_SRC_PATH/src
 src/ComputeSYMGS_stdpar.o: HPCG_SRC_PATH/src/ComputeSYMGS_stdpar.cpp HPCG_SRC_PATH/src/ComputeSYMGS_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 	
-src/ComputeSYMGS_opt.o: HPCG_SRC_PATH/src/ComputeSYMGS_opt.cpp HPCG_SRC_PATH/src/ComputeSYMGS_opt.hpp $(PRIMARY_HEADERS)
+src/ComputeSYMGS_par.o: HPCG_SRC_PATH/src/ComputeSYMGS_par.cpp HPCG_SRC_PATH/src/ComputeSYMGS_par.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
 src/ComputeWAXPBY.o: HPCG_SRC_PATH/src/ComputeWAXPBY.cpp HPCG_SRC_PATH/src/ComputeWAXPBY.hpp $(PRIMARY_HEADERS)
@@ -197,7 +197,7 @@ src/ComputeMG_ref.o: HPCG_SRC_PATH/src/ComputeMG_ref.cpp HPCG_SRC_PATH/src/Compu
 src/ComputeMG_stdpar.o: HPCG_SRC_PATH/src/ComputeMG_stdpar.cpp HPCG_SRC_PATH/src/ComputeMG_stdpar.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-src/ComputeMG_opt.o: HPCG_SRC_PATH/src/ComputeMG_opt.cpp HPCG_SRC_PATH/src/ComputeMG_opt.hpp $(PRIMARY_HEADERS)
+src/ComputeMG_par.o: HPCG_SRC_PATH/src/ComputeMG_par.cpp HPCG_SRC_PATH/src/ComputeMG_par.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 	
 src/ComputeMG.o: HPCG_SRC_PATH/src/ComputeMG.cpp HPCG_SRC_PATH/src/ComputeMG.hpp $(PRIMARY_HEADERS)

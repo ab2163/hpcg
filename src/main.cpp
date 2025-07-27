@@ -212,8 +212,6 @@ int main(int argc, char * argv[]) {
   double normr0 = 0.0;
   int refMaxIters = 500;
   numberOfCalls = 1; // Only need to run the residual reduction analysis once
-
-  OptimizeProblem(A, data, b, x, xexact);
   
   // Compute the residual reduction for the natural ordering and reference kernels
   std::vector< double > ref_times(9,0.0);

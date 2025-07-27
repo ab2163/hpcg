@@ -21,8 +21,8 @@
 
 #ifdef SELECT_STDPAR
 #include "ComputeSYMGS_stdpar.hpp"
-#elif defined(SELECT_OPT)
-#include "ComputeSYMGS_opt.hpp"
+#elif defined(PARALLEL_SYMGS)
+#include "ComputeSYMGS_par.hpp"
 #else
 #include "ComputeSYMGS_ref.hpp"
 #endif
@@ -57,8 +57,8 @@ int ComputeSYMGS(const SparseMatrix &A, const Vector &r, Vector &x){
 
 #ifdef SELECT_STDPAR
   return ComputeSYMGS_stdpar(A, r, x);
-#elif defined(SELECT_OPT)
-  return ComputeSYMGS_opt(A, r, x);
+#elif defined(PARALLEL_SYMGS)
+  return ComputeSYMGS_par(A, r, x);
 #else
   return ComputeSYMGS_ref(A, r, x);
 #endif  

@@ -39,9 +39,9 @@ case "$1" in
     echo "Compiling for baseline"
     make USERFLAGS=-DSELECT_BASELINE 2>&1 | tee build.log
     ;;
-  opt)
-    echo "Compiling for memory optimisation"
-    make USERFLAGS=-DSELECT_OPT 2>&1 | tee build.log
+  par)
+    echo "Compiling for baseline with parallel symgs"
+    make USERFLAGS=-DPARALLEL_SYMGS 2>&1 | tee build.log
     ;;
   *)
     echo "Compiling for baseline"

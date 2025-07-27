@@ -35,6 +35,8 @@ using std::endl;
 
 #include "GenerateProblem_ref.hpp"
 
+//for memory optimisation purposes
+#define NUM_COLORS 8
 
 /*!
   Reference version of GenerateProblem to generate the sparse matrix, right hand side, initial guess, and exact solution.
@@ -101,7 +103,31 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
     mtxIndL[i] = 0;
   }
 
-#ifndef HPCG_CONTIGUOUS_ARRAYS
+#ifdef PARALLEL_SYMGS
+  //allocate memory in large blocks and assign by color
+  local_int_t total_nnz = localNumberOfRows*numberOfNonzerosPerRow;
+  local_int_t *tmpIndL = new local_int_t[total_nnz];
+  double *tmpVals = new double[total_nnz];
+  global_int_t *tmpIndG = new global_int_t[total_nnz];
+  local_int_t indCnt = 0;
+
+  for(int color = 0; color < NUM_COLORS; color++){
+    A.startInds[color] = indCnt;
+    for (local_int_t i = 0; i < localNumberOfRows; i++){
+      if(A.colors[i] == color){
+        mtxIndL[i] = tmpIndL;
+        matrixValues[i] = tmpVals;
+        mtxIndG[i] = tmpIndG;
+        tmpIndL += numberOfNonzerosPerRow;
+        tmpVals += numberOfNonzerosPerRow;
+        tmpIndG += numberOfNonzerosPerRow;
+        indCnt++;
+      }
+    }
+    A.endInds[color] = indCnt;
+  }
+
+#elif !defined(HPCG_CONTIGUOUS_ARRAYS)
   // Now allocate the arrays pointed to
   for (local_int_t i=0; i< localNumberOfRows; ++i)
     mtxIndL[i] = new local_int_t[numberOfNonzerosPerRow];

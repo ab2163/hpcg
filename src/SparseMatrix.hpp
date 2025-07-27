@@ -37,17 +37,8 @@ using GlobalToLocalMap = std::unordered_map< global_int_t, local_int_t >;
 #endif
 #include <vector>
 
-//struct for memory optimisation purposes
-#define STENCIL_SZ 27
+//for memory optimisation purposes
 #define NUM_COLORS 8
-struct RowDataFlat{
-  int numNonzeros;
-  double diagVal;
-  local_int_t rowIndex;
-  double values[STENCIL_SZ];
-  local_int_t cols[STENCIL_SZ];
-};
-typedef struct RowDataFlat RowDataFlat;
 
 struct SparseMatrix_STRUCT {
   char  * title; //!< name of the sparse matrix
@@ -88,10 +79,9 @@ struct SparseMatrix_STRUCT {
 #endif
 
   //added for memory optimisation and coloring purposes
-  RowDataFlat *rowStructs;
   local_int_t startInds[NUM_COLORS];
   local_int_t endInds[NUM_COLORS];
-  std::vector<int> colors; //for 8-coloring of 27-point stencil
+  std::vector<unsigned char> colors; //for 8-coloring of 27-point stencil
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
@@ -135,8 +125,6 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.Ac =0;
 
   //create the vector of colors
-  //will not be used for reference timing phase
-  //but will be used in optimisation phase
   int nx = A.geom->nx;
   int ny = A.geom->ny;
   int nz = A.geom->nz;
