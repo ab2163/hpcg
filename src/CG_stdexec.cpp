@@ -62,6 +62,11 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     }
   }
 
+  double * const p_vals = p.values;
+  double * const x_vals = x.values;
+  double * const Ap_vals = Ap.values;
+  const double * const b_vals = b.values;
+
   //double t_begin = mytimer();  //start timing right away
   //normr = 0.0;
   //double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
@@ -130,8 +135,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
   //std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
   //std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
-  std::vector<double*> x_vals(NUM_MG_LEVELS);
-  std::vector<double*> y_vals(NUM_MG_LEVELS);
+  //std::vector<double*> x_vals(NUM_MG_LEVELS);
+  //std::vector<double*> y_vals(NUM_MG_LEVELS);
   
   //populate values of SPMV kernel pointers
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
@@ -139,8 +144,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     //A_nnzs[cnt] = matrix_ptrs[cnt]->nonzerosInRow;
     //A_inds[cnt] = matrix_ptrs[cnt]->mtxIndL;
     //A_nrows[cnt] = matrix_ptrs[cnt]->localNumberOfRows;
-    x_vals[cnt] = z_ptrs[cnt]->values;
-    y_vals[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
+    //x_vals[cnt] = z_ptrs[cnt]->values;
+    //y_vals[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
   }
 
   //used for parallel SYMGS
@@ -169,10 +174,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
 
   sender auto pre_loop_work = schedule(scheduler)
-  | WAXPBY(1, xVals, 0, xVals, pVals)
-  | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
-  | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
-  | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+  | WAXPBY(1, x_vals, 0, x_vals, p_vals)
+  | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+  | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
+  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
   | then([&](){
     normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -193,16 +198,16 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sync_wait(std::move(mg_upwards));
 
   sender auto rest_of_loop = schedule(scheduler)
-    | WAXPBY(1, zVals, 0, zVals, pVals)
-    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
+    | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
+    | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
     | then([&](){ 
       alpha = rtz/pAp;
     })
-    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+    | WAXPBY(1, x_vals, alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
     | then([&](){ 
       normr = sqrt(normr);
 #ifdef HPCG_DEBUG
@@ -227,15 +232,15 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([&](){ oldrtz = rtz; })
-    | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
-    | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
+    | WAXPBY(1, z_vals[0], beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
+    | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, rVals, -alpha, ApVals, rVals) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
+    | WAXPBY(1, x_vals, alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
     | then([&](){ 
       normr = sqrt(normr); 
 #ifdef HPCG_DEBUG

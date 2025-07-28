@@ -112,19 +112,19 @@ using exec::repeat_n;
     ZeroVector(z0); \
     ComputeSYMGS_ref(A0, r0, z0); \
   }) \
-  | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
+  | SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(A0, 0) \
   | then([&](){ \
     ZeroVector(z1); \
     ComputeSYMGS_ref(A1, r1, z1); \
   }) \
-  | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
+  | SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(A1, 1) \
   | then([&](){ \
     ZeroVector(z2); \
     ComputeSYMGS_ref(A2, r2, z2); \
   }) \
-  | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
+  | SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(A2, 2)
 
 #define COMPUTE_MG_STAGE2() \
