@@ -7,6 +7,7 @@ include $(setup_file)
 
 HPCG_DEPS = src/CG.o \
 	    src/CG_ref.o \
+	    src/CG_stdexec.o \
 	    src/TestCG.o \
 	    src/ComputeResidual.o \
 	    src/ExchangeHalo.o \
@@ -54,10 +55,6 @@ HPCG_DEPS = src/CG.o \
 	    src/init.o \
 	    src/finalize.o
 
-ifdef SELECT_STDEXEC
-HPCG_DEPS += src/CG_stdexec.o
-endif
-
 # These header files are included in many source files, so we recompile every file if one or more of these header is modified.
 PRIMARY_HEADERS = HPCG_SRC_PATH/src/Geometry.hpp HPCG_SRC_PATH/src/SparseMatrix.hpp HPCG_SRC_PATH/src/Vector.hpp HPCG_SRC_PATH/src/CGData.hpp \
                   HPCG_SRC_PATH/src/MGData.hpp HPCG_SRC_PATH/src/hpcg.hpp
@@ -81,10 +78,8 @@ src/CG.o: HPCG_SRC_PATH/src/CG.cpp HPCG_SRC_PATH/src/CG.hpp $(PRIMARY_HEADERS)
 src/CG_ref.o: HPCG_SRC_PATH/src/CG_ref.cpp HPCG_SRC_PATH/src/CG_ref.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
 
-ifdef SELECT_STDEXEC
 src/CG_stdexec.o: HPCG_SRC_PATH/src/CG_stdexec.cpp HPCG_SRC_PATH/src/CG_stdexec.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
-endif
 
 src/TestCG.o: HPCG_SRC_PATH/src/TestCG.cpp HPCG_SRC_PATH/src/TestCG.hpp $(PRIMARY_HEADERS)
 	$(CXX) -c $(CXXFLAGS) -IHPCG_SRC_PATH/src $< -o $@
