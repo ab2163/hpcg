@@ -61,16 +61,16 @@ using exec::repeat_n;
     (YV)[i] = sum; \
   }) \
 
-#define RESTRICTION(A, rf, level) \
+#define RESTRICTION(A, depth) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
-    rcv_ptrs[(level)][i] = rfv_ptrs[(level)][f2c_ptrs[(level)][i]] - Axfv_ptrs[(level)][f2c_ptrs[(level)][i]]; \
+    rcv_ptrs[(depth)][i] = rfv_ptrs[(depth)][f2c_ptrs[(depth)][i]] - Axfv_ptrs[(depth)][f2c_ptrs[(depth)][i]]; \
   })
 
-#define PROLONGATION(Af, xf, level) \
+#define PROLONGATION(Af, depth) \
   bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
-    xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
+    xfv_ptrs[(depth)][f2c_ptrs[(depth)][i]] += xcv_ptrs[(depth)][i]; \
   })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
@@ -96,7 +96,7 @@ using exec::repeat_n;
   | repeat_n(FORWARD_AND_BACKWARD)
 
 #define POST_RECURSION_MG(A, r, x, level) \
-  PROLONGATION((A), (x), (level)) \
+  PROLONGATION((A), (level)) \
   | then([&](){ \
     ComputeSYMGS_ref((A), (r), (x)); \
   }) \
@@ -113,19 +113,19 @@ using exec::repeat_n;
     ComputeSYMGS_ref(A0, r0, z0); \
   }) \
   | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
-  | RESTRICTION(A0, r0, 0) \
+  | RESTRICTION(A0, 0) \
   | then([&](){ \
     ZeroVector(z1); \
     ComputeSYMGS_ref(A1, r1, z1); \
   }) \
   | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
-  | RESTRICTION(A1, r1, 1) \
+  | RESTRICTION(A1, 1) \
   | then([&](){ \
     ZeroVector(z2); \
     ComputeSYMGS_ref(A2, r2, z2); \
   }) \
   | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
-  | RESTRICTION(A2, r2, 2)
+  | RESTRICTION(A2, 2)
 
 #define COMPUTE_MG_STAGE2() \
   TERMINAL_MG(A3, r3, z3) \
@@ -134,38 +134,38 @@ using exec::repeat_n;
   | POST_RECURSION_MG(A0, r0, z0, 0)
 
 #define MGP0() \
-  then([&](){ ZeroVector(z0); }) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
-  | RESTRICTION(A0, r0, 0)
+  then([&](){ ZeroVector(z_objs[0]); }) \
+  | SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]) \
+  | SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
+  | RESTRICTION(A_vals[0], 0)
 
 #define MGP1() \
-  then([&](){ ZeroVector(z1); }) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
-  | RESTRICTION(A1, r1, 1)
+  then([&](){ ZeroVector(z_objs[1]); }) \
+  | SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]) \
+  | SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
+  | RESTRICTION(A_vals[1], 1)
 
 #define MGP2() \
-  then([&](){ ZeroVector(z2); }) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
-  | RESTRICTION(A2, r2, 2)
+  then([&](){ ZeroVector(z_objs[2]); }) \
+  | SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]) \
+  | SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
+  | RESTRICTION(A_vals[2], 2)
 
 #define MGP3() \
-  then([&](){ ZeroVector(z3); }) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+  then([&](){ ZeroVector(z_objs[3]); }) \
+  | SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3])
 
 #define MGP4() \
-  PROLONGATION(Af, xf, level) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+  PROLONGATION(A_vals[2], 2) \
+  | SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
 
 #define MGP5() \
-  PROLONGATION(Af, xf, level) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+  PROLONGATION(A_vals[1], 1) \
+  | SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
 
 #define MGP6() \
-  PROLONGATION(Af, xf, level) \
-  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+  PROLONGATION(A_vals[0], 0) \
+  | SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
 
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
