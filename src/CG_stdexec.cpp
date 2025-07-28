@@ -105,13 +105,20 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  sender auto mg_downwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE1();
-  sync_wait(std::move(mg_downwards));
-  
-  sender auto mg_upwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE2();
-  sync_wait(std::move(mg_upwards));
+  sync_wait(schedule(scheduler) | MGP0a());
+  sync_wait(schedule(scheduler) | MGP0b());
+  sync_wait(schedule(scheduler) | MGP1a());
+  sync_wait(schedule(scheduler) | MGP1b());
+  sync_wait(schedule(scheduler) | MGP2a());
+  sync_wait(schedule(scheduler) | MGP2b());
+  sync_wait(schedule(scheduler) | MGP3a());
+  sync_wait(schedule(scheduler) | MGP3b());
+  sync_wait(schedule(scheduler) | MGP4a());
+  sync_wait(schedule(scheduler) | MGP4b());
+  sync_wait(schedule(scheduler) | MGP5a());
+  sync_wait(schedule(scheduler) | MGP5b());
+  sync_wait(schedule(scheduler) | MGP6a());
+  sync_wait(schedule(scheduler) | MGP6b());
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
@@ -138,13 +145,20 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
 
-    sender auto mg_downwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE1();
-    sync_wait(std::move(mg_downwards));
-  
-    sender auto mg_upwards = schedule(scheduler)
-    | COMPUTE_MG_STAGE2();
-    sync_wait(std::move(mg_upwards));
+    sync_wait(schedule(scheduler) | MGP0a());
+    sync_wait(schedule(scheduler) | MGP0b());
+    sync_wait(schedule(scheduler) | MGP1a());
+    sync_wait(schedule(scheduler) | MGP1b());
+    sync_wait(schedule(scheduler) | MGP2a());
+    sync_wait(schedule(scheduler) | MGP2b());
+    sync_wait(schedule(scheduler) | MGP3a());
+    sync_wait(schedule(scheduler) | MGP3b());
+    sync_wait(schedule(scheduler) | MGP4a());
+    sync_wait(schedule(scheduler) | MGP4b());
+    sync_wait(schedule(scheduler) | MGP5a());
+    sync_wait(schedule(scheduler) | MGP5b());
+    sync_wait(schedule(scheduler) | MGP6a());
+    sync_wait(schedule(scheduler) | MGP6b());
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([&](){ oldrtz = rtz; })
