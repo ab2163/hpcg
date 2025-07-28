@@ -50,7 +50,7 @@ using stdexec::continues_on;
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     const double * const cur_vals = (A).matrixValues[i]; \
     const local_int_t * const cur_inds = (A).mtxIndL[i]; \
@@ -63,7 +63,7 @@ using stdexec::continues_on;
   })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
     double sum = 0.0; \
     const double * const cur_vals = (A).matrixValues[i]; \
     const local_int_t * const cur_inds = (A).mtxIndL[i]; \
@@ -114,11 +114,32 @@ using stdexec::continues_on;
     ComputeSYMGS_ref((A), (r), (x)); \
   }) \
   | continues_on(scheduler)
-  
+
 #define COMPUTE_MG_STAGE1() \
-  PRE_RECURSION_MG(A0, r0, z0, 0) \
-  | PRE_RECURSION_MG(A1, r1, z1, 1) \
-  | PRE_RECURSION_MG(A2, r2, z2, 2)
+  continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ZeroVector(z0); \
+    ComputeSYMGS_ref(A0, r0, z0); \
+  }) \
+  | continues_on(scheduler) \
+  | SPMV(A0, z0, *(A0.mgData->Axf)) \
+  | RESTRICTION(A0, r0, 0) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ZeroVector(z1); \
+    ComputeSYMGS_ref(A1, r1, z1); \
+  }) \
+  | continues_on(scheduler) \
+  | SPMV(A1, z1, *(A1.mgData->Axf)) \
+  | RESTRICTION(A1, r1, 1) \
+  | continues_on(scheduler_single_thread) \
+  | then([&](){ \
+    ZeroVector(z2); \
+    ComputeSYMGS_ref(A2, r2, z2); \
+  }) \
+  | continues_on(scheduler) \
+  | SPMV(A2, z2, *(A2.mgData->Axf)) \
+  | RESTRICTION(A2, r2, 2)
 
 #define COMPUTE_MG_STAGE2() \
   TERMINAL_MG(A3, r3, z3) \
