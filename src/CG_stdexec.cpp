@@ -32,6 +32,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   std::vector<const SparseMatrix*> A_objs(NUM_MG_LEVELS);
   std::vector<Vector*> r_objs(NUM_MG_LEVELS);
   std::vector<Vector*> z_objs(NUM_MG_LEVELS);
+  //variables used by main CG algorithm:
+  double * const p_vals = p.values;
+  double * const x_vals = x.values;
+  double * const Ap_vals = Ap.values;
+  const double * const b_vals = b.values;
+  //used for parallel SYMGS:
+  int *color = new int;
 
   //set object pointers to respective values
   A_objs[0] = &A;
@@ -61,95 +68,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
       xcv_vals[depth] = A_objs[depth]->mgData->xc->values;
     }
   }
-
-  double * const p_vals = p.values;
-  double * const x_vals = x.values;
-  double * const Ap_vals = Ap.values;
-  const double * const b_vals = b.values;
-
-  //double t_begin = mytimer();  //start timing right away
-  //normr = 0.0;
-  //double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-  //double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
-  //double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0;
-  const local_int_t nrow = A.localNumberOfRows;
-  Vector &r = data.r; //residual vector
-  Vector &z = data.z; //preconditioned residual vector
-  //Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
-  //Vector &Ap = data.Ap;
-  double local_result;
-
-  //variables needed for MG computation
-  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
-  std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
-  std::vector<Vector*> z_ptrs(NUM_MG_LEVELS);
-  std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
-  std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
-  matrix_ptrs[0] = &A;
-  res_ptrs[0] = &r;
-  z_ptrs[0] = &z;
-  for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
-    matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
-    res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
-    z_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
-  }
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
-    rfv_ptrs[cnt] = res_ptrs[cnt]->values;
-    rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
-    f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
-    xfv_ptrs[cnt] = z_ptrs[cnt]->values;
-    xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
-  }
-
-  //caching dereferenced pointers
-  const auto& A0 = *matrix_ptrs[0];
-  const auto& A1 = *matrix_ptrs[1];
-  const auto& A2 = *matrix_ptrs[2];
-  const auto& A3 = *matrix_ptrs[3];
-
-  auto& r0 = *res_ptrs[0];
-  auto& r1 = *res_ptrs[1];
-  auto& r2 = *res_ptrs[2];
-  auto& r3 = *res_ptrs[3];
-
-  auto& z0 = *z_ptrs[0];
-  auto& z1 = *z_ptrs[1];
-  auto& z2 = *z_ptrs[2];
-  auto& z3 = *z_ptrs[3];
-
-  //used in dot product and WAXPBY calculations
-  double * const rVals = r.values;
-  double * const zVals = z.values;
-  double * const pVals = p.values;
-  double * const xVals = x.values;
-  double * const ApVals = Ap.values;
-  const double * const bVals = b.values;
-
-  //for SPMV kernel
-  //std::vector<double**> A_vals(NUM_MG_LEVELS);
-  //std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
-  //std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
-  //std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
-  //std::vector<double*> x_vals(NUM_MG_LEVELS);
-  //std::vector<double*> y_vals(NUM_MG_LEVELS);
-  
-  //populate values of SPMV kernel pointers
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
-    //A_vals[cnt] = matrix_ptrs[cnt]->matrixValues;
-    //A_nnzs[cnt] = matrix_ptrs[cnt]->nonzerosInRow;
-    //A_inds[cnt] = matrix_ptrs[cnt]->mtxIndL;
-    //A_nrows[cnt] = matrix_ptrs[cnt]->localNumberOfRows;
-    //x_vals[cnt] = z_ptrs[cnt]->values;
-    //y_vals[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
-  }
-
-  //used for parallel SYMGS
-  int *color = new int;
+  //used in some kernels:
+  local_int_t &nrow = A_nrows[0];
 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
@@ -162,10 +82,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
-
-  //scheduler for SYMGS execution
-  exec::static_thread_pool pool_single_thread(SINGLE_THREAD);
-  auto scheduler_single_thread = pool_single_thread.get_scheduler();
 
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
