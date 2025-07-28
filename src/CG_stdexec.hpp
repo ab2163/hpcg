@@ -47,46 +47,31 @@ using stdexec::continues_on;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
-using ArgsTuple = std::tuple<
-    const double* const,
-    double* const,
-    const double* const* const,
-    const local_int_t* const* const,
-    const char* const
->;
-
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
-  then([&](){ ExchangeHalo((A), (x)); \
+  then([&](){ ExchangeHalo((A), (x)); }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
+    double sum = 0.0; \
+    const double * const cur_vals = (A).matrixValues[i]; \
+    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
+    const int cur_nnz = (A).nonzerosInRow[i]; \
     const double * const xv = (x).values; \
     double * const yv = (y).values; \
-    const double * const * const amv = (A).matrixValues; \
-    const local_int_t * const * const indv = (A).mtxIndL; \
-    const char * const nnz = (A).nonzerosInRow; \
-    return ArgsTuple{xv, yv, amv, indv, nnz}; \
-  }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i, ArgsTuple inps){ \
-    auto [xv, yv, amv, indv, nnz] = inps; \
-    double sum = 0.0; \
-    for(int j = 0; j < nnz[i]; j++) \
-      sum += amv[i][j]*xv[indv[i][j]]; \
+    for(int j = 0; j < cur_nnz; j++) \
+      sum += cur_vals[j]*xv[cur_inds[j]]; \
     yv[i] = sum; \
   })
 #else
 #define SPMV(A, x, y) \
-  then([&](){ \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
+    double sum = 0.0; \
+    const double * const cur_vals = (A).matrixValues[i]; \
+    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
+    const int cur_nnz = (A).nonzerosInRow[i]; \
     const double * const xv = (x).values; \
     double * const yv = (y).values; \
-    const double * const * const amv = (A).matrixValues; \
-    const local_int_t * const * const indv = (A).mtxIndL; \
-    const char * const nnz = (A).nonzerosInRow; \
-    return ArgsTuple{xv, yv, amv, indv, nnz}; \
-  }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i, ArgsTuple inps){ \
-    auto [xv, yv, amv, indv, nnz] = inps; \
-    double sum = 0.0; \
-    for(int j = 0; j < nnz[i]; j++) \
-      sum += amv[i][j]*xv[indv[i][j]]; \
+    for(int j = 0; j < cur_nnz; j++) \
+      sum += cur_vals[j]*xv[cur_inds[j]]; \
     yv[i] = sum; \
   })
 #endif
@@ -137,10 +122,8 @@ using ArgsTuple = std::tuple<
 
 #define COMPUTE_MG_STAGE2() \
   TERMINAL_MG(A3, r3, z3) \
-  | POST_RECURSION_MG(A2, r2, z2, 2)
-
-#define COMPUTE_MG_STAGE3() \
-  POST_RECURSION_MG(A1, r1, z1, 1) \
+  | POST_RECURSION_MG(A2, r2, z2, 2) \
+  | POST_RECURSION_MG(A1, r1, z1, 1) \
   | POST_RECURSION_MG(A0, r0, z0, 0)
 
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,

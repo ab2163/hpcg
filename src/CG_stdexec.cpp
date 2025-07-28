@@ -113,10 +113,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | COMPUTE_MG_STAGE2();
   sync_wait(std::move(mg_upwards));
 
-  sender auto mg_upwards_two = schedule(scheduler)
-    | COMPUTE_MG_STAGE3();
-  sync_wait(std::move(mg_upwards_two));
-
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
@@ -149,10 +145,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     sender auto mg_upwards = schedule(scheduler)
     | COMPUTE_MG_STAGE2();
     sync_wait(std::move(mg_upwards));
-
-    sender auto mg_upwards_two = schedule(scheduler)
-    | COMPUTE_MG_STAGE3();
-    sync_wait(std::move(mg_upwards_two));
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([&](){ oldrtz = rtz; })
