@@ -7,6 +7,7 @@
 #include <iostream>
 #include <exec/static_thread_pool.hpp>
 #include <stdexec/execution.hpp>
+#include <exec/repeat_n.hpp>
 
 #include "ComputeSYMGS_ref.hpp"
 #include "SparseMatrix.hpp"
@@ -26,9 +27,12 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
+using exec::repeat_n;
 
 #define NUM_MG_LEVELS 4
 #define SINGLE_THREAD 1
+#define NUM_COLORS 8
+#define FORWARD_AND_BACKWARD 2
 
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
@@ -68,6 +72,27 @@ using stdexec::continues_on;
     [&](int i){ \
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   })
+
+#define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == *color){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*(MATR_DIAG); \
+        (XVALS)[i] = sum/(MATR_DIAG); \
+      } \
+  }) \
+  | then([=](){ *color++; }) \
+  | repeat_n(NUM_COLORS)
+
+#define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  then([=](){ *color = 0; }) \
+  | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
+  | repeat_n(FORWARD_AND_BACKWARD)
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define PRE_RECURSION_MG(A, r, x, level) \

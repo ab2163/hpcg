@@ -85,6 +85,9 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     y_vals[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
   }
 
+  //used for parallel SYMGS
+  int *color = new int;
+
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
@@ -199,5 +202,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     std::cout << "Prolongation Time : " << t_prolong << "\n";
   });
   sync_wait(std::move(store_times));
+  delete color;
   return 0;
 }
