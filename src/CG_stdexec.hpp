@@ -64,13 +64,13 @@ using exec::repeat_n;
 #define RESTRICTION(A, depth) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
-    rcv_ptrs[(depth)][i] = rfv_ptrs[(depth)][f2c_ptrs[(depth)][i]] - Axfv_ptrs[(depth)][f2c_ptrs[(depth)][i]]; \
+    rcv_vals[(depth)][i] = r_vals[(depth)][f2c_vals[(depth)][i]] - Axfv_vals[(depth)][f2c_vals[(depth)][i]]; \
   })
 
 #define PROLONGATION(Af, depth) \
   bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
     [&](int i){ \
-    xfv_ptrs[(depth)][f2c_ptrs[(depth)][i]] += xcv_ptrs[(depth)][i]; \
+    z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
   })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
