@@ -9,11 +9,11 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
   double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0;
-  const local_int_t nrow = A.localNumberOfRows;
-  Vector &r = data.r; //residual vector
-  Vector &z = data.z; //preconditioned residual vector
-  Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
-  Vector &Ap = data.Ap;
+  local_int_t nrow = A.localNumberOfRows;
+  Vector & r = data.r; //residual vector
+  Vector & z = data.z; //preconditioned residual vector
+  Vector & p = data.p; //direction vector (in MPI mode ncol>=nrow)
+  Vector & Ap = data.Ap;
   double local_result;
 
   //variables needed for MG computation
@@ -44,10 +44,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   }
 
   //caching dereferenced pointers
-  const auto& A0 = *matrix_ptrs[0];
-  const auto& A1 = *matrix_ptrs[1];
-  const auto& A2 = *matrix_ptrs[2];
-  const auto& A3 = *matrix_ptrs[3];
+  auto& A0 = *matrix_ptrs[0];
+  auto& A1 = *matrix_ptrs[1];
+  auto& A2 = *matrix_ptrs[2];
+  auto& A3 = *matrix_ptrs[3];
 
   auto& r0 = *res_ptrs[0];
   auto& r1 = *res_ptrs[1];
@@ -60,12 +60,12 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   auto& z3 = *zval_ptrs[3];
 
   //used in dot product and WAXPBY calculations
-  double * const rVals = r.values;
-  double * const zVals = z.values;
-  double * const pVals = p.values;
-  double * const xVals = x.values;
-  const double * const bVals = b.values;
-  const double * const ApVals = Ap.values;
+  double *rVals = r.values;
+  double *zVals = z.values;
+  double *pVals = p.values;
+  double *xVals = x.values;
+  double *bVals = b.values;
+  double *ApVals = Ap.values;
 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
