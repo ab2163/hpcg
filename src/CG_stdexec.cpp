@@ -19,7 +19,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //variables needed for MG computation
   std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
   std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
-  std::vector<Vector*> zval_ptrs(NUM_MG_LEVELS);
+  std::vector<Vector*> z_ptrs(NUM_MG_LEVELS);
   std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
   std::vector<double*> rfv_ptrs(NUM_MG_LEVELS - 1);
   std::vector<double*> rcv_ptrs(NUM_MG_LEVELS - 1);
@@ -28,18 +28,18 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
   matrix_ptrs[0] = &A;
   res_ptrs[0] = &r;
-  zval_ptrs[0] = &z;
+  z_ptrs[0] = &z;
   for(int cnt = 1; cnt < NUM_MG_LEVELS; cnt++){
     matrix_ptrs[cnt] = matrix_ptrs[cnt - 1]->Ac;
     res_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->rc;
-    zval_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
+    z_ptrs[cnt] = matrix_ptrs[cnt - 1]->mgData->xc;
   }
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
     Axfv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
     rfv_ptrs[cnt] = res_ptrs[cnt]->values;
     rcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->rc->values;
     f2c_ptrs[cnt] = matrix_ptrs[cnt]->mgData->f2cOperator;
-    xfv_ptrs[cnt] = zval_ptrs[cnt]->values;
+    xfv_ptrs[cnt] = z_ptrs[cnt]->values;
     xcv_ptrs[cnt] = matrix_ptrs[cnt]->mgData->xc->values;
   }
 
@@ -54,10 +54,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   auto& r2 = *res_ptrs[2];
   auto& r3 = *res_ptrs[3];
 
-  auto& z0 = *zval_ptrs[0];
-  auto& z1 = *zval_ptrs[1];
-  auto& z2 = *zval_ptrs[2];
-  auto& z3 = *zval_ptrs[3];
+  auto& z0 = *z_ptrs[0];
+  auto& z1 = *z_ptrs[1];
+  auto& z2 = *z_ptrs[2];
+  auto& z3 = *z_ptrs[3];
 
   //used in dot product and WAXPBY calculations
   double * const rVals = r.values;
@@ -66,6 +66,24 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double * const xVals = x.values;
   const double * const bVals = b.values;
   const double * const ApVals = Ap.values;
+
+  //for SPMV kernel
+  std::vector<double**> A_vals(NUM_MG_LEVELS);
+  std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
+  std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
+  std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
+  std::vector<double*> x_vals(NUM_MG_LEVELS);
+  std::vector<double*> y_vals(NUM_MG_LEVELS);
+  
+  //populate values of SPMV kernel pointers
+  for(int cnt = 0; cnt < NUM_MG_LEVELS - 2; cnt++){
+    A_vals[cnt] = matrix_ptrs[cnt]->matrixValues;
+    A_nnzs[cnt] = matrix_ptrs[cnt]->nonzerosInRow;
+    A_inds[cnt] = matrix_ptrs[cnt]->mtxIndL;
+    A_nrows[cnt] = matrix_ptrs[cnt]->localNumberOfRows;
+    x_vals[cnt] = z_ptrs[cnt]->values;
+    y_vals[cnt] = matrix_ptrs[cnt]->mgData->Axf->values;
+  }
 
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();

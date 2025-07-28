@@ -76,6 +76,15 @@ using stdexec::continues_on;
   })
 #endif
 
+#define SPMV_LEAN(AMV, XV, YV, INDV, NNZ, NROW) \
+  bulk(stdexec::par_unseq, (NROW), [&](local_int_t i){ \
+    double sum = 0.0; \
+    for(int j = 0; j < (NNZ)[i]; j++){ \
+      sum += (AMV)[i][j] * (XV)[(INDV)[i][j]]; \
+    } \
+    (YV)[i] = sum; \
+  }) \
+
 #define RESTRICTION(A, rf, level) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
     [&](int i){ \
@@ -122,7 +131,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A0, r0, z0); \
   }) \
   | continues_on(scheduler) \
-  | SPMV(A0, z0, *(A0.mgData->Axf)) \
+  | SPMV_LEAN(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(A0, r0, 0) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
@@ -130,7 +139,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A1, r1, z1); \
   }) \
   | continues_on(scheduler) \
-  | SPMV(A1, z1, *(A1.mgData->Axf)) \
+  | SPMV_LEAN(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(A1, r1, 1) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
@@ -138,7 +147,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A2, r2, z2); \
   }) \
   | continues_on(scheduler) \
-  | SPMV(A2, z2, *(A2.mgData->Axf)) \
+  | SPMV_LEAN(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(A2, r2, 2)
 
 #define COMPUTE_MG_STAGE2() \
