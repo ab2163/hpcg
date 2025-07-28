@@ -109,31 +109,23 @@ using exec::repeat_n;
 
 #define COMPUTE_MG_STAGE1() \
   then([&](){ \
-    std::cout<<"A\n"; \
     ZeroVector(z0); \
     ComputeSYMGS_ref(A0, r0, z0); \
-    std::cout<<"B\n"; \
   }) \
   | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(A0, r0, 0) \
   | then([&](){ \
-    std::cout<<"C\n"; \
     ZeroVector(z1); \
     ComputeSYMGS_ref(A1, r1, z1); \
-    std::cout<<"D\n"; \
   }) \
   | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(A1, r1, 1) \
   | then([&](){ \
-    std::cout<<"E\n"; \
     ZeroVector(z2); \
     ComputeSYMGS_ref(A2, r2, z2); \
-    std::cout<<"F\n"; \
   }) \
   | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
-  | then([](){ std::cout << "G\n"; }) \
-  | RESTRICTION(A2, r2, 2) \
-  | then([](){ std::cout << "H\n"; })
+  | RESTRICTION(A2, r2, 2)
 
 #define COMPUTE_MG_STAGE2() \
   TERMINAL_MG(A3, r3, z3) \

@@ -3,7 +3,7 @@
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
   double *times, bool doPreconditioning){
-
+  
   //TIMING VARIABLES  
   double t_begin = mytimer();  //start timing right away
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
@@ -134,7 +134,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   std::vector<double*> y_vals(NUM_MG_LEVELS);
   
   //populate values of SPMV kernel pointers
-  for(int cnt = 0; cnt < NUM_MG_LEVELS - 2; cnt++){
+  for(int cnt = 0; cnt < NUM_MG_LEVELS - 1; cnt++){
     //A_vals[cnt] = matrix_ptrs[cnt]->matrixValues;
     //A_nnzs[cnt] = matrix_ptrs[cnt]->nonzerosInRow;
     //A_inds[cnt] = matrix_ptrs[cnt]->mtxIndL;
@@ -167,7 +167,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #ifdef HPCG_DEBUG
   int print_freq = 1;
 #endif
-std::cout << "1\n";
+
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
   | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
@@ -181,17 +181,17 @@ std::cout << "1\n";
     normr0 = normr; //record initial residual for convergence testing
   });
   sync_wait(std::move(pre_loop_work));
-  std::cout << "2\n";
+  
   int k = 1;
   //ITERATION FOR FIRST LOOP
   sender auto mg_downwards = schedule(scheduler)
     | COMPUTE_MG_STAGE1();
   sync_wait(std::move(mg_downwards));
-  std::cout << "3\n";
+  
   sender auto mg_upwards = schedule(scheduler)
     | COMPUTE_MG_STAGE2();
   sync_wait(std::move(mg_upwards));
-std::cout << "4\n";
+
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
@@ -212,7 +212,7 @@ std::cout << "4\n";
       niters = 1;
     });
     sync_wait(std::move(rest_of_loop));
-std::cout << "5\n";
+
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
