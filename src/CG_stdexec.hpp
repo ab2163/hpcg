@@ -47,31 +47,46 @@ using stdexec::continues_on;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
+using ArgsTuple = std::tuple<
+    const double* const,
+    double* const,
+    const double* const* const,
+    const local_int_t* const* const,
+    const char* const
+>;
+
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
-  then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    const double * const cur_vals = (A).matrixValues[i]; \
-    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
-    const int cur_nnz = (A).nonzerosInRow[i]; \
+  then([&](){ ExchangeHalo((A), (x)); \
     const double * const xv = (x).values; \
     double * const yv = (y).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
+    const double * const * const amv = (A).matrixValues; \
+    const local_int_t * const * const indv = (A).mtxIndL; \
+    const char * const nnz = (A).nonzerosInRow; \
+    return ArgsTuple{xv, yv, amv, indv, nnz}; \
+  }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i, ArgsTuple inps){ \
+    auto [xv, yv, amv, indv, nnz] = inps; \
+    double sum = 0.0; \
+    for(int j = 0; j < nnz[i]; j++) \
+      sum += amv[i][j]*xv[indv[i][j]]; \
     yv[i] = sum; \
   })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    const double * const cur_vals = (A).matrixValues[i]; \
-    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
-    const int cur_nnz = (A).nonzerosInRow[i]; \
+  then([&](){ \
     const double * const xv = (x).values; \
     double * const yv = (y).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
+    const double * const * const amv = (A).matrixValues; \
+    const local_int_t * const * const indv = (A).mtxIndL; \
+    const char * const nnz = (A).nonzerosInRow; \
+    return ArgsTuple{xv, yv, amv, indv, nnz}; \
+  }) \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i, ArgsTuple inps){ \
+    auto [xv, yv, amv, indv, nnz] = inps; \
+    double sum = 0.0; \
+    for(int j = 0; j < nnz[i]; j++) \
+      sum += amv[i][j]*xv[indv[i][j]]; \
     yv[i] = sum; \
   })
 #endif

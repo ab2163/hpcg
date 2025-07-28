@@ -219,8 +219,12 @@ int main(int argc, char * argv[]) {
   int err_count = 0;
   for (int i=0; i< numberOfCalls; ++i) {
     ZeroVector(x);
-    ierr = CG( A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
-    if (ierr) ++err_count; // count the number of errors in CG
+#ifndef SELECT_STDEXEC
+    ierr = CG(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+    if (ierr) ++err_count; //count the number of errors in CG
+#else
+    CG_stdexec(A, data, b, x, refMaxIters, tolerance, niters, normr, normr0, &ref_times[0], true);
+#endif
     totalNiters_ref += niters;
   }
   if (rank == 0 && err_count) HPCG_fout << err_count << " error(s) in call(s) to reference CG." << endl;
