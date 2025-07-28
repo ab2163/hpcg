@@ -81,7 +81,7 @@ struct SparseMatrix_STRUCT {
   //added for memory optimisation and coloring purposes
   local_int_t startInds[NUM_COLORS];
   local_int_t endInds[NUM_COLORS];
-  std::vector<unsigned char> colors; //for 8-coloring of 27-point stencil
+  unsigned char *colors; //for 8-coloring of 27-point stencil
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 
@@ -124,12 +124,12 @@ inline void InitializeSparseMatrix(SparseMatrix & A, Geometry * geom) {
   A.mgData = 0; // Fine-to-coarse grid transfer initially not defined.
   A.Ac =0;
 
-  //create the vector of colors
+  //create the array of colors
   int nx = A.geom->nx;
   int ny = A.geom->ny;
   int nz = A.geom->nz;
   int localNumberOfRows = nx*ny*nz;
-  A.colors.resize(localNumberOfRows);
+  A.colors = new unsigned char[localNumberOfRows];
 
   for(int iz = 0; iz < nz; iz++){
     for(int iy = 0; iy < ny; iy++){
@@ -206,6 +206,9 @@ inline void DeleteMatrix(SparseMatrix & A) {
   if (A.geom!=0) { DeleteGeometry(*A.geom); delete A.geom; A.geom = 0;}
   if (A.Ac!=0) { DeleteMatrix(*A.Ac); delete A.Ac; A.Ac = 0;} // Delete coarse matrix
   if (A.mgData!=0) { DeleteMGData(*A.mgData); delete A.mgData; A.mgData = 0;} // Delete MG data
+
+  //clean-up of data allocated for color-based SYMGS
+  delete[] A.colors;
   return;
 }
 

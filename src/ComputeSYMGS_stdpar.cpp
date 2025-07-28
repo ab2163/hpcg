@@ -25,7 +25,7 @@ int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   const double * const * const amv = A.matrixValues;
   const local_int_t * const * const indv = A.mtxIndL;
   const char * const nnz = A.nonzerosInRow;
-  const unsigned char * const colors = A.colors.data();
+  const unsigned char * const colors = A.colors;
   auto rows = std::views::iota(local_int_t{0}, nrow);
 
   for(int color = 0; color < NUM_COLORS; color++){
