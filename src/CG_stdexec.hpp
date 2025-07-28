@@ -73,6 +73,7 @@ using exec::repeat_n;
     xfv_ptrs[(level)][f2c_ptrs[(level)][i]] += xcv_ptrs[(level)][i]; \
   })
 
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
   bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
     if((COLORS)[i] == *color){ \
@@ -94,56 +95,35 @@ using exec::repeat_n;
   | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
   | repeat_n(FORWARD_AND_BACKWARD)
 
-//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define PRE_RECURSION_MG(A, r, x, level) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
-    ZeroVector((x)); \
-    ComputeSYMGS_ref((A), (r), (x)); \
-  }) \
-  | continues_on(scheduler) \
-  | SPMV((A), (x), *((A).mgData->Axf)) \
-  | RESTRICTION((A), (r), (level)) \
-
 #define POST_RECURSION_MG(A, r, x, level) \
   PROLONGATION((A), (x), (level)) \
-  | continues_on(scheduler_single_thread) \
   | then([&](){ \
     ComputeSYMGS_ref((A), (r), (x)); \
   }) \
-  | continues_on(scheduler)
 
 #define TERMINAL_MG(A, r, x) \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
+  then([&](){ \
     ZeroVector((x)); \
     ComputeSYMGS_ref((A), (r), (x)); \
   }) \
-  | continues_on(scheduler)
 
 #define COMPUTE_MG_STAGE1() \
-  continues_on(scheduler_single_thread) \
-  | then([&](){ \
+  then([&](){ \
     ZeroVector(z0); \
     ComputeSYMGS_ref(A0, r0, z0); \
   }) \
-  | continues_on(scheduler) \
   | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(A0, r0, 0) \
-  | continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector(z1); \
     ComputeSYMGS_ref(A1, r1, z1); \
   }) \
-  | continues_on(scheduler) \
   | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(A1, r1, 1) \
-  | continues_on(scheduler_single_thread) \
   | then([&](){ \
     ZeroVector(z2); \
     ComputeSYMGS_ref(A2, r2, z2); \
   }) \
-  | continues_on(scheduler) \
   | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(A2, r2, 2)
 
@@ -152,6 +132,40 @@ using exec::repeat_n;
   | POST_RECURSION_MG(A2, r2, z2, 2) \
   | POST_RECURSION_MG(A1, r1, z1, 1) \
   | POST_RECURSION_MG(A0, r0, z0, 0)
+
+#define MGP0() \
+  then([&](){ ZeroVector(z0); }) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
+  | RESTRICTION(A0, r0, 0)
+
+#define MGP1() \
+  then([&](){ ZeroVector(z1); }) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
+  | RESTRICTION(A1, r1, 1)
+
+#define MGP2() \
+  then([&](){ ZeroVector(z2); }) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
+  | RESTRICTION(A2, r2, 2)
+
+#define MGP3() \
+  then([&](){ ZeroVector(z3); }) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+
+#define MGP4() \
+  PROLONGATION(Af, xf, level) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+
+#define MGP5() \
+  PROLONGATION(Af, xf, level) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
+
+#define MGP6() \
+  PROLONGATION(Af, xf, level) \
+  | SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)
 
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
