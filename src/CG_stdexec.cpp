@@ -64,8 +64,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double * const zVals = z.values;
   double * const pVals = p.values;
   double * const xVals = x.values;
+  double * const ApVals = Ap.values;
   const double * const bVals = b.values;
-  const double * const ApVals = Ap.values;
 
   //for SPMV kernel
   std::vector<double**> A_vals(NUM_MG_LEVELS);
@@ -109,7 +109,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, xVals, 0, xVals, pVals)
-  | SPMV(A, p, Ap) //SPMV: Ap = A*p
+  | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
   | WAXPBY(1, bVals, -1, ApVals, rVals) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(rVals, rVals, normr)
   | then([&](){
@@ -134,7 +134,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, zVals, 0, zVals, pVals)
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
-    | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ 
       alpha = rtz/pAp;
@@ -169,7 +169,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | COMPUTE_DOT_PRODUCT(rVals, zVals, rtz) //rtz = r'*z
     | then([&](){ beta = rtz/oldrtz; })
     | WAXPBY(1, zVals, beta, pVals, pVals) //WAXPBY: p = beta*p + z
-    | SPMV(A, p, Ap) //SPMV: Ap = A*p
+    | SPMV(A_vals[0], pVals, ApVals, A_inds[0], A_nnzs[0], A_nrows[0])
     | COMPUTE_DOT_PRODUCT(pVals, ApVals, pAp) //alpha = p'*Ap
     | then([&](){ alpha = rtz/pAp; })
     | WAXPBY(1, xVals, alpha, pVals, xVals) //WAXPBY: x = x + alpha*p

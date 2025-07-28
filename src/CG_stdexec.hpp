@@ -47,36 +47,8 @@ using stdexec::continues_on;
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
   bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
-#ifndef HPCG_NO_MPI
-#define SPMV(A, x, y) \
-  then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    const double * const cur_vals = (A).matrixValues[i]; \
-    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
-    const int cur_nnz = (A).nonzerosInRow[i]; \
-    const double * const xv = (x).values; \
-    double * const yv = (y).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    yv[i] = sum; \
-  })
-#else
-#define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
-    double sum = 0.0; \
-    const double * const cur_vals = (A).matrixValues[i]; \
-    const local_int_t * const cur_inds = (A).mtxIndL[i]; \
-    const int cur_nnz = (A).nonzerosInRow[i]; \
-    const double * const xv = (x).values; \
-    double * const yv = (y).values; \
-    for(int j = 0; j < cur_nnz; j++) \
-      sum += cur_vals[j]*xv[cur_inds[j]]; \
-    yv[i] = sum; \
-  })
-#endif
-
-#define SPMV_LEAN(AMV, XV, YV, INDV, NNZ, NROW) \
+//CURRENTLY IGNORING HALO EXCHANGE WITH SPMV
+#define SPMV(AMV, XV, YV, INDV, NNZ, NROW) \
   bulk(stdexec::par_unseq, (NROW), [&](local_int_t i){ \
     double sum = 0.0; \
     for(int j = 0; j < (NNZ)[i]; j++){ \
@@ -131,7 +103,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A0, r0, z0); \
   }) \
   | continues_on(scheduler) \
-  | SPMV_LEAN(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
+  | SPMV(A_vals[0], x_vals[0], y_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(A0, r0, 0) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
@@ -139,7 +111,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A1, r1, z1); \
   }) \
   | continues_on(scheduler) \
-  | SPMV_LEAN(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
+  | SPMV(A_vals[1], x_vals[1], y_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(A1, r1, 1) \
   | continues_on(scheduler_single_thread) \
   | then([&](){ \
@@ -147,7 +119,7 @@ using stdexec::continues_on;
     ComputeSYMGS_ref(A2, r2, z2); \
   }) \
   | continues_on(scheduler) \
-  | SPMV_LEAN(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
+  | SPMV(A_vals[2], x_vals[2], y_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(A2, r2, 2)
 
 #define COMPUTE_MG_STAGE2() \
