@@ -50,7 +50,7 @@ using stdexec::continues_on;
 #ifndef HPCG_NO_MPI
 #define SPMV(A, x, y) \
   then([&](){ ExchangeHalo((A), (x)); }) \
-  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  | bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
     double sum = 0.0; \
     const double * const cur_vals = (A).matrixValues[i]; \
     const local_int_t * const cur_inds = (A).mtxIndL[i]; \
@@ -63,7 +63,7 @@ using stdexec::continues_on;
   })
 #else
 #define SPMV(A, x, y) \
-  bulk(stdexec::par_unseq, (A).localNumberOfRows, [&](local_int_t i){ \
+  bulk(stdexec::par_unseq, (A).localNumberOfRows, [=](local_int_t i){ \
     double sum = 0.0; \
     const double * const cur_vals = (A).matrixValues[i]; \
     const local_int_t * const cur_inds = (A).mtxIndL[i]; \
