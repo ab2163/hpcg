@@ -4,20 +4,67 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
   double *times, bool doPreconditioning){
 
+  //TIMING VARIABLES  
   double t_begin = mytimer();  //start timing right away
-  normr = 0.0;
-  double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
   double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
   double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0;
-  const local_int_t nrow = A.localNumberOfRows;
-  Vector &r = data.r; //residual vector
-  Vector &z = data.z; //preconditioned residual vector
+
+  //DATA VARIABLES
+  double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
+  normr = 0.0;
   Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
   Vector &Ap = data.Ap;
-  double local_result;
+  //for the sparse matrix at different MG depths:
+  std::vector<double**> A_vals(NUM_MG_LEVELS);
+  std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
+  std::vector<double**> A_diags(NUM_MG_LEVELS);
+  std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
+  std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
+  std::vector<unsigned char*>  A_colors(NUM_MG_LEVELS);
+  //various vectors at different MG depths:
+  std::vector<double*> r_vals(NUM_MG_LEVELS);
+  std::vector<double*> z_vals(NUM_MG_LEVELS);
+  std::vector<double*> Axfv_vals(NUM_MG_LEVELS - 1);
+  std::vector<local_int_t*> f2c_vals(NUM_MG_LEVELS - 1);
+  std::vector<double*> xcv_vals(NUM_MG_LEVELS - 1);
+  std::vector<double*> rcv_vals(NUM_MG_LEVELS - 1);
+  //objects used to initialise other data:
+  std::vector<const SparseMatrix*> A_objs(NUM_MG_LEVELS);
+  std::vector<Vector*> r_objs(NUM_MG_LEVELS);
+  std::vector<Vector*> z_objs(NUM_MG_LEVELS);
 
-  //variables needed for MG computation
-  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
+  //set object pointers to respective values
+  A_objs[0] = &A;
+  r_objs[0] = &data.r; //residual vector
+  z_objs[0] = &data.z; //preconditioned residual vector
+  for(int depth = 1; depth < NUM_MG_LEVELS; depth++){
+    A_objs[depth] = A_objs[depth - 1]->Ac;
+    r_objs[depth] = A_objs[depth - 1]->mgData->rc;
+    z_objs[depth] = A_objs[depth - 1]->mgData->xc;
+  }
+
+  //use object pointers to set value pointers
+  for(int depth = 0; depth < NUM_MG_LEVELS; depth++){
+    A_vals[depth] = A_objs[depth]->matrixValues;
+    A_inds[depth] = A_objs[depth]->mtxIndL;
+    A_diags[depth] = A_objs[depth]->matrixDiagonal;
+    A_nrows[depth] = A_objs[depth]->localNumberOfRows;
+    A_nnzs[depth] = A_objs[depth]->nonzerosInRow;
+    A_colors[depth]  = A_objs[depth]->colors;
+    r_vals[depth] = r_objs[depth]->values;
+    z_vals[depth] = z_objs[depth]->values;
+
+    if(depth < NUM_MG_LEVELS - 1){
+      Axfv_vals[depth] = A_objs[depth]->mgData->Axf->values;
+      rcv_vals[depth] = A_objs[depth]->mgData->rc->values;
+      f2c_vals[depth] = A_objs[depth]->mgData->f2cOperator;
+      xcv_vals[depth] = A_objs[depth]->mgData->xc->values;
+    }
+  }
+
+  std::vector<double*> x_vals(NUM_MG_LEVELS);
+  std::vector<double*> y_vals(NUM_MG_LEVELS);
+
   std::vector<const Vector*> res_ptrs(NUM_MG_LEVELS);
   std::vector<Vector*> z_ptrs(NUM_MG_LEVELS);
   std::vector<double*> Axfv_ptrs(NUM_MG_LEVELS - 1);
@@ -26,6 +73,17 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   std::vector<local_int_t*> f2c_ptrs(NUM_MG_LEVELS - 1);
   std::vector<double*> xfv_ptrs(NUM_MG_LEVELS - 1);
   std::vector<double*> xcv_ptrs(NUM_MG_LEVELS - 1);
+
+  const local_int_t nrow = A.localNumberOfRows;
+  Vector &r = data.r; //residual vector
+  Vector &z = data.z; //preconditioned residual vector
+  //Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
+  //Vector &Ap = data.Ap;
+  double local_result;
+
+  std::vector<const SparseMatrix*> matrix_ptrs(NUM_MG_LEVELS);
+
+  //variables needed for MG computation
   matrix_ptrs[0] = &A;
   res_ptrs[0] = &r;
   z_ptrs[0] = &z;
@@ -67,14 +125,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double * const ApVals = Ap.values;
   const double * const bVals = b.values;
 
-  //for SPMV kernel
-  std::vector<double**> A_vals(NUM_MG_LEVELS);
-  std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
-  std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
-  std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
-  std::vector<double*> x_vals(NUM_MG_LEVELS);
-  std::vector<double*> y_vals(NUM_MG_LEVELS);
-  
   //populate values of SPMV kernel pointers
   for(int cnt = 0; cnt < NUM_MG_LEVELS - 2; cnt++){
     A_vals[cnt] = matrix_ptrs[cnt]->matrixValues;
