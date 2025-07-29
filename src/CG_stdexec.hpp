@@ -43,81 +43,59 @@ using exec::repeat_n;
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([&](){ \
-    (RESULT) = std::transform_reduce(std::execution::par_unseq, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
+  then([=](){ \
   })
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
-  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
+  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ })
 
 //CURRENTLY IGNORING HALO EXCHANGE WITH SPMV
 #define SPMV(AMV, XV, YV, INDV, NNZ, NROW) \
-  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    double sum = 0.0; \
-    for(int j = 0; j < (NNZ)[i]; j++){ \
-      sum += (AMV)[i][j] * (XV)[(INDV)[i][j]]; \
-    } \
-    (YV)[i] = sum; \
-  }) \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ })
 
 #define RESTRICTION(A, depth) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
-    [=](int i){ \
-    rcv_vals[(depth)][i] = r_vals[(depth)][f2c_vals[(depth)][i]] - Axfv_vals[(depth)][f2c_vals[(depth)][i]]; \
-  })
+    [=](int i){ })
 
 #define PROLONGATION(Af, depth) \
   bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
-    [=](int i){ \
-    z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
-  })
+    [=](int i){ })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == *color){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | then([=](){ (*color)++; }) \
-  | repeat_n(NUM_COLORS)
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ }) \
+  | then([=](){ (*color)++; })
+  //| repeat_n(NUM_COLORS)
 
 #define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
   SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
-  | then([=](){ *color = 0; }) \
-  | repeat_n(FORWARD_AND_BACKWARD)
+  | then([=](){ *color = 0; })
+  //| repeat_n(FORWARD_AND_BACKWARD)
 
 #define MGP0a() \
-  then([&](){ ZeroVector(*z_objs[0]); })
+  then([&](){ /*ZeroVector(*z_objs[0]);*/ })
 #define MGP0b() \
   SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]) \
   | SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(*A_objs[0], 0)
 
 #define MGP1a() \
-  then([&](){ ZeroVector(*z_objs[1]); })
+  then([&](){ /*ZeroVector(*z_objs[1]);*/ })
 #define MGP1b() \
   SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]) \
   | SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(*A_objs[1], 1)
 
 #define MGP2a() \
-  then([&](){ ZeroVector(*z_objs[2]); })
+  then([&](){ /*ZeroVector(*z_objs[2]);*/ })
 #define MGP2b() \
   SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]) \
   | SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(*A_objs[2], 2)
 
 #define MGP3a() \
-  then([&](){ ZeroVector(*z_objs[3]); })
+  then([&](){ /*ZeroVector(*z_objs[3]);*/ })
 #define MGP3b() \
   SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3])
 
