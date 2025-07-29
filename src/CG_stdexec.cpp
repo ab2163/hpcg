@@ -106,13 +106,12 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
-  })
-  | then([&](){
+  });
+  sync_wait(std::move(pre_loop_work));
+
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
 #endif
-  });
-  sync_wait(std::move(pre_loop_work));
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
@@ -140,15 +139,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); })
-    | then([&](){
-#ifdef HPCG_DEBUG
-      if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
-#endif
-    });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_loop));
 
+#ifdef HPCG_DEBUG
+    if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
+      HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
+#endif
     niters = 1;
 
   //start iterations
@@ -181,15 +178,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); })
-    | then([&](){
-#ifdef HPCG_DEBUG
-      if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
-#endif
-    });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_loop));
 
+#ifdef HPCG_DEBUG
+    if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
+      HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
+#endif
     niters = k;
   }
 
