@@ -80,6 +80,11 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
+#ifdef USE_GPU
+  //scheduler for GPU execution
+  nvexec::stream_context ctx;
+  auto scheduler = ctx.get_scheduler();
+#else
   //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
@@ -91,7 +96,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   }
   exec::static_thread_pool pool(num_threads);
   auto scheduler = pool.get_scheduler();
-
+#endif
+  
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
 #ifdef HPCG_DEBUG

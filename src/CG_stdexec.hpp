@@ -8,6 +8,7 @@
 #include <exec/static_thread_pool.hpp>
 #include <stdexec/execution.hpp>
 #include <exec/repeat_n.hpp>
+#include <nvexec/stream_context.cuh>
 
 #include "ComputeSYMGS_ref.hpp"
 #include "SparseMatrix.hpp"
