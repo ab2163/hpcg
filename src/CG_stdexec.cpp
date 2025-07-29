@@ -103,12 +103,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
-  | then([&](){
+  | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
+    *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
+  })
+  | then([&](){
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
 #endif
-    *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
   });
   sync_wait(std::move(pre_loop_work));
   
@@ -134,16 +136,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
     | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
-    | then([&](){ 
-      *alpha = *rtz/(*pAp);
-    })
+    | then([=](){ *alpha = *rtz/(*pAp); })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
-    | then([&](){ 
-      *normr_cpy = sqrt(*normr_cpy);
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); })
+    | then([&](){
 #ifdef HPCG_DEBUG
-      if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
+      if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
 #endif
     });
@@ -171,20 +171,20 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     sync_wait(schedule(scheduler) | MGP6b());
 
     sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ *oldrtz = *rtz; })
+    | then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
-    | then([&](){ *beta = *rtz/(*oldrtz); })
+    | then([=](){ *beta = *rtz/(*oldrtz); })
     | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
     | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
-    | then([&](){ *alpha = *rtz/(*pAp); })
+    | then([=](){ *alpha = *rtz/(*pAp); })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
-    | then([&](){ 
-      *normr_cpy = sqrt(*normr_cpy); 
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); })
+    | then([&](){
 #ifdef HPCG_DEBUG
-      if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
+      if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
         HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
 #endif
     });
