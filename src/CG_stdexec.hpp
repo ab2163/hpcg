@@ -48,7 +48,7 @@ using exec::repeat_n;
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
-  bulk(stdexec::par_unseq, nrow, [&](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
+  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
 //CURRENTLY IGNORING HALO EXCHANGE WITH SPMV
 #define SPMV(AMV, XV, YV, INDV, NNZ, NROW) \

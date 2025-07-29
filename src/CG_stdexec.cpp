@@ -10,7 +10,11 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0;
 
   //DATA VARIABLES
-  double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
+  double *rtz    = new double(0.0);
+  double *oldrtz = new double(0.0);
+  double *alpha  = new double(0.0);
+  double *beta   = new double(0.0);
+  double *pAp    = new double(0.0);
   normr = 0.0;
   Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
   Vector &Ap = data.Ap;
@@ -123,14 +127,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
     | then([&](){ 
-      alpha = rtz/pAp;
+      *alpha = *rtz/(*pAp);
     })
-    | WAXPBY(1, x_vals, alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r_vals[0], -alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
     | then([&](){ 
       normr = sqrt(normr);
@@ -162,15 +166,15 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     sync_wait(schedule(scheduler) | MGP6b());
 
     sender auto rest_of_loop = schedule(scheduler)
-    | then([&](){ oldrtz = rtz; })
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
-    | then([&](){ beta = rtz/oldrtz; })
-    | WAXPBY(1, z_vals[0], beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
+    | then([&](){ *oldrtz = *rtz; })
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
+    | then([&](){ *beta = *rtz/(*oldrtz); })
+    | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
-    | then([&](){ alpha = rtz/pAp; })
-    | WAXPBY(1, x_vals, alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r_vals[0], -alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
+    | then([&](){ *alpha = *rtz/(*pAp); })
+    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
     | then([&](){ 
       normr = sqrt(normr); 
@@ -197,5 +201,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   });
   sync_wait(std::move(store_times));
   delete color;
+  delete alpha;
+  delete beta;
+  delete rtz;
+  delete oldrtz;
+  delete pAp;
   return 0;
 }
