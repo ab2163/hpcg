@@ -52,7 +52,7 @@ using exec::repeat_n;
 
 //CURRENTLY IGNORING HALO EXCHANGE WITH SPMV
 #define SPMV(AMV, XV, YV, INDV, NNZ, NROW) \
-  bulk(stdexec::par_unseq, (NROW), [&](local_int_t i){ \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
     double sum = 0.0; \
     for(int j = 0; j < (NNZ)[i]; j++){ \
       sum += (AMV)[i][j] * (XV)[(INDV)[i][j]]; \
@@ -62,13 +62,13 @@ using exec::repeat_n;
 
 #define RESTRICTION(A, depth) \
   bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
-    [&](int i){ \
+    [=](int i){ \
     rcv_vals[(depth)][i] = r_vals[(depth)][f2c_vals[(depth)][i]] - Axfv_vals[(depth)][f2c_vals[(depth)][i]]; \
   })
 
 #define PROLONGATION(Af, depth) \
   bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
-    [&](int i){ \
+    [=](int i){ \
     z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
   })
 
