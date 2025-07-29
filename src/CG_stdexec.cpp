@@ -44,6 +44,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used for parallel SYMGS:
   int *color = new int;
   *color = 0;
+  //used to ensure all variables within pipeline on heap
+  //since CPU-GPU managed memory only works for heap vars:
+  double *normr_cpy = new double(0.0);
+  double *normr0_cpy = new double;
 
   //set object pointers to respective values
   A_objs[0] = &A;
@@ -98,13 +102,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   | WAXPBY(1, x_vals, 0, x_vals, p_vals)
   | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
-  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
+  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
   | then([&](){
-    normr = sqrt(normr);
+    *normr_cpy = sqrt(*normr_cpy);
 #ifdef HPCG_DEBUG
-    if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< normr << std::endl;
+    if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
 #endif
-    normr0 = normr; //record initial residual for convergence testing
+    *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
   });
   sync_wait(std::move(pre_loop_work));
   
@@ -135,20 +139,21 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
     | then([&](){ 
-      normr = sqrt(normr);
+      *normr_cpy = sqrt(*normr_cpy);
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
+        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
 #endif
-      niters = 1;
     });
     sync_wait(std::move(rest_of_loop));
 
+    niters = 1;
+
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= max_iter && normr/normr0 > tolerance; k++){
+  for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     sync_wait(schedule(scheduler) | MGP0a());
     sync_wait(schedule(scheduler) | MGP0b());
@@ -175,36 +180,38 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | then([&](){ *alpha = *rtz/(*pAp); })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
     | then([&](){ 
-      normr = sqrt(normr); 
+      *normr_cpy = sqrt(*normr_cpy); 
 #ifdef HPCG_DEBUG
       if (A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
-        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< normr/normr0 << std::endl;
+        HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
 #endif
-      niters = k;
     });
     sync_wait(std::move(rest_of_loop));
+
+    niters = k;
   }
 
-  sender auto store_times = schedule(scheduler) | then([&](){
-    times[1] += t_dotProd; //dot-product time
-    times[2] += t_WAXPBY; //WAXPBY time
-    times[3] += t_SPMV; //SPMV time
-    times[4] += 0.0; //AllReduce time
-    times[5] += t_MG; //preconditioner apply time
-    times[0] += mytimer() - t_begin;  //total time
-    std::cout << "ADDITIONAL TIME DATA:\n";
-    std::cout << "SYMGS Time : " << t_SYMGS << "\n";
-    std::cout << "Restriction Time : " << t_restrict << "\n";
-    std::cout << "Prolongation Time : " << t_prolong << "\n";
-  });
-  sync_wait(std::move(store_times));
+  normr = *normr_cpy;
+  normr0 = *normr0_cpy;
+  times[1] += t_dotProd; //dot-product time
+  times[2] += t_WAXPBY; //WAXPBY time
+  times[3] += t_SPMV; //SPMV time
+  times[4] += 0.0; //AllReduce time
+  times[5] += t_MG; //preconditioner apply time
+  times[0] += mytimer() - t_begin;  //total time
+  std::cout << "ADDITIONAL TIME DATA:\n";
+  std::cout << "SYMGS Time : " << t_SYMGS << "\n";
+  std::cout << "Restriction Time : " << t_restrict << "\n";
+  std::cout << "Prolongation Time : " << t_prolong << "\n";
   delete color;
   delete alpha;
   delete beta;
   delete rtz;
   delete oldrtz;
   delete pAp;
+  delete normr_cpy;
+  delete normr0_cpy;
   return 0;
 }
