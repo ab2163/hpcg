@@ -39,6 +39,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const double * const b_vals = b.values;
   //used for parallel SYMGS:
   int *color = new int;
+  *color = 0;
 
   //set object pointers to respective values
   A_objs[0] = &A;

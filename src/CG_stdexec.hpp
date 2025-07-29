@@ -82,16 +82,16 @@ using exec::repeat_n;
           local_int_t curCol = (INDV)[i][j]; \
           sum -= (AMV)[i][j] * (XVALS)[curCol]; \
         } \
-        sum += (XVALS)[i]*(MATR_DIAG); \
-        (XVALS)[i] = sum/(MATR_DIAG); \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
       } \
   }) \
-  | then([=](){ *color++; }) \
+  | then([=](){ (*color)++; }) \
   | repeat_n(NUM_COLORS)
 
 #define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  then([=](){ *color = 0; }) \
-  | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
+  SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
+  | then([=](){ *color = 0; }) \
   | repeat_n(FORWARD_AND_BACKWARD)
 
 #define MGP0a() \
