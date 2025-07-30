@@ -33,17 +33,31 @@ using exec::repeat_n;
 #define NUM_MG_LEVELS 4
 #define NUM_COLORS 8
 #define FORWARD_AND_BACKWARD 2
+#define NUM_BINS 1000
 
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   then([&](){ \
-    local_result = 0.0; \
-    local_result = std::transform_reduce(std::execution::par_unseq, (VEC1VALS), (VEC1VALS) + nrow, (VEC2VALS), 0.0); \
     MPI_Allreduce(&local_result, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); \
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([=](){ \
+  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ prod_vals[i] = (VEC1VALS)[i]*(VEC2VALS)[i]; }) \
+  | bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \
+    local_int_t minInd = i*(nrow/NUM_BINS); \
+    local_int_t maxInd; \
+    double val_cpy = 0.0; \
+    if((i + 1) == NUM_BINS) maxInd = nrow; \
+    else maxInd = (i + 1)*(nrow/NUM_BINS); \
+    for(local_int_t j = minInd; j < maxInd; j++){ \
+      val_cpy += prod_vals[j]; \
+    } \
+    bin_vals[i] = val_cpy; \
+  }) \
+  | then([=](){ \
+    double result_cpy = 0.0; \
+    for(local_int_t i = 0; i < NUM_BINS; i++) result_cpy += bin_vals[i]; \
+    *(RESULT) = result_cpy; \
   })
 #endif
 

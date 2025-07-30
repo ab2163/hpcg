@@ -80,6 +80,11 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
+  //used by dot product kernel:
+  double *prod_vals = new double[nrow];
+  double *bin_vals = new double[NUM_BINS];
+  double *dot_local_result = new double(0.0);
+
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
     std::cerr << "ERROR: CANNOT DETERMINE THREAD POOL SIZE.\n";
@@ -112,7 +117,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   | WAXPBY(1, x_vals, 0, x_vals, p_vals)
   | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
-  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
+  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
@@ -145,13 +150,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
     | then([=](){ *alpha = *rtz/(*pAp); })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_loop));
 
@@ -185,15 +190,15 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], *rtz) //rtz = r'*z
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
     | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
     | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, *pAp) //alpha = p'*Ap
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
     | then([=](){ *alpha = *rtz/(*pAp); })
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], *normr_cpy)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_loop));
 
