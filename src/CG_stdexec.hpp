@@ -55,12 +55,14 @@ using exec::repeat_n;
   bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ })
 
 #define RESTRICTION(A, depth) \
-  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, \
-    [=](int i){ })
+  bulk(stdexec::par_unseq, (A).mgData->rc->localLength, [=](int i){ \
+      rcv_vals[(depth)][i] = r_vals[(depth)][f2c_vals[(depth)][i]] - Axfv_vals[(depth)][f2c_vals[(depth)][i]]; \
+  })
 
 #define PROLONGATION(Af, depth) \
-  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, \
-    [=](int i){ })
+  bulk(stdexec::par_unseq, (Af).mgData->rc->localLength, [=](int i){ \
+    z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
+  })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
