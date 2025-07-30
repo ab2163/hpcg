@@ -139,7 +139,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sync_wait(schedule(scheduler_cpu) | MGP2a());
   sync_wait(schedule(scheduler) | MGP2b());
   sync_wait(schedule(scheduler) | MGP2c());
-  sync_wait(schedule(scheduler) | MGP3a());
+  sync_wait(schedule(scheduler_cpu) | MGP3a());
   sync_wait(schedule(scheduler) | MGP3b());
   sync_wait(schedule(scheduler) | MGP4a());
   sync_wait(schedule(scheduler) | MGP4b());
@@ -179,7 +179,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     sync_wait(schedule(scheduler_cpu) | MGP2a());
     sync_wait(schedule(scheduler) | MGP2b());
     sync_wait(schedule(scheduler) | MGP2c());
-    sync_wait(schedule(scheduler) | MGP3a());
+    sync_wait(schedule(scheduler_cpu) | MGP3a());
     sync_wait(schedule(scheduler) | MGP3b());
     sync_wait(schedule(scheduler) | MGP4a());
     sync_wait(schedule(scheduler) | MGP4b());
