@@ -19,23 +19,23 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   Vector &p = data.p; //direction vector (in MPI mode ncol>=nrow)
   Vector &Ap = data.Ap;
   //for the sparse matrix at different MG depths:
-  std::vector<double**> A_vals(NUM_MG_LEVELS);
-  std::vector<local_int_t**> A_inds(NUM_MG_LEVELS);
-  std::vector<double**> A_diags(NUM_MG_LEVELS);
-  std::vector<local_int_t> A_nrows(NUM_MG_LEVELS);
-  std::vector<char*>  A_nnzs(NUM_MG_LEVELS);
-  std::vector<unsigned char*>  A_colors(NUM_MG_LEVELS);
-  //various vectors at different MG depths:
-  std::vector<double*> r_vals(NUM_MG_LEVELS);
-  std::vector<double*> z_vals(NUM_MG_LEVELS);
-  std::vector<double*> Axfv_vals(NUM_MG_LEVELS - 1);
-  std::vector<local_int_t*> f2c_vals(NUM_MG_LEVELS - 1);
-  std::vector<double*> xcv_vals(NUM_MG_LEVELS - 1);
-  std::vector<double*> rcv_vals(NUM_MG_LEVELS - 1);
+  double ***A_vals = new double**[NUM_MG_LEVELS];
+  local_int_t ***A_inds = new local_int_t**[NUM_MG_LEVELS];
+  double ***A_diags = new double**[NUM_MG_LEVELS];
+  local_int_t *A_nrows = new local_int_t[NUM_MG_LEVELS];
+  char **A_nnzs = new char*[NUM_MG_LEVELS];
+  unsigned char **A_colors = new unsigned char*[NUM_MG_LEVELS];
+  //various values at different MG depths:
+  double **r_vals = new double*[NUM_MG_LEVELS];
+  double **z_vals = new double*[NUM_MG_LEVELS];
+  double **Axfv_vals = new double*[NUM_MG_LEVELS - 1];
+  local_int_t **f2c_vals = new local_int_t*[NUM_MG_LEVELS - 1];
+  double **xcv_vals = new double*[NUM_MG_LEVELS - 1];
+  double **rcv_vals = new double*[NUM_MG_LEVELS - 1];
   //objects used to initialise other data:
-  std::vector<const SparseMatrix*> A_objs(NUM_MG_LEVELS);
-  std::vector<Vector*> r_objs(NUM_MG_LEVELS);
-  std::vector<Vector*> z_objs(NUM_MG_LEVELS);
+  const SparseMatrix **A_objs = new const SparseMatrix*[NUM_MG_LEVELS];
+  Vector **r_objs= new Vector*[NUM_MG_LEVELS];
+  Vector **z_objs = new Vector*[NUM_MG_LEVELS];
   //variables used by main CG algorithm:
   double * const p_vals = p.values;
   double * const x_vals = x.values;
@@ -224,5 +224,20 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   delete pAp;
   delete normr_cpy;
   delete normr0_cpy;
+  delete A_vals;
+  delete A_inds;
+  delete A_diags;
+  delete A_nrows;
+  delete A_nnzs;
+  delete A_colors;
+  delete r_vals;
+  delete z_vals;
+  delete Axfv_vals;
+  delete f2c_vals;
+  delete xcv_vals;
+  delete rcv_vals;
+  delete A_objs;
+  delete r_objs;
+  delete z_objs;
   return 0;
 }
