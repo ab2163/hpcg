@@ -29,7 +29,7 @@ esac
 case "$1" in
   stdexec)
     echo "Compiling for stdexec"
-    make USERFLAGS="-DSELECT_STDEXEC -DPARALLEL_SYMGS -DUSE_GPU" 2>&1 | tee build.log
+    make USERFLAGS="-DSELECT_STDEXEC -DPARALLEL_SYMGS" 2>&1 | tee build.log
     ;;
   stdpar)
     echo "Compiling for stdpar"

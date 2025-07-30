@@ -8,7 +8,10 @@
 #include <exec/static_thread_pool.hpp>
 #include <stdexec/execution.hpp>
 #include <exec/repeat_n.hpp>
+
+#ifdef USE_GPU
 #include <nvexec/stream_context.cuh>
+#endif
 
 #include "ComputeSYMGS_ref.hpp"
 #include "SparseMatrix.hpp"
