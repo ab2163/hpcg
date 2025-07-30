@@ -131,22 +131,36 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   int k = 1;
   //ITERATION FOR FIRST LOOP
   sync_wait(schedule(scheduler_cpu) | MGP0a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP0b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP0c());
   sync_wait(schedule(scheduler_cpu) | MGP1a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP1b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP1c());
   sync_wait(schedule(scheduler_cpu) | MGP2a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP2b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP2c());
   sync_wait(schedule(scheduler_cpu) | MGP3a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP3b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP4a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP4b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP5a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP5b());
+  t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP6a());
+  dummy_time = mytimer();
   sync_wait(schedule(scheduler) | MGP6b());
+  t_SYMGS += mytimer() - dummy_time;
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
@@ -171,22 +185,36 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     sync_wait(schedule(scheduler_cpu) | MGP0a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP0b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP0c());
     sync_wait(schedule(scheduler_cpu) | MGP1a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP1b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP1c());
     sync_wait(schedule(scheduler_cpu) | MGP2a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP2b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP2c());
     sync_wait(schedule(scheduler_cpu) | MGP3a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP3b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP4a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP4b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP5a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP5b());
+    t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP6a());
+    dummy_time = mytimer();
     sync_wait(schedule(scheduler) | MGP6b());
+    t_SYMGS += mytimer() - dummy_time;
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
