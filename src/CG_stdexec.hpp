@@ -65,33 +65,37 @@ using exec::repeat_n;
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
   bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ }) \
-  | then([=](){ (*color)++; })
-  //| repeat_n(NUM_COLORS)
+  | then([=](){ (*color)++; }) \
+  | continues_on(scheduler_cpu) \
+  | repeat_n(NUM_COLORS)
 
 #define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
   SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
-  | then([=](){ *color = 0; })
-  //| repeat_n(FORWARD_AND_BACKWARD)
+  | then([=](){ *color = 0; }) \
+  | repeat_n(FORWARD_AND_BACKWARD) \
 
 #define MGP0a() \
   then([&](){ /*ZeroVector(*z_objs[0]);*/ })
 #define MGP0b() \
-  SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]) \
-  | SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
+  SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
+#define MGP0c() \
+  SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
   | RESTRICTION(*A_objs[0], 0)
 
 #define MGP1a() \
   then([&](){ /*ZeroVector(*z_objs[1]);*/ })
 #define MGP1b() \
-  SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]) \
-  | SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
+  SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
+#define MGP1c() \
+  SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
   | RESTRICTION(*A_objs[1], 1)
 
 #define MGP2a() \
   then([&](){ /*ZeroVector(*z_objs[2]);*/ })
 #define MGP2b() \
-  SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]) \
-  | SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
+  SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
+#define MGP2c() \  
+  SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
   | RESTRICTION(*A_objs[2], 2)
 
 #define MGP3a() \

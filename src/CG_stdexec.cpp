@@ -80,12 +80,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
-#ifdef USE_GPU
-  //scheduler for GPU execution
-  nvexec::stream_context ctx;
-  auto scheduler = ctx.get_scheduler();
-#else
-  //scheduler for CPU execution
   unsigned int num_threads = std::thread::hardware_concurrency();
   if(num_threads == 0){
     std::cerr << "ERROR: CANNOT DETERMINE THREAD POOL SIZE.\n";
@@ -95,8 +89,18 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   }
   exec::static_thread_pool pool(num_threads);
+
+#ifdef USE_GPU
+  //scheduler for GPU execution
+  nvexec::stream_context ctx;
+  auto scheduler = ctx.get_scheduler();
+#else
+  //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
+
+  //dedicated CPU scheduler for CPU-specific sender adaptors
+  auto scheduler_cpu = pool.get_scheduler();
   
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -123,10 +127,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //ITERATION FOR FIRST LOOP
   sync_wait(schedule(scheduler) | MGP0a());
   sync_wait(schedule(scheduler) | MGP0b());
+  sync_wait(schedule(scheduler) | MGP0c());
   sync_wait(schedule(scheduler) | MGP1a());
   sync_wait(schedule(scheduler) | MGP1b());
+  sync_wait(schedule(scheduler) | MGP1c());
   sync_wait(schedule(scheduler) | MGP2a());
   sync_wait(schedule(scheduler) | MGP2b());
+  sync_wait(schedule(scheduler) | MGP2c());
   sync_wait(schedule(scheduler) | MGP3a());
   sync_wait(schedule(scheduler) | MGP3b());
   sync_wait(schedule(scheduler) | MGP4a());
@@ -158,12 +165,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    sync_wait(schedule(scheduler) | MGP0a());
     sync_wait(schedule(scheduler) | MGP0b());
+    sync_wait(schedule(scheduler) | MGP0c());
     sync_wait(schedule(scheduler) | MGP1a());
     sync_wait(schedule(scheduler) | MGP1b());
+    sync_wait(schedule(scheduler) | MGP1c());
     sync_wait(schedule(scheduler) | MGP2a());
     sync_wait(schedule(scheduler) | MGP2b());
+    sync_wait(schedule(scheduler) | MGP2c());
     sync_wait(schedule(scheduler) | MGP3a());
     sync_wait(schedule(scheduler) | MGP3b());
     sync_wait(schedule(scheduler) | MGP4a());
