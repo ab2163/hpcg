@@ -125,13 +125,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  sync_wait(schedule(scheduler) | MGP0a());
+  sync_wait(schedule(scheduler_cpu) | MGP0a());
   sync_wait(schedule(scheduler) | MGP0b());
   sync_wait(schedule(scheduler) | MGP0c());
-  sync_wait(schedule(scheduler) | MGP1a());
+  sync_wait(schedule(scheduler_cpu) | MGP1a());
   sync_wait(schedule(scheduler) | MGP1b());
   sync_wait(schedule(scheduler) | MGP1c());
-  sync_wait(schedule(scheduler) | MGP2a());
+  sync_wait(schedule(scheduler_cpu) | MGP2a());
   sync_wait(schedule(scheduler) | MGP2b());
   sync_wait(schedule(scheduler) | MGP2c());
   sync_wait(schedule(scheduler) | MGP3a());
@@ -165,12 +165,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
+    sync_wait(schedule(scheduler_cpu) | MGP0a());
     sync_wait(schedule(scheduler) | MGP0b());
     sync_wait(schedule(scheduler) | MGP0c());
-    sync_wait(schedule(scheduler) | MGP1a());
+    sync_wait(schedule(scheduler_cpu) | MGP1a());
     sync_wait(schedule(scheduler) | MGP1b());
     sync_wait(schedule(scheduler) | MGP1c());
-    sync_wait(schedule(scheduler) | MGP2a());
+    sync_wait(schedule(scheduler_cpu) | MGP2a());
     sync_wait(schedule(scheduler) | MGP2b());
     sync_wait(schedule(scheduler) | MGP2c());
     sync_wait(schedule(scheduler) | MGP3a());
