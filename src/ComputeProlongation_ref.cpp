@@ -37,6 +37,10 @@
 */
 int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
 
+#ifdef TIMING_ON
+  NVTX3_FUNC_RANGE();
+#endif
+
   double * xfv = xf.values;
   double * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;

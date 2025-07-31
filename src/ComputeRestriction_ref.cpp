@@ -39,6 +39,10 @@
 */
 int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf) {
 
+#ifdef TIMING_ON
+  NVTX3_FUNC_RANGE();
+#endif
+
   double * Axfv = A.mgData->Axf->values;
   double * rfv = rf.values;
   double * rcv = A.mgData->rc->values;
