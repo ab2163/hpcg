@@ -8,7 +8,7 @@
 int ComputeProlongation_stdpar(const SparseMatrix &Af, Vector &xf){
 
 #ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
+  GlobalKernelTimer.start(PROLONGATION);
 #endif
 
   double * const xfv = xf.values;
@@ -20,6 +20,10 @@ int ComputeProlongation_stdpar(const SparseMatrix &Af, Vector &xf){
 
   std::for_each(std::execution::par_unseq, range.begin(), range.end(),
               [=](int i) { xfv[f2c[i]] += xcv[i]; });
+
+#ifdef TIMING_ON
+  GlobalKernelTimer.stop(PROLONGATION);
+#endif
 
   return 0;
 }

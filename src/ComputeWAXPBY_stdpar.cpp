@@ -8,7 +8,7 @@ int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector &
     const double beta, const Vector &y, Vector &w){
 
 #ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
+  GlobalKernelTimer.start(WAXPBY);
 #endif
 
   assert(x.localLength >= n); //test vector lengths
@@ -25,6 +25,10 @@ int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector &
   }else {
     std::transform(std::execution::par_unseq, xv, xv + n, yv, wv, [=](double xi, double yi){ return alpha*xi + beta*yi; });
   }
+
+#ifdef TIMING_ON
+  GlobalKernelTimer.stop(WAXPBY);
+#endif
 
   return 0;
 }

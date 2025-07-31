@@ -14,7 +14,7 @@
 int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
 #ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
+  GlobalKernelTimer.start(SPMV);
 #endif
 
   assert(x.localLength >= A.localNumberOfColumns); //test vector lengths
@@ -39,6 +39,10 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
     }
     yv[i] = sum;
   });
+
+#ifdef TIMING_ON
+  GlobalKernelTimer.stop(SPMV);
+#endif
 
   return 0;
 }
