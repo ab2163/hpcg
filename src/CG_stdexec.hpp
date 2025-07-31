@@ -8,6 +8,7 @@
 #include <exec/static_thread_pool.hpp>
 #include <stdexec/execution.hpp>
 #include <exec/repeat_n.hpp>
+#include <omp.h>
 
 #ifdef USE_GPU
 #include <nvexec/stream_context.cuh>

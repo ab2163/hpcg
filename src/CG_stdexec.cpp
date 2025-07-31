@@ -85,14 +85,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double *bin_vals = new double[NUM_BINS];
   double *dot_local_result = new double(0.0);
 
-  unsigned int num_threads = std::thread::hardware_concurrency();
-  if(num_threads == 0){
-    std::cerr << "ERROR: CANNOT DETERMINE THREAD POOL SIZE.\n";
-    std::exit(EXIT_FAILURE);
-  }
-  else{
-    std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
-  }
+  unsigned int num_threads = omp_get_max_threads();
+  std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
 
 #ifdef USE_GPU
