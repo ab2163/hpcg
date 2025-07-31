@@ -80,13 +80,15 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
-  //used for timing purposes
-  nvtxRangeId_t rangeID = 0;
-
   //used by dot product kernel:
   double *prod_vals = new double[nrow];
   double *bin_vals = new double[NUM_BINS];
   double *dot_local_result = new double(0.0);
+
+#ifdef TIMING_ON
+  //used for NVTX timing
+  nvtxRangeId_t rangeID = 0;
+#endif
 
   unsigned int num_threads = omp_get_max_threads();
   std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
@@ -110,88 +112,122 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   int print_freq = 1;
 #endif
 
-  TW(WAXPBY(1, x_vals, 0, x_vals, p_vals), "WAXPBY")
-  TW(SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0]), "SPMV")
-  TW(WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]), "WAXPBY") //WAXPBY: r = b - Ax (x stored in p)
-  TW(COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy), "Dot Product")
-  TW((then([=](){
+  sender auto pre_loop_work = schedule(scheduler)
+  | WAXPBY(1, x_vals, 0, x_vals, p_vals)
+  | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+  | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
+  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+  | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
-  })), "Other")
+  });
+  sync_wait(std::move(pre_loop_work));
 
 #ifdef HPCG_DEBUG
-  if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
+    if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
 #endif
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  MGP0a()
-  MGP0b()
-  MGP0c()
-  MGP1a()
-  MGP1b()
-  MGP1c()
-  MGP2a()
-  MGP2b()
-  MGP2c()
-  MGP3a()
-  MGP3b()
-  MGP4a()
-  MGP4b()
-  MGP5a()
-  MGP5b()
-  MGP6a()
-  MGP6b()
+  sync_wait(schedule(scheduler_cpu) | MGP0a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP0b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP0c());
+  sync_wait(schedule(scheduler_cpu) | MGP1a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP1b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP1c());
+  sync_wait(schedule(scheduler_cpu) | MGP2a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP2b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP2c());
+  sync_wait(schedule(scheduler_cpu) | MGP3a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP3b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP4a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP4b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP5a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP5b());
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP6a());
+  dummy_time = mytimer();
+  sync_wait(schedule(scheduler) | MGP6b());
+  t_SYMGS += mytimer() - dummy_time;
 
-  TW(WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals), "WAXPBY")
-  TW(COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz), "Dot Product") //rtz = r'*z
-  TW(SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0]), "SPMV")
-  TW(COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp), "Dot Product") //alpha = p'*Ap
-  TW(then([=](){ *alpha = *rtz/(*pAp); }), "Other")
-  TW(WAXPBY(1, x_vals, *alpha, p_vals, x_vals), "WAXPBY") //WAXPBY: x = x + alpha*p
-  TW(WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]), "WAXPBY") //WAXPBY: r = r - alpha*Ap
-  TW(COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy), "Dot Product")
-  TW(then([=](){ *normr_cpy = sqrt(*normr_cpy); }), "Other")
+  sender auto rest_of_loop = schedule(scheduler)
+    | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
+    | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
+    | then([=](){ *alpha = *rtz/(*pAp); })
+    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    sync_wait(std::move(rest_of_loop));
 
 #ifdef HPCG_DEBUG
-  if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
-    HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
+    if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
+      HPCG_fout << "Iteration = "<< k << "   Scaled Residual = "<< *normr_cpy/(*normr0_cpy) << std::endl;
 #endif
-  niters = 1;
+    niters = 1;
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    MGP0a()
-    MGP0b()
-    MGP0c()
-    MGP1a()
-    MGP1b()
-    MGP1c()
-    MGP2a()
-    MGP2b()
-    MGP2c()
-    MGP3a()
-    MGP3b()
-    MGP4a()
-    MGP4b()
-    MGP5a()
-    MGP5b()
-    MGP6a()
-    MGP6b()
+    sync_wait(schedule(scheduler_cpu) | MGP0a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP0b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP0c());
+    sync_wait(schedule(scheduler_cpu) | MGP1a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP1b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP1c());
+    sync_wait(schedule(scheduler_cpu) | MGP2a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP2b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP2c());
+    sync_wait(schedule(scheduler_cpu) | MGP3a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP3b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP4a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP4b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP5a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP5b());
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP6a());
+    dummy_time = mytimer();
+    sync_wait(schedule(scheduler) | MGP6b());
+    t_SYMGS += mytimer() - dummy_time;
 
-    TW(then([=](){ *oldrtz = *rtz; }), "Other")
-    TW(COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz), "Dot Product") //rtz = r'*z
-    TW(then([=](){ *beta = *rtz/(*oldrtz); }), "Other")
-    TW(WAXPBY(1, z_vals[0], *beta, p_vals, p_vals), "WAXPBY") //WAXPBY: p = beta*p + z
-    TW(SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0]), "SPMV")
-    TW(COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp), "Dot Product") //alpha = p'*Ap
-    TW(then([=](){ *alpha = *rtz/(*pAp); }), "Other")
-    TW(WAXPBY(1, x_vals, *alpha, p_vals, x_vals), "WAXPBY") //WAXPBY: x = x + alpha*p
-    TW(WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]), "WAXPBY") //WAXPBY: r = r - alpha*Ap
-    TW(COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy), "Dot Product")
-    TW(then([=](){ *normr_cpy = sqrt(*normr_cpy); }), "Other")
+    sender auto rest_of_loop = schedule(scheduler)
+    | then([=](){ *oldrtz = *rtz; })
+    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
+    | then([=](){ *beta = *rtz/(*oldrtz); })
+    | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
+    | SPMV(A_vals[0], p_vals, Ap_vals, A_inds[0], A_nnzs[0], A_nrows[0])
+    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
+    | then([=](){ *alpha = *rtz/(*pAp); })
+    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
+    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
+    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    sync_wait(std::move(rest_of_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
@@ -199,6 +235,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = k;
   }
+
+#ifdef TIMING_ON
+end_timing(rangeID);
+#endif
 
   normr = *normr_cpy;
   normr0 = *normr0_cpy;

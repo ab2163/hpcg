@@ -17,6 +17,9 @@
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
 
-int ComputeSPMV_ref( const SparseMatrix & A, Vector  & x, Vector & y);
+#ifdef TIMING_ON
+#include "NVTX_timing.hpp"
+#endif
 
+int ComputeSPMV_ref( const SparseMatrix & A, Vector  & x, Vector & y);
 #endif  // COMPUTESPMV_REF_HPP
