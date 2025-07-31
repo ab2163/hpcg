@@ -85,11 +85,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double *bin_vals = new double[NUM_BINS];
   double *dot_local_result = new double(0.0);
 
-#ifdef TIMING_ON
-  //used for NVTX timing
-  nvtxRangeId_t rangeID = 0;
-#endif
-
   unsigned int num_threads = omp_get_max_threads();
   std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
@@ -235,10 +230,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = k;
   }
-
-#ifdef TIMING_ON
-end_timing(rangeID);
-#endif
 
   normr = *normr_cpy;
   normr0 = *normr0_cpy;

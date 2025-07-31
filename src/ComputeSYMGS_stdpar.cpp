@@ -13,11 +13,6 @@
 #define NUM_COLORS 8
 
 int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
-
-#ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
-#endif
-
   assert(x.localLength == A.localNumberOfColumns);
 #ifndef HPCG_NO_MPI
   ExchangeHalo(A, x);

@@ -53,10 +53,6 @@
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
 
-#ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
-#endif
-
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 
 #ifndef HPCG_NO_MPI
