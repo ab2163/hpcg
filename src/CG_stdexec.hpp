@@ -20,6 +20,7 @@
 #include "CGData.hpp"
 #include "mytimer.hpp"
 #include "hpcg.hpp"
+#include "NVTX_timing.hpp"
 
 #ifndef HPCG_NO_MPI
 #include <mpi.h>
@@ -38,6 +39,11 @@ using exec::repeat_n;
 #define NUM_COLORS 8
 #define FORWARD_AND_BACKWARD 2
 #define NUM_BINS 1000
+
+#define TW(TASK, MESSAGE) \
+  start_timing(MESSAGE, rangeID); \
+  sync_wait(schedule(scheduler) | TASK); \
+  end_timing(rangeID);
 
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
@@ -112,48 +118,48 @@ using exec::repeat_n;
   | repeat_n(FORWARD_AND_BACKWARD) \
 
 #define MGP0a() \
-  then([&](){ ZeroVector(*z_objs[0]); })
+  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[0]); }));
 #define MGP0b() \
-  SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
+  TW(SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]), "SYMGS")
 #define MGP0c() \
-  SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]) \
-  | RESTRICTION(*A_objs[0], 0)
+  TW(SPMV(A_vals[0], z_vals[0], Axfv_vals[0], A_inds[0], A_nnzs[0], A_nrows[0]), "SPMV") \
+  TW(RESTRICTION(*A_objs[0], 0), "Restriction")
 
 #define MGP1a() \
-  then([&](){ ZeroVector(*z_objs[1]); })
+  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[1]); }));
 #define MGP1b() \
-  SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
+  TW(SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]), "SYMGS")
 #define MGP1c() \
-  SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]) \
-  | RESTRICTION(*A_objs[1], 1)
+  TW(SPMV(A_vals[1], z_vals[1], Axfv_vals[1], A_inds[1], A_nnzs[1], A_nrows[1]), "SPMV") \
+  TW(RESTRICTION(*A_objs[1], 1), "Restriction")
 
 #define MGP2a() \
-  then([&](){ ZeroVector(*z_objs[2]); })
+  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[2]); }));
 #define MGP2b() \
-  SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
+  TW(SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]), "SYMGS")
 #define MGP2c() \  
-  SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]) \
-  | RESTRICTION(*A_objs[2], 2)
+  TW(SPMV(A_vals[2], z_vals[2], Axfv_vals[2], A_inds[2], A_nnzs[2], A_nrows[2]), "SPMV") \
+  TW(RESTRICTION(*A_objs[2], 2), "Restriction")
 
 #define MGP3a() \
-  then([&](){ ZeroVector(*z_objs[3]); })
+  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[3]); }));
 #define MGP3b() \
-  SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3])
+  TW(SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3]), "SYMGS")
 
 #define MGP4a() \
-  PROLONGATION(*A_objs[2], 2)
+  TW(PROLONGATION(*A_objs[2], 2), "Prolongation")
 #define MGP4b() \
-  SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
+  TW(SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]), "SYMGS")
 
 #define MGP5a() \
-  PROLONGATION(*A_objs[1], 1)
+  TW(PROLONGATION(*A_objs[1], 1), "Prolongation")
 #define MGP5b() \
-  SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
+  TW(SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]), "SYMGS")
 
 #define MGP6a() \
-  PROLONGATION(*A_objs[0], 0)
+  TW(PROLONGATION(*A_objs[0], 0), "Prolongation")
 #define MGP6b() \
-  SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
+  TW(SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]), "SYMGS")
 
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
