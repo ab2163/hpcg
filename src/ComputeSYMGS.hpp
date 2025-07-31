@@ -16,6 +16,9 @@
 #include "SparseMatrix.hpp"
 #include "Vector.hpp"
 
-int ComputeSYMGS(const SparseMatrix  &A, const Vector &r, Vector &x);
+#ifdef TIMING_ON
+#include "NVTX_timing.hpp"
+#endif
 
+int ComputeSYMGS(const SparseMatrix  &A, const Vector &r, Vector &x);
 #endif //COMPUTESYMGS_HPP

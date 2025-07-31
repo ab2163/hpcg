@@ -49,7 +49,7 @@ using exec::repeat_n;
 #define END_TIMING 
 #else
 #define START_TIMING(MESSAGE)
-#define END_TIMING(RANGEID)
+#define END_TIMING()
 #endif
 
 #ifndef HPCG_NO_MPI

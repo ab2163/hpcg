@@ -7,6 +7,10 @@
 int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector &x,
     const double beta, const Vector &y, Vector &w){
 
+#ifdef TIMING_ON
+  NVTX3_FUNC_RANGE();
+#endif
+
   assert(x.localLength >= n); //test vector lengths
   assert(y.localLength >= n);
 

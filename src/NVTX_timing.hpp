@@ -1,3 +1,6 @@
+#ifndef NVTX_INCLUDED
+#define NVTX_INCLUDED
+
 #include <string>
 
 //for your macbook: 
@@ -56,3 +59,4 @@ inline void end_timing(nvtxRangeId_t &range_id){
   nvtxRangeEnd(range_id);
   range_id = 0;
 }
+#endif

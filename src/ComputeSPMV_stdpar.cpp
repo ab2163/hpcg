@@ -13,6 +13,10 @@
 
 int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
+#ifdef TIMING_ON
+  NVTX3_FUNC_RANGE();
+#endif
+
   assert(x.localLength >= A.localNumberOfColumns); //test vector lengths
   assert(y.localLength >= A.localNumberOfRows);
 
