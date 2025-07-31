@@ -41,10 +41,6 @@
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w) {
 
-#ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
-#endif
-
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 

@@ -6,10 +6,7 @@
 #include "NVTX_timing.hpp"
 
 int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf){
-
-#ifdef TIMING_ON
   NVTX3_FUNC_RANGE();
-#endif
 
   const double * const Axfv = A.mgData->Axf->values;
   const double * const rfv = rf.values;

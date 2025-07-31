@@ -16,10 +16,5 @@
 #define COMPUTEPROLONGATION_REF_HPP
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
-
-#ifdef TIMING_ON
-#include "NVTX_timing.hpp"
-#endif
-
 int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf);
 #endif // COMPUTEPROLONGATION_REF_HPP

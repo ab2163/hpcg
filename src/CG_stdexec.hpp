@@ -49,7 +49,7 @@ using exec::repeat_n;
 #define END_TIMING 
 #else
 #define START_TIMING(MESSAGE)
-#define END_TIMING()
+#define END_TIMING(RANGEID)
 #endif
 
 #ifndef HPCG_NO_MPI
@@ -125,12 +125,13 @@ using exec::repeat_n;
   | repeat_n(NUM_COLORS)
 
 #define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  START_TIMING("SYMGS") | \
   SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \   
   | then([=](){ *color = 0; }) \
   | repeat_n(FORWARD_AND_BACKWARD) \
 
 #define MGP0a() \
-  then([&](){ ZeroVector(*z_objs[0]); start_timing("SYMGS", rangeID); })
+  then([&](){ ZeroVector(*z_objs[0]); })
 #define MGP0b() \
   SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
 #define MGP0c() \
@@ -138,7 +139,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[0], 0)
 
 #define MGP1a() \
-  then([&](){ ZeroVector(*z_objs[1]); start_timing("SYMGS", rangeID); })
+  then([&](){ ZeroVector(*z_objs[1]); })
 #define MGP1b() \
   SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
 #define MGP1c() \
@@ -146,7 +147,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[1], 1)
 
 #define MGP2a() \
-  then([&](){ ZeroVector(*z_objs[2]); start_timing("SYMGS", rangeID); })
+  then([&](){ ZeroVector(*z_objs[2]); })
 #define MGP2b() \
   SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
 #define MGP2c() \  
@@ -154,22 +155,22 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[2], 2)
 
 #define MGP3a() \
-  then([&](){ ZeroVector(*z_objs[3]); start_timing("SYMGS", rangeID); })
+  then([&](){ ZeroVector(*z_objs[3]); })
 #define MGP3b() \
   SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3])
 
 #define MGP4a() \
-  PROLONGATION(*A_objs[2], 2) | START_TIMING("SYMGS")
+  PROLONGATION(*A_objs[2], 2)
 #define MGP4b() \
   SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
 
 #define MGP5a() \
-  PROLONGATION(*A_objs[1], 1) | START_TIMING("SYMGS")
+  PROLONGATION(*A_objs[1], 1)
 #define MGP5b() \
   SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
 
 #define MGP6a() \
-  PROLONGATION(*A_objs[0], 0) | START_TIMING("SYMGS")
+  PROLONGATION(*A_objs[0], 0)
 #define MGP6b() \
   SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
 

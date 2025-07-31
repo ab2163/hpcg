@@ -12,10 +12,6 @@
 int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector &y,
     double &result, double &time_allreduce){
 
-#ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
-#endif
-
   assert(x.localLength >= n); //test vector lengths
   assert(y.localLength >= n);
 
