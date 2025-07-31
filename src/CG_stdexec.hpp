@@ -118,7 +118,7 @@ using exec::repeat_n;
   | repeat_n(FORWARD_AND_BACKWARD) \
 
 #define MGP0a() \
-  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[0]); }));
+  sync_wait(schedule(scheduler_cpu) | then([&](){ ZeroVector(*z_objs[0]); }));
 #define MGP0b() \
   TW(SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0]), "SYMGS")
 #define MGP0c() \
@@ -126,7 +126,7 @@ using exec::repeat_n;
   TW(RESTRICTION(*A_objs[0], 0), "Restriction")
 
 #define MGP1a() \
-  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[1]); }));
+  sync_wait(schedule(scheduler_cpu) | then([&](){ ZeroVector(*z_objs[1]); }));
 #define MGP1b() \
   TW(SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1]), "SYMGS")
 #define MGP1c() \
@@ -134,7 +134,7 @@ using exec::repeat_n;
   TW(RESTRICTION(*A_objs[1], 1), "Restriction")
 
 #define MGP2a() \
-  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[2]); }));
+  sync_wait(schedule(scheduler_cpu) | then([&](){ ZeroVector(*z_objs[2]); }));
 #define MGP2b() \
   TW(SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2]), "SYMGS")
 #define MGP2c() \  
@@ -142,7 +142,7 @@ using exec::repeat_n;
   TW(RESTRICTION(*A_objs[2], 2), "Restriction")
 
 #define MGP3a() \
-  sync_wait(schedule(scheduler) | then([&](){ ZeroVector(*z_objs[3]); }));
+  sync_wait(schedule(scheduler_cpu) | then([&](){ ZeroVector(*z_objs[3]); }));
 #define MGP3b() \
   TW(SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3]), "SYMGS")
 
