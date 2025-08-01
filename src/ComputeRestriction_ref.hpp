@@ -16,10 +16,5 @@
 #define COMPUTERESTRICTION_REF_HPP
 #include "Vector.hpp"
 #include "SparseMatrix.hpp"
-
-#ifdef TIMING_ON
-#include "NVTX_timing.hpp"
-#endif
-
 int ComputeRestriction_ref(const SparseMatrix & A, const Vector & rf);
 #endif // COMPUTERESTRICTION_REF_HPP

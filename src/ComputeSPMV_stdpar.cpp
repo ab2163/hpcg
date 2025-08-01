@@ -13,10 +13,6 @@
 
 int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
 
-#ifdef TIMING_ON
-  GlobalKernelTimer.start(SPMV);
-#endif
-
   assert(x.localLength >= A.localNumberOfColumns); //test vector lengths
   assert(y.localLength >= A.localNumberOfRows);
 
@@ -39,10 +35,6 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
     }
     yv[i] = sum;
   });
-
-#ifdef TIMING_ON
-  GlobalKernelTimer.stop(SPMV);
-#endif
 
   return 0;
 }

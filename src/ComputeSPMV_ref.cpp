@@ -47,10 +47,6 @@
 
 int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
 
-#ifdef TIMING_ON
-  NVTX3_FUNC_RANGE();
-#endif
-
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);
 

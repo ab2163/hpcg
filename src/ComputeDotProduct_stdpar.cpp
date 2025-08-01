@@ -12,10 +12,6 @@
 int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector &y,
     double &result, double &time_allreduce){
 
-#ifdef TIMING_ON
-  GlobalKernelTimer.start(DOT_PRODUCT);
-#endif
-
   assert(x.localLength >= n); //test vector lengths
   assert(y.localLength >= n);
 
@@ -40,10 +36,6 @@ int ComputeDotProduct_stdpar(const local_int_t n, const Vector &x, const Vector 
 #else
   time_allreduce += 0.0;
   result = local_result;
-#endif
-
-#ifdef TIMING_ON
-  GlobalKernelTimer.stop(DOT_PRODUCT);
 #endif
 
   return 0;

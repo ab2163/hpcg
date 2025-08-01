@@ -3,12 +3,10 @@
 #include <execution>
 
 #include "ComputeRestriction_stdpar.hpp"
+#include "NVTX_timing.hpp"
 
 int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf){
-
-#ifdef TIMING_ON
-  GlobalKernelTimer.start(RESTRICTION);
-#endif
+  NVTX3_FUNC_RANGE();
 
   const double * const Axfv = A.mgData->Axf->values;
   const double * const rfv = rf.values;
@@ -20,10 +18,6 @@ int ComputeRestriction_stdpar(const SparseMatrix &A, const Vector &rf){
 
   std::for_each(std::execution::par_unseq, range.begin(), range.end(),
               [=](int i) { rcv[i] = rfv[f2c[i]] - Axfv[f2c[i]]; });
-  
-#ifdef TIMING_ON
-  GlobalKernelTimer.stop(RESTRICTION);
-#endif
   
   return 0;
 }

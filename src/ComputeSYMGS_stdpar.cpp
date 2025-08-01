@@ -9,15 +9,10 @@
 #include "ExchangeHalo.hpp"
 #endif
 
-#include "ComputeSYMGS_stdpar.hpp"
+#include "ComputeSYMGS_ref.hpp"
 #define NUM_COLORS 8
 
 int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
-
-#ifdef TIMING_ON
-  GlobalKernelTimer.start(SYMGS);
-#endif
-
   assert(x.localLength == A.localNumberOfColumns);
 #ifndef HPCG_NO_MPI
   ExchangeHalo(A, x);
@@ -67,10 +62,6 @@ int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
       }
     });
   }
-
-#ifdef TIMING_ON
-  GlobalKernelTimer.stop(SYMGS);
-#endif
 
   return 0;
 }
