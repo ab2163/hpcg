@@ -175,7 +175,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    std::cout<<k<<"\n";
+    MGP0a()
     dummy_time = mytimer();
     MGP0b()
     t_SYMGS += mytimer() - dummy_time;
