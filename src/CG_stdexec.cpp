@@ -80,6 +80,9 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
+  //FOR DEBUGGING PURPOSES
+  local_int_t *lastIndOfColor = new local_int_t;
+
   //used by dot product kernel:
   double *prod_vals = new double[nrow];
   double *bin_vals = new double[NUM_BINS];
