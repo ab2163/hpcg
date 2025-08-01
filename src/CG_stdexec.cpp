@@ -78,7 +78,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     }
   }
   //used in some kernels:
-  local_int_t *nrow = A_nrows[0];
+  local_int_t *nrow = new local_int_t;
+  *nrow = A_nrows[0][0];
 
   //used by dot product kernel:
   double *prod_vals = new double[*nrow];
@@ -263,5 +264,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   delete A_objs;
   delete r_objs;
   delete z_objs;
+  delete nrow;
   return 0;
 }
