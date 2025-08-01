@@ -25,10 +25,6 @@
 #include <mpi.h>
 #endif
 
-//FOR DEBUGGING
-#include <cstdlib>
-#include <exception>
-
 using stdexec::sender;
 using stdexec::then;
 using stdexec::schedule;
@@ -42,10 +38,6 @@ using exec::repeat_n;
 #define NUM_COLORS 8
 #define FORWARD_AND_BACKWARD 2
 #define NUM_BINS 1000
-
-#define ERRW(EXPRESSION) \
-  try{ (EXPRESSION); } \
-  catch(const std::exception& e){ std::cerr << "CUDA Failure: " << e.what() << std::endl; }
 
 #ifndef HPCG_NO_MPI
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
@@ -97,36 +89,26 @@ using exec::repeat_n;
   })
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS, LASTIND) \
-  bulk(stdexec::par, (NROW), [=](local_int_t i){ \
+#define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
     if((COLORS)[i] == *color){ \
-        if(i == *(LASTIND)) printf("1\n"); \
         const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        if(i == *(LASTIND)) printf("2\n"); \
         double sum = (RVALS)[i]; \
-        if(i == *(LASTIND)) printf("3\n"); \
         for(int j = 0; j < (NNZ)[i]; j++){ \
           local_int_t curCol = (INDV)[i][j]; \
           sum -= (AMV)[i][j] * (XVALS)[curCol]; \
         } \
-        if(i == *(LASTIND)) printf("4\n"); \
         sum += (XVALS)[i]*currentDiagonal; \
-        if(i == *(LASTIND)) printf("5\n"); \
         (XVALS)[i] = sum/currentDiagonal; \
-        if(i == *(LASTIND)) printf("6\n"); \
       } \
-  })
+  }) \
 
 #define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
-    std::cout << "PASS: " << cnt << "\n"; \
     *color = 0; \
     for(int colorCnt = 0; colorCnt < NUM_COLORS; colorCnt++){ \
-      std::cout << "COLOR: " << colorCnt << "\n"; \
-      *lastIndOfColor = (NROW) - 1; \
-      while(COLORS[*lastIndOfColor] != colorCnt) (*lastIndOfColor)--; \
-      ERRW(sync_wait(schedule(scheduler) \
-        | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS, lastIndOfColor))) \
+      sync_wait(schedule(scheduler) \
+        | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)); \
       (*color)++; \
     } \
   }

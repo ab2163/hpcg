@@ -80,9 +80,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //used in some kernels:
   local_int_t &nrow = A_nrows[0];
 
-  //FOR DEBUGGING PURPOSES
-  local_int_t *lastIndOfColor = new local_int_t;
-
   //used by dot product kernel:
   double *prod_vals = new double[nrow];
   double *bin_vals = new double[NUM_BINS];
@@ -116,7 +113,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
   });
-  ERRW(sync_wait(std::move(pre_loop_work)))
+  sync_wait(std::move(pre_loop_work));
 
 #ifdef HPCG_DEBUG
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
@@ -124,41 +121,37 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  std::cout << "SYMGS-1\n";
   MGP0a()
-  std::cout << "SYMGS-2\n";
+  dummy_time = mytimer();
   MGP0b()
-  std::cout << "SYMGS-3\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP0c()))
-  std::cout << "SYMGS-4\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP0c());
   MGP1a()
-  std::cout << "SYMGS-5\n";
+  dummy_time = mytimer();
   MGP1b()
-  std::cout << "SYMGS-6\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP1c()))
-  std::cout << "SYMGS-7\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP1c());
   MGP2a()
-  std::cout << "SYMGS-8\n";
+  dummy_time = mytimer();
   MGP2b()
-  std::cout << "SYMGS-9\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP2c()))
-  std::cout << "SYMGS-10\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP2c());
   MGP3a()
-  std::cout << "SYMGS-11\n";
+  dummy_time = mytimer();
   MGP3b()
-  std::cout << "SYMGS-12\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP4a()))
-  std::cout << "SYMGS-13\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP4a());
+  dummy_time = mytimer();
   MGP4b()
-  std::cout << "SYMGS-14\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP5a()))
-  std::cout << "SYMGS-15\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP5a());
+  dummy_time = mytimer();
   MGP5b()
-  std::cout << "SYMGS-16\n";
-  ERRW(sync_wait(schedule(scheduler) | MGP6a()))
-  std::cout << "SYMGS-17\n";
+  t_SYMGS += mytimer() - dummy_time;
+  sync_wait(schedule(scheduler) | MGP6a());
+  dummy_time = mytimer();
   MGP6b()
-  std::cout << "SYMGS-18\n";
+  t_SYMGS += mytimer() - dummy_time;
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
@@ -170,7 +163,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
-    ERRW(sync_wait(std::move(rest_of_loop)))
+    sync_wait(std::move(rest_of_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
@@ -182,41 +175,37 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    std::cout << "SYMGS-1\n";
     MGP0a()
-    std::cout << "SYMGS-2\n";
+    dummy_time = mytimer();
     MGP0b()
-    std::cout << "SYMGS-3\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP0c()))
-    std::cout << "SYMGS-4\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP0c());
     MGP1a()
-    std::cout << "SYMGS-5\n";
+    dummy_time = mytimer();
     MGP1b()
-    std::cout << "SYMGS-6\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP1c()))
-    std::cout << "SYMGS-7\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP1c());
     MGP2a()
-    std::cout << "SYMGS-8\n";
+    dummy_time = mytimer();
     MGP2b()
-    std::cout << "SYMGS-9\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP2c()))
-    std::cout << "SYMGS-10\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP2c());
     MGP3a()
-    std::cout << "SYMGS-11\n";
+    dummy_time = mytimer();
     MGP3b()
-    std::cout << "SYMGS-12\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP4a()))
-    std::cout << "SYMGS-13\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP4a());
+    dummy_time = mytimer();
     MGP4b()
-    std::cout << "SYMGS-14\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP5a()))
-    std::cout << "SYMGS-15\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP5a());
+    dummy_time = mytimer();
     MGP5b()
-    std::cout << "SYMGS-16\n";
-    ERRW(sync_wait(schedule(scheduler) | MGP6a()))
-    std::cout << "SYMGS-17\n";
+    t_SYMGS += mytimer() - dummy_time;
+    sync_wait(schedule(scheduler) | MGP6a());
+    dummy_time = mytimer();
     MGP6b()
-    std::cout << "SYMGS-18\n";
+    t_SYMGS += mytimer() - dummy_time;
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
@@ -230,7 +219,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
-    ERRW(sync_wait(std::move(rest_of_loop)))
+    sync_wait(std::move(rest_of_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
