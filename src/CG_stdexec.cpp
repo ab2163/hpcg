@@ -124,37 +124,41 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
+  std::cout << "SYMGS-1\n";
   MGP0a()
-  dummy_time = mytimer();
+  std::cout << "SYMGS-2\n";
   MGP0b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-3\n";
   sync_wait(schedule(scheduler) | MGP0c());
+  std::cout << "SYMGS-4\n";
   MGP1a()
-  dummy_time = mytimer();
+  std::cout << "SYMGS-5\n";
   MGP1b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-6\n";
   sync_wait(schedule(scheduler) | MGP1c());
+  std::cout << "SYMGS-7\n";
   MGP2a()
-  dummy_time = mytimer();
+  std::cout << "SYMGS-8\n";
   MGP2b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-9\n";
   sync_wait(schedule(scheduler) | MGP2c());
+  std::cout << "SYMGS-10\n";
   MGP3a()
-  dummy_time = mytimer();
+  std::cout << "SYMGS-11\n";
   MGP3b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-12\n";
   sync_wait(schedule(scheduler) | MGP4a());
-  dummy_time = mytimer();
+  std::cout << "SYMGS-13\n";
   MGP4b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-14\n";
   sync_wait(schedule(scheduler) | MGP5a());
-  dummy_time = mytimer();
+  std::cout << "SYMGS-15\n";
   MGP5b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-16\n";
   sync_wait(schedule(scheduler) | MGP6a());
-  dummy_time = mytimer();
+  std::cout << "SYMGS-17\n";
   MGP6b()
-  t_SYMGS += mytimer() - dummy_time;
+  std::cout << "SYMGS-18\n";
 
   sender auto rest_of_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
@@ -178,37 +182,41 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
+    std::cout << "SYMGS-1\n";
     MGP0a()
-    dummy_time = mytimer();
+    std::cout << "SYMGS-2\n";
     MGP0b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-3\n";
     sync_wait(schedule(scheduler) | MGP0c());
+    std::cout << "SYMGS-4\n";
     MGP1a()
-    dummy_time = mytimer();
+    std::cout << "SYMGS-5\n";
     MGP1b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-6\n";
     sync_wait(schedule(scheduler) | MGP1c());
+    std::cout << "SYMGS-7\n";
     MGP2a()
-    dummy_time = mytimer();
+    std::cout << "SYMGS-8\n";
     MGP2b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-9\n";
     sync_wait(schedule(scheduler) | MGP2c());
+    std::cout << "SYMGS-10\n";
     MGP3a()
-    dummy_time = mytimer();
+    std::cout << "SYMGS-11\n";
     MGP3b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-12\n";
     sync_wait(schedule(scheduler) | MGP4a());
-    dummy_time = mytimer();
+    std::cout << "SYMGS-13\n";
     MGP4b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-14\n";
     sync_wait(schedule(scheduler) | MGP5a());
-    dummy_time = mytimer();
+    std::cout << "SYMGS-15\n";
     MGP5b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-16\n";
     sync_wait(schedule(scheduler) | MGP6a());
-    dummy_time = mytimer();
+    std::cout << "SYMGS-17\n";
     MGP6b()
-    t_SYMGS += mytimer() - dummy_time;
+    std::cout << "SYMGS-18\n";
 
     sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
