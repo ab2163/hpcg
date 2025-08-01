@@ -97,9 +97,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
-
-  //dedicated CPU scheduler for CPU-specific sender adaptors
-  auto scheduler_cpu = pool.get_scheduler();
   
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -124,22 +121,22 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   //ITERATION FOR FIRST LOOP
-  sync_wait(schedule(scheduler_cpu) | MGP0a());
+  MGP0a()
   dummy_time = mytimer();
   MGP0b()
   t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP0c());
-  sync_wait(schedule(scheduler_cpu) | MGP1a());
+  MGP1a()
   dummy_time = mytimer();
   MGP1b()
   t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP1c());
-  sync_wait(schedule(scheduler_cpu) | MGP2a());
+  MGP2a()
   dummy_time = mytimer();
   MGP2b()
   t_SYMGS += mytimer() - dummy_time;
   sync_wait(schedule(scheduler) | MGP2c());
-  sync_wait(schedule(scheduler_cpu) | MGP3a());
+  MGP3a()
   dummy_time = mytimer();
   MGP3b()
   t_SYMGS += mytimer() - dummy_time;
@@ -178,22 +175,22 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    sync_wait(schedule(scheduler_cpu) | MGP0a());
+    std::cout<<k<<"\n";
     dummy_time = mytimer();
     MGP0b()
     t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP0c());
-    sync_wait(schedule(scheduler_cpu) | MGP1a());
+    MGP1a()
     dummy_time = mytimer();
     MGP1b()
     t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP1c());
-    sync_wait(schedule(scheduler_cpu) | MGP2a());
+    MGP2a()
     dummy_time = mytimer();
     MGP2b()
     t_SYMGS += mytimer() - dummy_time;
     sync_wait(schedule(scheduler) | MGP2c());
-    sync_wait(schedule(scheduler_cpu) | MGP3a());
+    MGP3a()
     dummy_time = mytimer();
     MGP3b()
     t_SYMGS += mytimer() - dummy_time;

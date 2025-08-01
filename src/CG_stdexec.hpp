@@ -114,7 +114,7 @@ using exec::repeat_n;
   }
      
 #define MGP0a() \
-  then([&](){ ZeroVector(*z_objs[0]); })
+  ZeroVector(*z_objs[0]);
 #define MGP0b() \
   SYMGS(A_vals[0], z_vals[0], r_vals[0], A_nnzs[0], A_inds[0], A_nrows[0], A_diags[0], A_colors[0])
 #define MGP0c() \
@@ -122,7 +122,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[0], 0)
 
 #define MGP1a() \
-  then([&](){ ZeroVector(*z_objs[1]); })
+  ZeroVector(*z_objs[1]);
 #define MGP1b() \
   SYMGS(A_vals[1], z_vals[1], r_vals[1], A_nnzs[1], A_inds[1], A_nrows[1], A_diags[1], A_colors[1])
 #define MGP1c() \
@@ -130,7 +130,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[1], 1)
 
 #define MGP2a() \
-  then([&](){ ZeroVector(*z_objs[2]); })
+  ZeroVector(*z_objs[2]);
 #define MGP2b() \
   SYMGS(A_vals[2], z_vals[2], r_vals[2], A_nnzs[2], A_inds[2], A_nrows[2], A_diags[2], A_colors[2])
 #define MGP2c() \  
@@ -138,7 +138,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[2], 2)
 
 #define MGP3a() \
-  then([&](){ ZeroVector(*z_objs[3]); })
+  ZeroVector(*z_objs[3]);
 #define MGP3b() \
   SYMGS(A_vals[3], z_vals[3], r_vals[3], A_nnzs[3], A_inds[3], A_nrows[3], A_diags[3], A_colors[3])
 
