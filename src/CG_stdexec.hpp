@@ -9,6 +9,7 @@
 #include <stdexec/execution.hpp>
 #include <exec/repeat_n.hpp>
 #include <omp.h>
+#include <cmath>
 
 #ifdef USE_GPU
 #include <nvexec/stream_context.cuh>
@@ -46,17 +47,14 @@ using exec::repeat_n;
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ prod_vals[i] = (VEC1VALS)[i]*(VEC2VALS)[i]; }) \
-  | bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \
+  bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \
     local_int_t minInd = i*(nrow/NUM_BINS); \
-    local_int_t maxInd; \
-    double val_cpy = 0.0; \
-    if((i + 1) == NUM_BINS) maxInd = nrow; \
-    else maxInd = (i + 1)*(nrow/NUM_BINS); \
-    for(local_int_t j = minInd; j < maxInd; j++){ \
-      val_cpy += prod_vals[j]; \
+    local_int_t maxInd = ((i + 1) == NUM_BINS) ? nrow : (i + 1)*(nrow/NUM_BINS); \
+    double bin_sum = 0.0; \
+    for(local_int_t j = minInd; j < maxInd; ++j) { \
+      bin_sum = std::fma((VEC1VALS)[j], (VEC2VALS)[j], bin_sum); \
     } \
-    bin_vals[i] = val_cpy; \
+    bin_vals[i] = bin_sum; \
   }) \
   | then([=](){ \
     double result_cpy = 0.0; \
