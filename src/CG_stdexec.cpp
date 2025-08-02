@@ -127,38 +127,30 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
   
   int k = 1;
+  sender auto mg_point_0c = schedule(scheduler) | MGP0c();
+  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
+  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
+  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
+  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
+  sender auto mg_point_6a = schedule(scheduler) | MGP6a();
   //ITERATION FOR FIRST LOOP
   MGP0a()
-  dummy_time = mytimer();
   MGP0b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP0c());
+  sync_wait(mg_point_0c);
   MGP1a()
-  dummy_time = mytimer();
   MGP1b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP1c());
+  sync_wait(mg_point_1c);
   MGP2a()
-  dummy_time = mytimer();
   MGP2b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP2c());
+  sync_wait(mg_point_2c);
   MGP3a()
-  dummy_time = mytimer();
   MGP3b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP4a());
-  dummy_time = mytimer();
+  sync_wait(mg_point_4a);
   MGP4b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP5a());
-  dummy_time = mytimer();
+  sync_wait(mg_point_5a);
   MGP5b()
-  t_SYMGS += mytimer() - dummy_time;
-  sync_wait(schedule(scheduler) | MGP6a());
-  dummy_time = mytimer();
+  sync_wait(mg_point_6a);
   MGP6b()
-  t_SYMGS += mytimer() - dummy_time;
 
   sender auto rest_of_first_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
@@ -196,36 +188,22 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     MGP0a()
-    dummy_time = mytimer();
     MGP0b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP0c());
+    sync_wait(mg_point_0c);
     MGP1a()
-    dummy_time = mytimer();
     MGP1b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP1c());
+    sync_wait(mg_point_1c);
     MGP2a()
-    dummy_time = mytimer();
     MGP2b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP2c());
+    sync_wait(mg_point_2c);
     MGP3a()
-    dummy_time = mytimer();
     MGP3b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP4a());
-    dummy_time = mytimer();
+    sync_wait(mg_point_4a);
     MGP4b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP5a());
-    dummy_time = mytimer();
+    sync_wait(mg_point_5a);
     MGP5b()
-    t_SYMGS += mytimer() - dummy_time;
-    sync_wait(schedule(scheduler) | MGP6a());
-    dummy_time = mytimer();
+    sync_wait(mg_point_6a);
     MGP6b()
-    t_SYMGS += mytimer() - dummy_time;
 
     sync_wait(rest_of_loop);
 
