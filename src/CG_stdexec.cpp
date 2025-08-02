@@ -22,7 +22,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double ***A_vals = new double**[NUM_MG_LEVELS];
   local_int_t ***A_inds = new local_int_t**[NUM_MG_LEVELS];
   double ***A_diags = new double**[NUM_MG_LEVELS];
-  local_int_t **A_nrows = new local_int_t*[NUM_MG_LEVELS];
+  local_int_t *A_nrows = new local_int_t[NUM_MG_LEVELS];
   char **A_nnzs = new char*[NUM_MG_LEVELS];
   unsigned char **A_colors = new unsigned char*[NUM_MG_LEVELS];
   //various values at different MG depths:
@@ -64,7 +64,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     A_vals[depth] = A_objs[depth]->matrixValues;
     A_inds[depth] = A_objs[depth]->mtxIndL;
     A_diags[depth] = A_objs[depth]->matrixDiagonal;
-    A_nrows[depth][0] = A_objs[depth]->localNumberOfRows;
+    A_nrows[depth] = A_objs[depth]->localNumberOfRows;
     A_nnzs[depth] = A_objs[depth]->nonzerosInRow;
     A_colors[depth]  = A_objs[depth]->colors;
     r_vals[depth] = r_objs[depth]->values;
@@ -78,11 +78,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     }
   }
   //used in some kernels:
-  local_int_t *nrow = new local_int_t;
-  *nrow = A_nrows[0][0];
+  local_int_t &nrow = A_nrows[0];
 
   //used by dot product kernel:
-  double *prod_vals = new double[*nrow];
+  double *prod_vals = new double[nrow];
   double *bin_vals = new double[NUM_BINS];
   double *dot_local_result = new double(0.0);
 
@@ -176,7 +175,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    std::cout<<k<<"\n";
+    MGP0a()
     dummy_time = mytimer();
     MGP0b()
     t_SYMGS += mytimer() - dummy_time;
@@ -264,6 +263,5 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   delete A_objs;
   delete r_objs;
   delete z_objs;
-  delete nrow;
   return 0;
 }

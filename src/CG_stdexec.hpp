@@ -46,16 +46,13 @@ using exec::repeat_n;
   })
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  bulk(stdexec::par_unseq, *nrow, [=](local_int_t i){ \
-    if(i >= *nrow) return; \
-    prod_vals[i] = (VEC1VALS)[i]*(VEC2VALS)[i]; }) \
+  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ prod_vals[i] = (VEC1VALS)[i]*(VEC2VALS)[i]; }) \
   | bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \
-    if(i >= NUM_BINS) return; \
-    local_int_t minInd = i*(*nrow/NUM_BINS); \
+    local_int_t minInd = i*(nrow/NUM_BINS); \
     local_int_t maxInd; \
     double val_cpy = 0.0; \
-    if((i + 1) == NUM_BINS) maxInd = *nrow; \
-    else maxInd = (i + 1)*(*nrow/NUM_BINS); \
+    if((i + 1) == NUM_BINS) maxInd = nrow; \
+    else maxInd = (i + 1)*(nrow/NUM_BINS); \
     for(local_int_t j = minInd; j < maxInd; j++){ \
       val_cpy += prod_vals[j]; \
     } \
@@ -69,14 +66,11 @@ using exec::repeat_n;
 #endif
 
 #define WAXPBY(ALPHA, XVALS, BETA, YVALS, WVALS) \
-  bulk(stdexec::par_unseq, *nrow, [=](local_int_t i){ \
-    if(i >= *nrow) return; \
-    (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
+  bulk(stdexec::par_unseq, nrow, [=](local_int_t i){ (WVALS)[i] = (ALPHA)*(XVALS)[i] + (BETA)*(YVALS)[i]; })
 
 //CURRENTLY IGNORING HALO EXCHANGE WITH SPMV
 #define SPMV(AMV, XV, YV, INDV, NNZ, NROW) \
-  bulk(stdexec::par_unseq, *(NROW), [=](local_int_t i){ \
-    if(i >= *(NROW)) return; \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
     double sum = 0.0; \
     for(int j = 0; j < (NNZ)[i]; j++){ \
       sum += (AMV)[i][j] * (XV)[(INDV)[i][j]]; \
@@ -96,8 +90,7 @@ using exec::repeat_n;
 
 //NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  bulk(stdexec::par_unseq, *(NROW), [=](local_int_t i){ \
-    if(i >= *(NROW)) return; \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
     if((COLORS)[i] == *color){ \
         const double currentDiagonal = (MATR_DIAG)[i][0]; \
         double sum = (RVALS)[i]; \
