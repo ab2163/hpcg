@@ -35,6 +35,7 @@ add_executable( xhpcg src/main.cpp src/CG.cpp src/CG_ref.cpp src/TestCG.cpp
     src/ComputeOptimalShapeXYZ.cpp src/MixedBaseCounter.cpp
     src/CheckAspectRatio.cpp src/OutputFile.cpp
     src/ComputeSYMGS_stdexec.cpp src/ComputeSYMGS_stdexec_advanced.cpp
+    src/ComputeSYMGS_stdexec_single_bulk.cpp src/ComputeSYMGS_stdexec_optimized_bulk.cpp
     src/BenchmarkSYMGS.cpp)
 
 if (HPCG_ENABLE_CONTIGUOUS_ARRAYS)

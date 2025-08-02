@@ -49,10 +49,11 @@ fi
 echo "Building..."
 make -j$(nproc)
 
-# Build test program
-echo "Building test program..."
+# Build test programs
+echo "Building test programs..."
 cd ..
 if [ -n "$STDEXEC_PATH" ] && [ "$USE_STDEXEC" != "OFF" ]; then
+    # Build main test program
     g++ -std=c++20 -O3 -march=native -mtune=native -funroll-loops \
         -I. -I"$STDEXEC_PATH/include" \
         -fopenmp -DSELECT_STDEXEC \
@@ -60,12 +61,30 @@ if [ -n "$STDEXEC_PATH" ] && [ "$USE_STDEXEC" != "OFF" ]; then
         build/CMakeFiles/xhpcg.dir/src/*.o \
         -o test_symgs_optimization \
         -lm -lpthread
+    
+    # Build single-bulk focused test
+    g++ -std=c++20 -O3 -march=native -mtune=native -funroll-loops \
+        -I. -I"$STDEXEC_PATH/include" \
+        -fopenmp -DSELECT_STDEXEC \
+        test_single_bulk_symgs.cpp \
+        build/CMakeFiles/xhpcg.dir/src/*.o \
+        -o test_single_bulk_symgs \
+        -lm -lpthread
 else
+    # Build main test program
     g++ -std=c++17 -O3 -march=native -mtune=native -funroll-loops \
         -I. -fopenmp -DPARALLEL_SYMGS \
         test_symgs_optimization.cpp \
         build/CMakeFiles/xhpcg.dir/src/*.o \
         -o test_symgs_optimization \
+        -lm -lpthread
+    
+    # Build single-bulk focused test (fallback to parallel version)
+    g++ -std=c++17 -O3 -march=native -mtune=native -funroll-loops \
+        -I. -fopenmp -DPARALLEL_SYMGS \
+        test_single_bulk_symgs.cpp \
+        build/CMakeFiles/xhpcg.dir/src/*.o \
+        -o test_single_bulk_symgs \
         -lm -lpthread
 fi
 
@@ -74,10 +93,12 @@ echo ""
 echo "Executables created:"
 echo "  - build/xhpcg              : Main HPCG benchmark"
 echo "  - test_symgs_optimization  : SYMGS optimization test program"
+echo "  - test_single_bulk_symgs   : Single-bulk SYMGS validation"
 echo ""
-echo "To run the test:"
-echo "  ./test_symgs_optimization [nx] [ny] [nz]"
-echo "  Example: ./test_symgs_optimization 64 64 64"
+echo "To run the tests:"
+echo "  ./test_symgs_optimization [nx] [ny] [nz]     # Comprehensive comparison"
+echo "  ./test_single_bulk_symgs [nx] [ny] [nz]      # Single-bulk validation"
+echo "  Example: ./test_single_bulk_symgs 64 64 64"
 echo ""
 echo "To run the full HPCG benchmark:"
 echo "  cd build && ./xhpcg"

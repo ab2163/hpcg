@@ -3,6 +3,8 @@
 #include "ComputeSYMGS_par.hpp"
 #include "ComputeSYMGS_stdexec.hpp"
 #include "ComputeSYMGS_stdexec_advanced.hpp"
+#include "ComputeSYMGS_stdexec_single_bulk.hpp"
+#include "ComputeSYMGS_stdexec_optimized_bulk.hpp"
 #include <iostream>
 #include <iomanip>
 #include <vector>
@@ -120,6 +122,35 @@ void SymGSBenchmark::run_all_benchmarks(const SparseMatrix& A, const Vector& r, 
     results.push_back(benchmark_implementation(
         "stdexec Wavefront", 
         ComputeSYMGS_stdexec_wavefront, 
+        A, r, x_copy
+    ));
+    
+    // Benchmark single-bulk implementations
+    std::memcpy(x_copy.values, x.values, x.localLength * sizeof(double));
+    results.push_back(benchmark_implementation(
+        "stdexec Single-Bulk", 
+        ComputeSYMGS_stdexec_single_bulk, 
+        A, r, x_copy
+    ));
+    
+    std::memcpy(x_copy.values, x.values, x.localLength * sizeof(double));
+    results.push_back(benchmark_implementation(
+        "stdexec Chunked", 
+        ComputeSYMGS_stdexec_chunked, 
+        A, r, x_copy
+    ));
+    
+    std::memcpy(x_copy.values, x.values, x.localLength * sizeof(double));
+    results.push_back(benchmark_implementation(
+        "stdexec Cache-Blocked", 
+        ComputeSYMGS_stdexec_cache_blocked, 
+        A, r, x_copy
+    ));
+    
+    std::memcpy(x_copy.values, x.values, x.localLength * sizeof(double));
+    results.push_back(benchmark_implementation(
+        "stdexec Adaptive", 
+        ComputeSYMGS_stdexec_adaptive, 
         A, r, x_copy
     ));
     
