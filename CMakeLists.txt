@@ -18,6 +18,7 @@ option(HPCG_ENABLE_DETAILED_DEBUG "Enable detailed debug build" OFF)
 option(HPCG_ENABLE_MPI "Enable MPI support" OFF)
 option(HPCG_ENABLE_LONG_LONG "Enable use of 'long long' type for global indices" ON)
 option(HPCG_ENABLE_OPENMP "Enable OpenMP support" OFF)
+option(HPCG_ENABLE_STDEXEC "Enable stdexec optimized kernels" OFF)
 
 add_executable( xhpcg src/main.cpp src/CG.cpp src/CG_ref.cpp src/TestCG.cpp
     src/ComputeResidual.cpp src/ExchangeHalo.cpp src/GenerateGeometry.cpp
@@ -32,7 +33,10 @@ add_executable( xhpcg src/main.cpp src/CG.cpp src/CG_ref.cpp src/TestCG.cpp
     src/ComputeMG_ref.cpp src/ComputeMG.cpp src/ComputeProlongation_ref.cpp
     src/ComputeRestriction_ref.cpp src/GenerateCoarseProblem.cpp
     src/ComputeOptimalShapeXYZ.cpp src/MixedBaseCounter.cpp
-    src/CheckAspectRatio.cpp src/OutputFile.cpp)
+    src/CheckAspectRatio.cpp src/OutputFile.cpp
+    src/ComputeSYMGS_stdexec.cpp src/ComputeSYMGS_stdexec_advanced.cpp
+    src/ComputeSYMGS_stdexec_single_bulk.cpp src/ComputeSYMGS_stdexec_optimized_bulk.cpp
+    src/BenchmarkSYMGS.cpp)
 
 if (HPCG_ENABLE_CONTIGUOUS_ARRAYS)
     target_compile_definitions(xhpcg PRIVATE HPCG_CONTIGUOUS_ARRAYS)
@@ -68,4 +72,16 @@ if (HPCG_ENABLE_OPENMP)
     target_link_libraries(xhpcg ${OpenMP_CXX_LIBRARIES})
 else ()
     target_compile_definitions(xhpcg PRIVATE HPCG_NO_OPENMP)
+endif ()
+
+if (HPCG_ENABLE_STDEXEC)
+    target_compile_definitions(xhpcg PRIVATE SELECT_STDEXEC)
+    # Add stdexec include directory and link libraries
+    # You may need to adjust the path based on your stdexec installation
+    find_package(stdexec REQUIRED)
+    target_link_libraries(xhpcg stdexec::stdexec)
+    
+    # Enable C++20 for stdexec
+    set_property(TARGET xhpcg PROPERTY CXX_STANDARD 20)
+    set_property(TARGET xhpcg PROPERTY CXX_STANDARD_REQUIRED ON)
 endif ()
