@@ -133,6 +133,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto mg_point_4a = schedule(scheduler) | MGP4a();
   sender auto mg_point_5a = schedule(scheduler) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
+  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
+  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
+  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
+  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
@@ -204,7 +208,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     MGP5b()
     sync_wait(mg_point_6a);
     MGP6b()
-
     sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG

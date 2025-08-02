@@ -101,20 +101,39 @@ using exec::repeat_n;
       } \
   }) \
 
-#define SYMGS(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+#define SYMGS(DEPTH) \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
     *color = 0; \
     for(int colorCnt = 0; colorCnt < NUM_COLORS; colorCnt++){ \
-      sync_wait(schedule(scheduler) \
-        | SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS)); \
+      if((DEPTH) == 0){ \
+        sync_wait(symgs_sweep_0); \
+      }else if((DEPTH) == 1){ \
+        sync_wait(symgs_sweep_1); \
+      }else if((DEPTH) == 2){ \
+        sync_wait(symgs_sweep_2); \
+      }else if((DEPTH) == 3){ \
+        sync_wait(symgs_sweep_3); \
+      } \
       (*color)++; \
     } \
   }
-     
+
+#define SYMGS_SWEEP_0() \
+  SYMGS_SWEEP(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+
+#define SYMGS_SWEEP_1() \
+  SYMGS_SWEEP(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+
+#define SYMGS_SWEEP_2() \
+  SYMGS_SWEEP(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+
+#define SYMGS_SWEEP_3() \
+  SYMGS_SWEEP(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+
 #define MGP0a() \
   ZeroVector(*z_objs[0]);
 #define MGP0b() \
-  SYMGS(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+  SYMGS(0)
 #define MGP0c() \
   SPMV(A_vals_const[0], z_vals[0], Axfv_vals[0], A_inds_const[0], A_nnzs_const[0], A_nrows_const[0]) \
   | RESTRICTION(*A_objs[0], 0)
@@ -122,7 +141,7 @@ using exec::repeat_n;
 #define MGP1a() \
   ZeroVector(*z_objs[1]);
 #define MGP1b() \
-  SYMGS(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+  SYMGS(1)
 #define MGP1c() \
   SPMV(A_vals_const[1], z_vals[1], Axfv_vals[1], A_inds_const[1], A_nnzs_const[1], A_nrows_const[1]) \
   | RESTRICTION(*A_objs[1], 1)
@@ -130,7 +149,7 @@ using exec::repeat_n;
 #define MGP2a() \
   ZeroVector(*z_objs[2]);
 #define MGP2b() \
-  SYMGS(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+  SYMGS(2)
 #define MGP2c() \  
   SPMV(A_vals_const[2], z_vals[2], Axfv_vals[2], A_inds_const[2], A_nnzs_const[2], A_nrows_const[2]) \
   | RESTRICTION(*A_objs[2], 2)
@@ -138,22 +157,22 @@ using exec::repeat_n;
 #define MGP3a() \
   ZeroVector(*z_objs[3]);
 #define MGP3b() \
-  SYMGS(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+  SYMGS(3)
 
 #define MGP4a() \
   PROLONGATION(*A_objs[2], 2)
 #define MGP4b() \
-  SYMGS(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+  SYMGS(2)
 
 #define MGP5a() \
   PROLONGATION(*A_objs[1], 1)
 #define MGP5b() \
-  SYMGS(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+  SYMGS(1)
 
 #define MGP6a() \
   PROLONGATION(*A_objs[0], 0)
 #define MGP6b() \
-  SYMGS(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+  SYMGS(0)
 
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
