@@ -131,14 +131,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int k = 1;
   sender auto mg_point_0c = schedule(scheduler) | MGP0c();
-  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
-  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
-  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
-  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
+  sender auto mg_point_1c = schedule(scheduler_cpu) | MGP1c();
+  sender auto mg_point_2c = schedule(scheduler_cpu) | MGP2c();
+  sender auto mg_point_4a = schedule(scheduler_cpu) | MGP4a();
+  sender auto mg_point_5a = schedule(scheduler_cpu) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
   sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
-  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
-  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
+  sender auto symgs_sweep_1 = schedule(scheduler_cpu) | SYMGS_SWEEP_1();
+  sender auto symgs_sweep_2 = schedule(scheduler_cpu) | SYMGS_SWEEP_2();
   sender auto symgs_sweep_3 = schedule(scheduler_cpu) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
