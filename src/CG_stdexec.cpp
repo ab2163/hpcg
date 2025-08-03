@@ -105,6 +105,9 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   auto scheduler = pool.get_scheduler();
 #endif
   
+  //dedicated CPU scheduler for CPU-specific sender adaptors
+  auto scheduler_cpu = pool.get_scheduler();
+
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
 #ifdef HPCG_DEBUG
@@ -136,7 +139,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
   sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
   sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
-  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
+  sender auto symgs_sweep_3 = schedule(scheduler_cpu) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
