@@ -1,3 +1,6 @@
+//root@ubuntu:~/hpcg/src# /opt/nvidia/hpc_sdk/Linux_x86_64/25.7/compilers/bin/nvc++ 
+//-std=c++20 -stdpar=gpu -DUSE_GPU sndex3.cpp -o sndex3 -I/root/hpcg/stdexec/include
+
 #include <cmath>
 #include <algorithm>
 #include <execution>
@@ -9,11 +12,11 @@
 #include <cmath>
 
 #ifdef USE_GPU
-#include "../stdexec/include/nvexec/stream_context.cuh"
+#include <nvexec/stream_context.cuh>
 #endif
 
-#include "../stdexec/include/exec/static_thread_pool.hpp"
-#include "../stdexec/include/stdexec/execution.hpp"
+#include <exec/static_thread_pool.hpp>
+#include <stdexec/execution.hpp>
 
 using stdexec::sender;
 using stdexec::then;
@@ -22,6 +25,8 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
+using stdexec::split;
+using stdexec::when_all;
 
 #define NUM_TH 2
 
@@ -37,15 +42,24 @@ int main(void){
   auto scheduler = pool.get_scheduler();
 #endif
 
+  auto cpu_scheduler = pool.get_scheduler();
+
   int *cpu_ctr = new int;
   *cpu_ctr = 0;
 
   int *gpu_ctr = new int;
   *gpu_ctr = 0;
 
-  sync_wait(schedule(scheduler) | then([=](){ (*gpu_ctr)++; }));
+  //sync_wait(schedule(scheduler) | then([=](){ (*gpu_ctr)++; }));
+  //std::cout << *gpu_ctr << "\n";
+
+  //sender auto A = schedule(scheduler) | split();
+  sender auto B = schedule(cpu_scheduler) | then([=](){ (*gpu_ctr)++; });
+  sender auto C = schedule(cpu_scheduler) | then([=](){ (*cpu_ctr)++; });
+  sender auto D = when_all(B, C);
+  sync_wait(D);
   std::cout << *gpu_ctr << "\n";
-  //sender auto A = schedule(scheduer) | split();
+  std::cout << *cpu_ctr << "\n";
 
   delete cpu_ctr;
   delete gpu_ctr;
