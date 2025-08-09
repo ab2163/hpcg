@@ -50,15 +50,6 @@ int main(void){
   int *gpu_ctr = new int;
   *gpu_ctr = 0;
 
-  //sync_wait(schedule(scheduler) | then([=](){ (*gpu_ctr)++; }));
-  //std::cout << *gpu_ctr << "\n";
-
-  //sender auto A = schedule(scheduler) | split();
-  //sender auto B = schedule(cpu_scheduler) | then([=](){ (*cpu_ctr)++; });
-  //sender auto C = ((schedule(cpu_scheduler) | then([](){ return; }) | continues_on(scheduler)) | then([=](){ (*gpu_ctr)++; })) | continues_on(cpu_scheduler);
-  //sender auto D = when_all(B, C);
-  //sync_wait(C);
-
   //WORKING EXAMPLE: FORK-JOIN SENDERS ON CPU
   //NOTE - COMPILE WITHOUT GPU FLAGS
   /*
@@ -68,12 +59,45 @@ int main(void){
   sender auto D = when_all(B, C);
   sync_wait(D);
   */
-
+  
+  //WORKING EXAMPLE: FORK-JOIN SENDERS ON GPU
+  //NOTE - COMPILE WITH GPU FLAGS 
+  /*
   sender auto A = schedule(scheduler) | split();
   sender auto B = A | then([=](){ (*cpu_ctr)++; });
   sender auto C = A | then([=](){ (*gpu_ctr)++; });
   sender auto D = when_all(B, C);
   sync_wait(D); 
+  */
+
+  //REPRODUCTION OF GPU-CPU-GPU ERROR
+  //NOTE - COMPILE WITH GPU FLAGS 
+  /*
+  sender auto A = schedule(scheduler) 
+    | then([=](){ (*gpu_ctr)++; })
+    | continues_on(cpu_scheduler)
+    | then([=](){ (*cpu_ctr)++; })
+    | continues_on(scheduler)
+    | then([=](){ (*gpu_ctr)++; });
+  sync_wait(A);
+  */
+
+  //CPU-GPU-CPU EXAMPLE - ERROR
+  //NOTE - COMPILE WITH GPU FLAGS 
+  /*
+  sender auto A = schedule(cpu_scheduler) 
+    | then([=](){ (*cpu_ctr)++; })
+    | continues_on(scheduler)
+    | then([=](){ (*gpu_ctr)++; })
+    | continues_on(cpu_scheduler)
+    | then([=](){ (*cpu_ctr)++; });
+  sync_wait(A);
+  */
+
+  sender auto B = schedule(cpu_scheduler) | then([=](){ (*cpu_ctr)++; });
+  sender auto C = schedule(scheduler) | then([=](){ (*gpu_ctr)++; }) | continues_on(cpu_scheduler);
+  sender auto D = when_all(B, C);
+  sync_wait(D);
 
   std::cout << *gpu_ctr << "\n";
   std::cout << *cpu_ctr << "\n";
