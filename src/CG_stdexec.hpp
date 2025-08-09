@@ -41,10 +41,7 @@ using exec::repeat_n;
 #define NUM_BINS 1000
 
 #ifndef HPCG_NO_MPI
-#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([&](){ \
-    MPI_Allreduce(&local_result, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); \
-  })
+#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT)
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \

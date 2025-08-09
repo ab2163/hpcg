@@ -156,7 +156,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sync_wait(mg_point_6a);
   MGP6b()
 
-  sender auto rest_of_first_loop = schedule(scheduler)
+  sender auto first_loop_work = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
@@ -166,7 +166,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
-    sync_wait(std::move(rest_of_first_loop));
+    sync_wait(std::move(first_loop_work));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
@@ -174,7 +174,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = schedule(scheduler)
+  sender auto loop_work = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
@@ -189,7 +189,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
+  for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     MGP0a()
     MGP0b()
@@ -208,7 +208,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     MGP5b()
     sync_wait(mg_point_6a);
     MGP6b()
-    sync_wait(rest_of_loop);
+    sync_wait(loop_work);
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
