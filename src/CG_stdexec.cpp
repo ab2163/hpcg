@@ -92,6 +92,13 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const char * const * A_nnzs_const = A_nnzs;
   const unsigned char * const * A_colors_const = A_colors;
 
+  //used for splitting of work between CPU and GPU
+  #define GPU_SPLIT 0.75
+  local_int_t *gpu_bnds = new local_int_t[NUM_MG_LEVELS];
+  for(int depth = 0; depth < NUM_MG_LEVELS; depth++){
+    gpu_bnds[depth] = GPU_SPLIT*A_nrows[depth];
+  }
+
   unsigned int num_threads = omp_get_max_threads();
   std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
@@ -104,6 +111,9 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
+
+  //cpu-based scheduler for cpu-gpu splitting
+  auto cpu_scheduler = pool.get_scheduler();
   
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -133,10 +143,25 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto mg_point_4a = schedule(scheduler) | MGP4a();
   sender auto mg_point_5a = schedule(scheduler) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
+#ifndef USE_GPU
   sender auto symgs_blk_0 = schedule(scheduler) | SYMGS_BULK_0();
   sender auto symgs_blk_1 = schedule(scheduler) | SYMGS_BULK_1();
   sender auto symgs_blk_2 = schedule(scheduler) | SYMGS_BULK_2();
   sender auto symgs_blk_3 = schedule(scheduler) | SYMGS_BULK_3();
+#else
+  sender auto symgs_blk_0 = when_all(
+    (schedule(scheduler) | SYMGS_GPU_0() | continues_on(cpu_scheduler)),
+    (schedule(cpu_scheduler) | SYMGS_CPU_0()));
+  sender auto symgs_blk_1 = when_all(
+    (schedule(scheduler) | SYMGS_GPU_1() | continues_on(cpu_scheduler)),
+    (schedule(cpu_scheduler) | SYMGS_CPU_1()));
+  sender auto symgs_blk_2 = when_all(
+    (schedule(scheduler) | SYMGS_GPU_2() | continues_on(cpu_scheduler)),
+    (schedule(cpu_scheduler) | SYMGS_CPU_2()));
+  sender auto symgs_blk_3 = when_all(
+    (schedule(scheduler) | SYMGS_GPU_3() | continues_on(cpu_scheduler)),
+    (schedule(cpu_scheduler) | SYMGS_CPU_3()));
+#endif
 
   //ITERATION FOR FIRST LOOP
   MGP0a()

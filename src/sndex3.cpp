@@ -94,10 +94,23 @@ int main(void){
   sync_wait(A);
   */
 
+  //WORKING EXAMPLE: JOINING CPU AND GPU SENDER ON CPU ENDPOINT
+  //NOTE - COMPILE WITH GPU FLAGS 
+  /*
   sender auto B = schedule(cpu_scheduler) | then([=](){ (*cpu_ctr)++; });
   sender auto C = schedule(scheduler) | then([=](){ (*gpu_ctr)++; }) | continues_on(cpu_scheduler);
   sender auto D = when_all(B, C);
   sync_wait(D);
+  */
+
+  //ERROR: JOINING CPU AND GPU SENDER ON GPU ENDPOINT
+  //NOTE - COMPILE WITH GPU FLAGS
+  /*
+  sender auto B = schedule(cpu_scheduler) | then([=](){ (*cpu_ctr)++; }) | continues_on(scheduler);
+  sender auto C = schedule(scheduler) | then([=](){ (*gpu_ctr)++; });
+  sender auto D = when_all(B, C);
+  sync_wait(D);
+  */
 
   std::cout << *gpu_ctr << "\n";
   std::cout << *cpu_ctr << "\n";

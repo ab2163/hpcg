@@ -33,7 +33,7 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
-using exec::repeat_n;
+using stdexec::when_all;
 
 #define NUM_MG_LEVELS 4
 #define NUM_COLORS 8
@@ -83,8 +83,9 @@ using exec::repeat_n;
     z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
   })
 
-#define SYMGS_BULK_CALL(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+#define SYMGS_BULK_CALL(AMV, XVALS, RVALS, NNZ, INDV, MIN_IND, MAX_IND, MATR_DIAG, COLORS) \
+  bulk(stdexec::par_unseq, (MAX_IND) - (MIN_IND), [=](local_int_t i){ \
+    i += (MIN_IND); \
     if((COLORS)[i] == *color){ \
         const double currentDiagonal = (MATR_DIAG)[i][0]; \
         double sum = (RVALS)[i]; \
@@ -115,21 +116,55 @@ using exec::repeat_n;
     } \
   }
 
+//definitions for CPU-only running:
 #define SYMGS_BULK_0() \
   SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
-    A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+    0, A_nrows_const[0], A_diags_const[0], A_colors_const[0])
 
 #define SYMGS_BULK_1() \
   SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
-    A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+    0, A_nrows_const[1], A_diags_const[1], A_colors_const[1])
 
 #define SYMGS_BULK_2() \
   SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
-    A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+    0, A_nrows_const[2], A_diags_const[2], A_colors_const[2])
 
 #define SYMGS_BULK_3() \
   SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
-    A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+    0, A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+
+//definitions for CPU/GPU splitting:
+#define SYMGS_GPU_0() \
+  SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
+    0, gpu_bnds[0], A_diags_const[0], A_colors_const[0])
+
+#define SYMGS_CPU_0() \
+  SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
+    gpu_bnds[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+
+#define SYMGS_GPU_1() \
+  SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
+    0, gpu_bnds[1], A_diags_const[1], A_colors_const[1])
+
+#define SYMGS_CPU_1() \
+  SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
+    gpu_bnds[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+  
+#define SYMGS_GPU_2() \
+  SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
+    0, gpu_bnds[2], A_diags_const[2], A_colors_const[2])
+
+#define SYMGS_CPU_2() \
+  SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
+    gpu_bnds[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+
+#define SYMGS_GPU_3() \
+  SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
+    0, gpu_bnds[3], A_diags_const[3], A_colors_const[3])
+
+#define SYMGS_CPU_3() \
+  SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
+    gpu_bnds[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
 
 #define MGP0a() \
   ZeroVector(*z_objs[0]);
