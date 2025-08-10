@@ -144,23 +144,130 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto mg_point_5a = schedule(scheduler) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
 #ifndef USE_GPU
-  sender auto symgs_blk_0 = schedule(scheduler) | SYMGS_BULK_0();
-  sender auto symgs_blk_1 = schedule(scheduler) | SYMGS_BULK_1();
-  sender auto symgs_blk_2 = schedule(scheduler) | SYMGS_BULK_2();
-  sender auto symgs_blk_3 = schedule(scheduler) | SYMGS_BULK_3();
+  sender auto symgs_blk_0 = schedule(scheduler)
+    | SYMGS_BULK_0(0) | SYMGS_BULK_0(1) | SYMGS_BULK_0(2) | SYMGS_BULK_0(3)
+    | SYMGS_BULK_0(4) | SYMGS_BULK_0(5) | SYMGS_BULK_0(6) | SYMGS_BULK_0(7);
+
+  sender auto symgs_blk_1 = schedule(scheduler)
+    | SYMGS_BULK_1(0) | SYMGS_BULK_1(1) | SYMGS_BULK_1(2) | SYMGS_BULK_1(3)
+    | SYMGS_BULK_1(4) | SYMGS_BULK_1(5) | SYMGS_BULK_1(6) | SYMGS_BULK_1(7);
+
+  sender auto symgs_blk_2 = schedule(scheduler)
+    | SYMGS_BULK_2(0) | SYMGS_BULK_2(1) | SYMGS_BULK_2(2) | SYMGS_BULK_2(3)
+    | SYMGS_BULK_2(4) | SYMGS_BULK_2(5) | SYMGS_BULK_2(6) | SYMGS_BULK_2(7);
+
+  sender auto symgs_blk_3 = schedule(scheduler)
+    | SYMGS_BULK_3(0) | SYMGS_BULK_3(1) | SYMGS_BULK_3(2) | SYMGS_BULK_3(3)
+    | SYMGS_BULK_3(4) | SYMGS_BULK_3(5) | SYMGS_BULK_3(6) | SYMGS_BULK_3(7);
+
 #else
-  sender auto symgs_blk_0 = when_all(
-    (schedule(scheduler) | SYMGS_GPU_0() | continues_on(cpu_scheduler)),
-    (schedule(cpu_scheduler) | SYMGS_CPU_0()));
-  sender auto symgs_blk_1 = when_all(
-    (schedule(scheduler) | SYMGS_GPU_1() | continues_on(cpu_scheduler)),
-    (schedule(cpu_scheduler) | SYMGS_CPU_1()));
-  sender auto symgs_blk_2 = when_all(
-    (schedule(scheduler) | SYMGS_GPU_2() | continues_on(cpu_scheduler)),
-    (schedule(cpu_scheduler) | SYMGS_CPU_2()));
-  sender auto symgs_blk_3 = when_all(
-    (schedule(scheduler) | SYMGS_GPU_3() | continues_on(cpu_scheduler)),
-    (schedule(cpu_scheduler) | SYMGS_CPU_3()));
+sender auto symgs_blk_0 = 
+    when_all(
+      when_all(
+        when_all(
+          when_all(
+            when_all(
+              when_all(
+                when_all(
+                  when_all(
+                    schedule(scheduler) | SYMGS_GPU_0(0) | continues_on(cpu_scheduler),
+                    schedule(cpu_scheduler) | SYMGS_CPU_0(0)
+                  ) | SYMGS_CPU_0(1),
+                  schedule(scheduler) | SYMGS_GPU_0(1) | continues_on(cpu_scheduler)
+                ) | SYMGS_CPU_0(2),
+                schedule(scheduler) | SYMGS_GPU_0(2) | continues_on(cpu_scheduler)
+              ) | SYMGS_CPU_0(3),
+              schedule(scheduler) | SYMGS_GPU_0(3) | continues_on(cpu_scheduler)
+            ) | SYMGS_CPU_0(4),
+            schedule(scheduler) | SYMGS_GPU_0(4) | continues_on(cpu_scheduler)
+          ) | SYMGS_CPU_0(5),
+          schedule(scheduler) | SYMGS_GPU_0(5) | continues_on(cpu_scheduler)
+        ) | SYMGS_CPU_0(6),
+        schedule(scheduler) | SYMGS_GPU_0(6) | continues_on(cpu_scheduler)
+      ) | SYMGS_CPU_0(7),
+      schedule(scheduler) | SYMGS_GPU_0(7) | continues_on(cpu_scheduler)
+    );
+
+  sender auto symgs_blk_1 = 
+    when_all(
+      when_all(
+        when_all(
+          when_all(
+            when_all(
+              when_all(
+                when_all(
+                  when_all(
+                    schedule(scheduler) | SYMGS_GPU_1(0) | continues_on(cpu_scheduler),
+                    schedule(cpu_scheduler) | SYMGS_CPU_1(0)
+                  ) | SYMGS_CPU_1(1),
+                  schedule(scheduler) | SYMGS_GPU_1(1) | continues_on(cpu_scheduler)
+                ) | SYMGS_CPU_1(2),
+                schedule(scheduler) | SYMGS_GPU_1(2) | continues_on(cpu_scheduler)
+              ) | SYMGS_CPU_1(3),
+              schedule(scheduler) | SYMGS_GPU_1(3) | continues_on(cpu_scheduler)
+            ) | SYMGS_CPU_1(4),
+            schedule(scheduler) | SYMGS_GPU_1(4) | continues_on(cpu_scheduler)
+          ) | SYMGS_CPU_1(5),
+          schedule(scheduler) | SYMGS_GPU_1(5) | continues_on(cpu_scheduler)
+        ) | SYMGS_CPU_1(6),
+        schedule(scheduler) | SYMGS_GPU_1(6) | continues_on(cpu_scheduler)
+      ) | SYMGS_CPU_1(7),
+      schedule(scheduler) | SYMGS_GPU_1(7) | continues_on(cpu_scheduler)
+    );
+
+  sender auto symgs_blk_2 = 
+    when_all(
+      when_all(
+        when_all(
+          when_all(
+            when_all(
+              when_all(
+                when_all(
+                  when_all(
+                    schedule(scheduler) | SYMGS_GPU_2(0) | continues_on(cpu_scheduler),
+                    schedule(cpu_scheduler) | SYMGS_CPU_2(0)
+                  ) | SYMGS_CPU_2(1),
+                  schedule(scheduler) | SYMGS_GPU_2(1) | continues_on(cpu_scheduler)
+                ) | SYMGS_CPU_2(2),
+                schedule(scheduler) | SYMGS_GPU_2(2) | continues_on(cpu_scheduler)
+              ) | SYMGS_CPU_2(3),
+              schedule(scheduler) | SYMGS_GPU_2(3) | continues_on(cpu_scheduler)
+            ) | SYMGS_CPU_2(4),
+            schedule(scheduler) | SYMGS_GPU_2(4) | continues_on(cpu_scheduler)
+          ) | SYMGS_CPU_2(5),
+          schedule(scheduler) | SYMGS_GPU_2(5) | continues_on(cpu_scheduler)
+        ) | SYMGS_CPU_2(6),
+        schedule(scheduler) | SYMGS_GPU_2(6) | continues_on(cpu_scheduler)
+      ) | SYMGS_CPU_2(7),
+      schedule(scheduler) | SYMGS_GPU_2(7) | continues_on(cpu_scheduler)
+    );
+
+  sender auto symgs_blk_3 = 
+    when_all(
+      when_all(
+        when_all(
+          when_all(
+            when_all(
+              when_all(
+                when_all(
+                  when_all(
+                    schedule(scheduler) | SYMGS_GPU_3(0) | continues_on(cpu_scheduler),
+                    schedule(cpu_scheduler) | SYMGS_CPU_3(0)
+                  ) | SYMGS_CPU_3(1),
+                  schedule(scheduler) | SYMGS_GPU_3(1) | continues_on(cpu_scheduler)
+                ) | SYMGS_CPU_3(2),
+                schedule(scheduler) | SYMGS_GPU_3(2) | continues_on(cpu_scheduler)
+              ) | SYMGS_CPU_3(3),
+              schedule(scheduler) | SYMGS_GPU_3(3) | continues_on(cpu_scheduler)
+            ) | SYMGS_CPU_3(4),
+            schedule(scheduler) | SYMGS_GPU_3(4) | continues_on(cpu_scheduler)
+          ) | SYMGS_CPU_3(5),
+          schedule(scheduler) | SYMGS_GPU_3(5) | continues_on(cpu_scheduler)
+        ) | SYMGS_CPU_3(6),
+        schedule(scheduler) | SYMGS_GPU_3(6) | continues_on(cpu_scheduler)
+      ) | SYMGS_CPU_3(7),
+      schedule(scheduler) | SYMGS_GPU_3(7) | continues_on(cpu_scheduler)
+    );
 #endif
 
   //ITERATION FOR FIRST LOOP
