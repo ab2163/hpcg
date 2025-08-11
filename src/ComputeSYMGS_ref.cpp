@@ -23,7 +23,7 @@
 #endif
 #include "ComputeSYMGS_ref.hpp"
 #include <cassert>
-
+#include "NVTX_timing.hpp"
 /*!
   Computes one step of symmetric Gauss-Seidel:
 
@@ -52,6 +52,7 @@
   @see ComputeSYMGS
 */
 int ComputeSYMGS_ref( const SparseMatrix & A, const Vector & r, Vector & x) {
+  NVTX3_FUNC_RANGE();
 
   assert(x.localLength==A.localNumberOfColumns); // Make sure x contain space for halo values
 

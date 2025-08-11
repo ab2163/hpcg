@@ -22,6 +22,7 @@
 #include <omp.h>
 #endif
 #include <cassert>
+#include "NVTX_timing.hpp"
 /*!
   Routine to compute the update of a vector with the sum of two
   scaled vectors where: w = alpha*x + beta*y
@@ -40,6 +41,7 @@
 */
 int ComputeWAXPBY_ref(const local_int_t n, const double alpha, const Vector & x,
     const double beta, const Vector & y, Vector & w) {
+  NVTX3_FUNC_RANGE();
 
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);

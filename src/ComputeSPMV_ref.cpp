@@ -28,7 +28,7 @@
 #include <omp.h>
 #endif
 #include <cassert>
-
+#include "NVTX_timing.hpp"
 /*!
   Routine to compute matrix vector product y = Ax where:
   Precondition: First call exchange_externals to get off-processor values of x
@@ -46,6 +46,7 @@
 */
 
 int ComputeSPMV_ref( const SparseMatrix & A, Vector & x, Vector & y) {
+  NVTX3_FUNC_RANGE();
 
   assert(x.localLength>=A.localNumberOfColumns); // Test vector lengths
   assert(y.localLength>=A.localNumberOfRows);

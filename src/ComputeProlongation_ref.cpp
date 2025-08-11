@@ -23,7 +23,7 @@
 #endif
 
 #include "ComputeProlongation_ref.hpp"
-
+#include "NVTX_timing.hpp"
 /*!
   Routine to compute the coarse residual vector.
 
@@ -36,7 +36,7 @@
   @return Returns zero on success and a non-zero value otherwise.
 */
 int ComputeProlongation_ref(const SparseMatrix & Af, Vector & xf) {
-
+  NVTX3_FUNC_RANGE();
   double * xfv = xf.values;
   double * xcv = Af.mgData->xc->values;
   local_int_t * f2c = Af.mgData->f2cOperator;
