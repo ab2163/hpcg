@@ -140,10 +140,14 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
       z_vals[*depth][i] = sum/currentDiagonal; 
     } 
   };
-  sender auto symgs_run_0 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[0], symgs);
-  sender auto symgs_run_1 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[1], symgs);
-  sender auto symgs_run_2 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[2], symgs);
-  sender auto symgs_run_3 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[3], symgs);
+  sender auto symgs_run_0 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[0], symgs)
+    | then([=](){ (*color)++; }) | repeat_n(8);
+  sender auto symgs_run_1 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[1], symgs)
+    | then([=](){ (*color)++; }) | repeat_n(8);
+  sender auto symgs_run_2 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[2], symgs)
+    | then([=](){ (*color)++; }) | repeat_n(8);
+  sender auto symgs_run_3 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[3], symgs)
+    | then([=](){ (*color)++; }) | repeat_n(8);
 
   int k = 1;
   sender auto mg_point_0c = schedule(scheduler) | MGP0c();

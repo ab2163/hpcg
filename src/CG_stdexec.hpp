@@ -90,19 +90,16 @@ using exec::repeat_n;
   *depth = (DEPTH); \
   *sel_shape = A_nrows_const[*depth]; \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
-    std::cout << "cnt = " << cnt << "\n"; \
-    for(*color = 0; *color < 8; (*color)++){ \
-      std::cout << "color = " << *color << "\n"; \
-      if(*depth == 0){ \
-        sync_wait(symgs_run_0); \
-      }else if(*depth == 1){ \
-        sync_wait(symgs_run_1); \
-      }else if(*depth == 2){ \
-        sync_wait(symgs_run_2); \
-      }else if(*depth == 3){ \
-        sync_wait(symgs_run_3); \
-      } \
-   } \
+    *color = 0; \
+    if(*depth == 0){ \
+      sync_wait(symgs_run_0); \
+    }else if(*depth == 1){ \
+      sync_wait(symgs_run_1); \
+    }else if(*depth == 2){ \
+      sync_wait(symgs_run_2); \
+    }else if(*depth == 3){ \
+      sync_wait(symgs_run_3); \
+    } \
   } \
 
 #define SYMGS_SWEEP_0() \
