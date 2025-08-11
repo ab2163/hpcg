@@ -128,8 +128,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   
   int *depth = new int;
   int *sel_shape = new local_int_t;
-  auto symgs = [=](local_int_t i){ 
-    if(A_colors_const[*depth][i] == *color){ 
+  auto symgs = [=](local_int_t i, int sel_color){ 
+    if(A_colors_const[*depth][i] == sel_color){ 
       const double currentDiagonal = A_diags_const[*depth][i][0]; 
       double sum = r_vals[*depth][i]; 
       for(int j = 0; j < A_nnzs_const[*depth][i]; j++){ 
@@ -140,14 +140,50 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
       z_vals[*depth][i] = sum/currentDiagonal; 
     } 
   };
-  sender auto symgs_run_0 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-    | then([=](){ (*color)++; }) | repeat_n(8);
-  sender auto symgs_run_1 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-    | then([=](){ (*color)++; }) | repeat_n(8);
-  sender auto symgs_run_2 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-    | then([=](){ (*color)++; }) | repeat_n(8);
-  sender auto symgs_run_3 = schedule(scheduler) | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-    | then([=](){ (*color)++; }) | repeat_n(8);
+  auto symgs_0 = [=](local_int_t i){ symgs(i, 0); };
+  auto symgs_1 = [=](local_int_t i){ symgs(i, 1); };
+  auto symgs_2 = [=](local_int_t i){ symgs(i, 2); };
+  auto symgs_3 = [=](local_int_t i){ symgs(i, 3); };
+  auto symgs_4 = [=](local_int_t i){ symgs(i, 4); };
+  auto symgs_5 = [=](local_int_t i){ symgs(i, 5); };
+  auto symgs_6 = [=](local_int_t i){ symgs(i, 6); };
+  auto symgs_7 = [=](local_int_t i){ symgs(i, 7); };
+  sender auto symgs_run_0 = schedule(scheduler) 
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_0)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_1)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_2)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_3)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_4)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_5)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_6)
+  | bulk(stdexec::par_unseq, A_nrows[0], symgs_7);
+  sender auto symgs_run_1 = schedule(scheduler)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_0)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_1)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_2)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_3)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_4)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_5)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_6)
+  | bulk(stdexec::par_unseq, A_nrows[1], symgs_7);
+  sender auto symgs_run_2 = schedule(scheduler)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_0)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_1)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_2)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_3)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_4)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_5)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_6)
+  | bulk(stdexec::par_unseq, A_nrows[2], symgs_7);
+  sender auto symgs_run_3 = schedule(scheduler)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_0)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_1)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_2)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_3)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_4)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_5)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_6)
+  | bulk(stdexec::par_unseq, A_nrows[3], symgs_7);
 
   int k = 1;
   sender auto mg_point_0c = schedule(scheduler) | MGP0c();
