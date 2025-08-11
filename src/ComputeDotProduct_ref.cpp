@@ -27,7 +27,7 @@
 #endif
 #include <cassert>
 #include "ComputeDotProduct_ref.hpp"
-#include "NVTX_timing.hpp"
+
 /*!
   Routine to compute the dot product of two vectors where:
 
@@ -45,7 +45,6 @@
 */
 int ComputeDotProduct_ref(const local_int_t n, const Vector & x, const Vector & y,
     double & result, double & time_allreduce) {
-  NVTX3_FUNC_RANGE();
   assert(x.localLength>=n); // Test vector lengths
   assert(y.localLength>=n);
 

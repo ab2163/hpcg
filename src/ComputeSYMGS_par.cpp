@@ -5,9 +5,8 @@
 #include <cassert>
 #include "ComputeSYMGS_par.hpp"
 #define NUM_COLORS 8
-#include "NVTX_timing.hpp"
+
 int ComputeSYMGS_par(const SparseMatrix &A, const Vector &r, Vector &x){
-  NVTX3_FUNC_RANGE();
   assert(x.localLength == A.localNumberOfColumns);
 #ifndef HPCG_NO_MPI
   ExchangeHalo(A, x);

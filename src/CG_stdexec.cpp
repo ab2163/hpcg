@@ -92,13 +92,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const char * const * A_nnzs_const = A_nnzs;
   const unsigned char * const * A_colors_const = A_colors;
 
-  //used for splitting of work between CPU and GPU
-  #define GPU_SPLIT 0.75
-  local_int_t *gpu_bnds = new local_int_t[NUM_MG_LEVELS];
-  for(int depth = 0; depth < NUM_MG_LEVELS; depth++){
-    gpu_bnds[depth] = GPU_SPLIT*A_nrows[depth];
-  }
-
   unsigned int num_threads = omp_get_max_threads();
   std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
@@ -111,9 +104,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
-
-  //cpu-based scheduler for cpu-gpu splitting
-  auto cpu_scheduler = pool.get_scheduler();
   
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -143,133 +133,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto mg_point_4a = schedule(scheduler) | MGP4a();
   sender auto mg_point_5a = schedule(scheduler) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
-#ifndef USE_GPU
-  sender auto symgs_blk_0 = schedule(scheduler)
-    | SYMGS_BULK_0(0) | SYMGS_BULK_0(1) | SYMGS_BULK_0(2) | SYMGS_BULK_0(3)
-    | SYMGS_BULK_0(4) | SYMGS_BULK_0(5) | SYMGS_BULK_0(6) | SYMGS_BULK_0(7);
-
-  sender auto symgs_blk_1 = schedule(scheduler)
-    | SYMGS_BULK_1(0) | SYMGS_BULK_1(1) | SYMGS_BULK_1(2) | SYMGS_BULK_1(3)
-    | SYMGS_BULK_1(4) | SYMGS_BULK_1(5) | SYMGS_BULK_1(6) | SYMGS_BULK_1(7);
-
-  sender auto symgs_blk_2 = schedule(scheduler)
-    | SYMGS_BULK_2(0) | SYMGS_BULK_2(1) | SYMGS_BULK_2(2) | SYMGS_BULK_2(3)
-    | SYMGS_BULK_2(4) | SYMGS_BULK_2(5) | SYMGS_BULK_2(6) | SYMGS_BULK_2(7);
-
-  sender auto symgs_blk_3 = schedule(scheduler)
-    | SYMGS_BULK_3(0) | SYMGS_BULK_3(1) | SYMGS_BULK_3(2) | SYMGS_BULK_3(3)
-    | SYMGS_BULK_3(4) | SYMGS_BULK_3(5) | SYMGS_BULK_3(6) | SYMGS_BULK_3(7);
-
-#else
-sender auto symgs_blk_0 = 
-    when_all(
-      when_all(
-        when_all(
-          when_all(
-            when_all(
-              when_all(
-                when_all(
-                  when_all(
-                    schedule(scheduler) | SYMGS_GPU_0(0) | continues_on(cpu_scheduler),
-                    schedule(cpu_scheduler) | SYMGS_CPU_0(0)
-                  ) | SYMGS_CPU_0(1),
-                  schedule(scheduler) | SYMGS_GPU_0(1) | continues_on(cpu_scheduler)
-                ) | SYMGS_CPU_0(2),
-                schedule(scheduler) | SYMGS_GPU_0(2) | continues_on(cpu_scheduler)
-              ) | SYMGS_CPU_0(3),
-              schedule(scheduler) | SYMGS_GPU_0(3) | continues_on(cpu_scheduler)
-            ) | SYMGS_CPU_0(4),
-            schedule(scheduler) | SYMGS_GPU_0(4) | continues_on(cpu_scheduler)
-          ) | SYMGS_CPU_0(5),
-          schedule(scheduler) | SYMGS_GPU_0(5) | continues_on(cpu_scheduler)
-        ) | SYMGS_CPU_0(6),
-        schedule(scheduler) | SYMGS_GPU_0(6) | continues_on(cpu_scheduler)
-      ) | SYMGS_CPU_0(7),
-      schedule(scheduler) | SYMGS_GPU_0(7) | continues_on(cpu_scheduler)
-    );
-
-  sender auto symgs_blk_1 = 
-    when_all(
-      when_all(
-        when_all(
-          when_all(
-            when_all(
-              when_all(
-                when_all(
-                  when_all(
-                    schedule(scheduler) | SYMGS_GPU_1(0) | continues_on(cpu_scheduler),
-                    schedule(cpu_scheduler) | SYMGS_CPU_1(0)
-                  ) | SYMGS_CPU_1(1),
-                  schedule(scheduler) | SYMGS_GPU_1(1) | continues_on(cpu_scheduler)
-                ) | SYMGS_CPU_1(2),
-                schedule(scheduler) | SYMGS_GPU_1(2) | continues_on(cpu_scheduler)
-              ) | SYMGS_CPU_1(3),
-              schedule(scheduler) | SYMGS_GPU_1(3) | continues_on(cpu_scheduler)
-            ) | SYMGS_CPU_1(4),
-            schedule(scheduler) | SYMGS_GPU_1(4) | continues_on(cpu_scheduler)
-          ) | SYMGS_CPU_1(5),
-          schedule(scheduler) | SYMGS_GPU_1(5) | continues_on(cpu_scheduler)
-        ) | SYMGS_CPU_1(6),
-        schedule(scheduler) | SYMGS_GPU_1(6) | continues_on(cpu_scheduler)
-      ) | SYMGS_CPU_1(7),
-      schedule(scheduler) | SYMGS_GPU_1(7) | continues_on(cpu_scheduler)
-    );
-
-  sender auto symgs_blk_2 = 
-    when_all(
-      when_all(
-        when_all(
-          when_all(
-            when_all(
-              when_all(
-                when_all(
-                  when_all(
-                    schedule(scheduler) | SYMGS_GPU_2(0) | continues_on(cpu_scheduler),
-                    schedule(cpu_scheduler) | SYMGS_CPU_2(0)
-                  ) | SYMGS_CPU_2(1),
-                  schedule(scheduler) | SYMGS_GPU_2(1) | continues_on(cpu_scheduler)
-                ) | SYMGS_CPU_2(2),
-                schedule(scheduler) | SYMGS_GPU_2(2) | continues_on(cpu_scheduler)
-              ) | SYMGS_CPU_2(3),
-              schedule(scheduler) | SYMGS_GPU_2(3) | continues_on(cpu_scheduler)
-            ) | SYMGS_CPU_2(4),
-            schedule(scheduler) | SYMGS_GPU_2(4) | continues_on(cpu_scheduler)
-          ) | SYMGS_CPU_2(5),
-          schedule(scheduler) | SYMGS_GPU_2(5) | continues_on(cpu_scheduler)
-        ) | SYMGS_CPU_2(6),
-        schedule(scheduler) | SYMGS_GPU_2(6) | continues_on(cpu_scheduler)
-      ) | SYMGS_CPU_2(7),
-      schedule(scheduler) | SYMGS_GPU_2(7) | continues_on(cpu_scheduler)
-    );
-
-  sender auto symgs_blk_3 = 
-    when_all(
-      when_all(
-        when_all(
-          when_all(
-            when_all(
-              when_all(
-                when_all(
-                  when_all(
-                    schedule(scheduler) | SYMGS_GPU_3(0) | continues_on(cpu_scheduler),
-                    schedule(cpu_scheduler) | SYMGS_CPU_3(0)
-                  ) | SYMGS_CPU_3(1),
-                  schedule(scheduler) | SYMGS_GPU_3(1) | continues_on(cpu_scheduler)
-                ) | SYMGS_CPU_3(2),
-                schedule(scheduler) | SYMGS_GPU_3(2) | continues_on(cpu_scheduler)
-              ) | SYMGS_CPU_3(3),
-              schedule(scheduler) | SYMGS_GPU_3(3) | continues_on(cpu_scheduler)
-            ) | SYMGS_CPU_3(4),
-            schedule(scheduler) | SYMGS_GPU_3(4) | continues_on(cpu_scheduler)
-          ) | SYMGS_CPU_3(5),
-          schedule(scheduler) | SYMGS_GPU_3(5) | continues_on(cpu_scheduler)
-        ) | SYMGS_CPU_3(6),
-        schedule(scheduler) | SYMGS_GPU_3(6) | continues_on(cpu_scheduler)
-      ) | SYMGS_CPU_3(7),
-      schedule(scheduler) | SYMGS_GPU_3(7) | continues_on(cpu_scheduler)
-    );
-#endif
-
+  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
+  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
+  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
+  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
@@ -289,7 +156,7 @@ sender auto symgs_blk_0 =
   sync_wait(mg_point_6a);
   MGP6b()
 
-  sender auto first_loop_work = schedule(scheduler)
+  sender auto rest_of_first_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
@@ -299,7 +166,7 @@ sender auto symgs_blk_0 =
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
-    sync_wait(std::move(first_loop_work));
+    sync_wait(std::move(rest_of_first_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
@@ -307,7 +174,7 @@ sender auto symgs_blk_0 =
 #endif
     niters = 1;
 
-  sender auto loop_work = schedule(scheduler)
+  sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
@@ -322,7 +189,7 @@ sender auto symgs_blk_0 =
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
+  for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     MGP0a()
     MGP0b()
@@ -341,7 +208,7 @@ sender auto symgs_blk_0 =
     MGP5b()
     sync_wait(mg_point_6a);
     MGP6b()
-    sync_wait(loop_work);
+    sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
