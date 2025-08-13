@@ -33,7 +33,7 @@ using stdexec::sync_wait;
 using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
-using exec::repeat_n;
+using stdexec::when_all;
 
 #define NUM_MG_LEVELS 4
 #define NUM_COLORS 8
@@ -41,10 +41,7 @@ using exec::repeat_n;
 #define NUM_BINS 1000
 
 #ifndef HPCG_NO_MPI
-#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
-  then([&](){ \
-    MPI_Allreduce(&local_result, &(RESULT), 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); \
-  })
+#define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT)
 #else
 #define COMPUTE_DOT_PRODUCT(VEC1VALS, VEC2VALS, RESULT) \
   bulk(stdexec::par_unseq, NUM_BINS, [=](local_int_t i){ \
@@ -86,10 +83,10 @@ using exec::repeat_n;
     z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
   })
 
-//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
-#define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
-  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 0){ \
+#define SYMGS_BULK_CALL(AMV, XVALS, RVALS, NNZ, INDV, MIN_IND, MAX_IND, MATR_DIAG, COLORS) \
+  bulk(stdexec::par_unseq, (MAX_IND) - (MIN_IND), [=](local_int_t i){ \
+    i += (MIN_IND); \
+    if((COLORS)[i] == *color){ \
         const double currentDiagonal = (MATR_DIAG)[i][0]; \
         double sum = (RVALS)[i]; \
         for(int j = 0; j < (NNZ)[i]; j++){ \
@@ -99,116 +96,75 @@ using exec::repeat_n;
         sum += (XVALS)[i]*currentDiagonal; \
         (XVALS)[i] = sum/currentDiagonal; \
       } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 1){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 2){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 3){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 4){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 5){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 6){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
-  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
-    if((COLORS)[i] == 7){ \
-        const double currentDiagonal = (MATR_DIAG)[i][0]; \
-        double sum = (RVALS)[i]; \
-        for(int j = 0; j < (NNZ)[i]; j++){ \
-          local_int_t curCol = (INDV)[i][j]; \
-          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
-        } \
-        sum += (XVALS)[i]*currentDiagonal; \
-        (XVALS)[i] = sum/currentDiagonal; \
-      } \
-  }) \
+  })
 
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
 #define SYMGS(DEPTH) \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
-    if((DEPTH) == 0){ \
-      sync_wait(stdexec::just() | stdexec::on(scheduler, symgs_sweep_0)); \
-    }else if((DEPTH) == 1){ \
-      sync_wait(stdexec::just() | stdexec::on(scheduler, symgs_sweep_1)); \
-    }else if((DEPTH) == 2){ \
-      sync_wait(stdexec::just() | stdexec::on(scheduler, symgs_sweep_2)); \
-    }else if((DEPTH) == 3){ \
-      sync_wait(stdexec::just() | stdexec::on(scheduler, symgs_sweep_3)); \
+    *color = 0; \
+    for(int cnt = 0; cnt < NUM_COLORS; cnt++){ \
+      if((DEPTH) == 0){ \
+        sync_wait(symgs_blk_0); \
+      }else if((DEPTH) == 1){ \
+        sync_wait(symgs_blk_1); \
+      }else if((DEPTH) == 2){ \
+        sync_wait(symgs_blk_2); \
+      }else if((DEPTH) == 3){ \
+        sync_wait(symgs_blk_3); \
+      } \
+      (*color)++; \
     } \
-  } \
+  }
 
-#define SYMGS_SWEEP_0() \
-  SYMGS_SWEEP(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+//definitions for CPU-only running:
+#define SYMGS_BULK_0() \
+  SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
+    0, A_nrows_const[0], A_diags_const[0], A_colors_const[0])
 
-#define SYMGS_SWEEP_1() \
-  SYMGS_SWEEP(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+#define SYMGS_BULK_1() \
+  SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
+    0, A_nrows_const[1], A_diags_const[1], A_colors_const[1])
 
-#define SYMGS_SWEEP_2() \
-  SYMGS_SWEEP(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+#define SYMGS_BULK_2() \
+  SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
+    0, A_nrows_const[2], A_diags_const[2], A_colors_const[2])
 
-#define SYMGS_SWEEP_3() \
-  SYMGS_SWEEP(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+#define SYMGS_BULK_3() \
+  SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
+    0, A_nrows_const[3], A_diags_const[3], A_colors_const[3])
+
+//definitions for CPU/GPU splitting:
+#define SYMGS_GPU_0() \
+  SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
+    0, gpu_bnds[0], A_diags_const[0], A_colors_const[0])
+
+#define SYMGS_CPU_0() \
+  SYMGS_BULK_CALL(A_vals_const[0], z_vals[0], r_vals[0], A_nnzs_const[0], A_inds_const[0], \
+    gpu_bnds[0], A_nrows_const[0], A_diags_const[0], A_colors_const[0])
+
+#define SYMGS_GPU_1() \
+  SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
+    0, gpu_bnds[1], A_diags_const[1], A_colors_const[1])
+
+#define SYMGS_CPU_1() \
+  SYMGS_BULK_CALL(A_vals_const[1], z_vals[1], r_vals[1], A_nnzs_const[1], A_inds_const[1], \
+    gpu_bnds[1], A_nrows_const[1], A_diags_const[1], A_colors_const[1])
+  
+#define SYMGS_GPU_2() \
+  SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
+    0, gpu_bnds[2], A_diags_const[2], A_colors_const[2])
+
+#define SYMGS_CPU_2() \
+  SYMGS_BULK_CALL(A_vals_const[2], z_vals[2], r_vals[2], A_nnzs_const[2], A_inds_const[2], \
+    gpu_bnds[2], A_nrows_const[2], A_diags_const[2], A_colors_const[2])
+
+#define SYMGS_GPU_3() \
+  SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
+    0, gpu_bnds[3], A_diags_const[3], A_colors_const[3])
+
+#define SYMGS_CPU_3() \
+  SYMGS_BULK_CALL(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], \
+    gpu_bnds[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
 
 #define MGP0a() \
   ZeroVector(*z_objs[0]);
