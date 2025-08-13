@@ -197,7 +197,7 @@ auto waxpby = [=](local_int_t i, double alpha, const double * const xvals, doubl
 };
 
 auto spmv = [=](local_int_t i, const double * const * const avals, const double * const xvals, double *yvals, 
-  const local_int_t * const * const indvals, const local_int_t * const nnz){
+  const local_int_t * const * const indvals, const char * const nnz){
     double sum = 0.0;
     for(int j = 0; j < nnz[i]; ++j){
       sum += avals[i][j] * xvals[indvals[i][j]];
@@ -205,16 +205,17 @@ auto spmv = [=](local_int_t i, const double * const * const avals, const double 
     yvals[i] = sum;
 };
 
-auto restriction = [=](local_int_t i, int depth){
-      rcv_vals[depth][i] = r_vals[depth][f2c_vals[depth][i]] - Axfv_vals[depth][f2c_vals[depth][i]];
+auto restriction = [=](local_int_t i, double *rcv_vals, const double * const r_vals, const local_int_t * const f2c_vals, 
+  const double * const Axfv_vals){
+  rcv_vals[i] = r_vals[f2c_vals[i]] - Axfv_vals[f2c_vals[i]];
 };
 
-auto prolongation = [=](local_int_t i, int depth){ 
-    z_vals[depth][f2c_vals[depth][i]] += xcv_vals[depth][i];
+auto prolongation = [=](local_int_t i, double *z_vals, const local_int_t * const f2c_vals, const double * const xcv_vals){
+  z_vals[f2c_vals[i]] += xcv_vals[i];
 };
 
 auto symgs = [=](local_int_t i, const double * const * const avals, double *xvals, const double * const rvals, 
-  const local_int_t * const nnz, const local_int_t * const * const indvals, const double * const * const diagvals, 
+  const char * const nnz, const local_int_t * const * const indvals, const double * const * const diagvals, 
   const unsigned char * const colors){
   if(colors[i] == *color){
     const double currentDiagonal = diagvals[i][0];
@@ -228,9 +229,91 @@ auto symgs = [=](local_int_t i, const double * const * const avals, double *xval
   }
 };
 
-//********** DEFINITION OF KERNEL SPECIALISATIONS **********//
+//********** DEFINITION OF KERNEL "SPECIALISATIONS" **********//
 
+auto symgs_0 = [=](local_int_t i){
+  symgs(i, A_vals0, z_vals0, r_vals0, A_nnzs0, A_inds0, A_diags0, A_colors0);
+};
+auto symgs_1 = [=](local_int_t i){
+  symgs(i, A_vals1, z_vals1, r_vals1, A_nnzs1, A_inds1, A_diags1, A_colors1);
+};
+auto symgs_2 = [=](local_int_t i){
+  symgs(i, A_vals2, z_vals2, r_vals2, A_nnzs2, A_inds2, A_diags2, A_colors2);
+};
+auto symgs_3 = [=](local_int_t i){
+  symgs(i, A_vals3, z_vals3, r_vals3, A_nnzs3, A_inds3, A_diags3, A_colors3);
+};
 
+auto restriction_0 = [=](local_int_t i){
+  restriction(i, rcv_vals0, r_vals0, f2c_vals0, Axfv_vals0);
+};
+auto restriction_1 = [=](local_int_t i){
+  restriction(i, rcv_vals1, r_vals1, f2c_vals1, Axfv_vals1);
+};
+auto restriction_2 = [=](local_int_t i){
+  restriction(i, rcv_vals2, r_vals2, f2c_vals2, Axfv_vals2);
+};
+
+auto prolongation_0 = [=](local_int_t i){
+  prolongation(i, z_vals0, f2c_vals0, xcv_vals0);
+};
+auto prolongation_1 = [=](local_int_t i){
+  prolongation(i, z_vals1, f2c_vals1, xcv_vals1);
+};
+auto prolongation_2 = [=](local_int_t i){
+  prolongation(i, z_vals2, f2c_vals2, xcv_vals2);
+};
+
+auto spmv_mg0 = [=](local_int_t i){
+  spmv(i, A_vals0, z_vals0, Axfv_vals0, A_inds0, A_nnzs0);
+};
+auto spmv_mg1 = [=](local_int_t i){
+  spmv(i, A_vals1, z_vals1, Axfv_vals1, A_inds1, A_nnzs1);
+};
+auto spmv_mg2 = [=](local_int_t i){
+  spmv(i, A_vals2, z_vals2, Axfv_vals2, A_inds2, A_nnzs2);
+};
+auto spmv_Ap = [=](local_int_t i){
+  spmv(i, A_vals0, p_vals, Ap_vals, A_inds0, A_nnzs0);
+};
+
+auto waxpby_peqx = [=](local_int_t i){
+  waxpby(i, 1, x_vals, 0, x_vals, p_vals);
+};
+auto waxpby_reqbmAp = [=](local_int_t i){
+  waxpby(i, 1, b_vals, -1, Ap_vals, r_vals0);
+};
+auto waxpby_peqz = [=](local_int_t i){
+  waxpby(i, 1, z_vals0, 0, z_vals0, p_vals);
+};
+auto waxpby_xeqxpap = [=](local_int_t i){
+  waxpby(i, 1, x_vals, *alpha, p_vals, x_vals);
+};
+auto waxpby_reqrmaAp = [=](local_int_t i){
+  waxpby(i, 1, r_vals0, -*alpha, Ap_vals, r_vals0);
+};
+auto waxpby_peqbppz = [=](local_int_t i){
+  waxpby(i, 1, z_vals0, *beta, p_vals, p_vals);
+};
+
+auto dot_prod_rz_stg1 = [=](local_int_t i){
+  dot_prod_stg1(i, r_vals0, z_vals0);
+};
+auto dot_prod_rz_stg2 = [=](){
+  dot_prod_stg2(rtz);
+};
+auto dot_prod_pAp_stg1 = [=](local_int_t i){
+  dot_prod_stg1(i, p_vals, Ap_vals);
+};
+auto dot_prod_pAp_stg2 = [=](){
+  dot_prod_stg2(alpha);
+};
+auto dot_prod_rr_stg1 = [=](local_int_t i){
+  dot_prod_stg1(i, r_vals0, r_vals0);
+};
+auto dot_prod_rr_stg2 = [=](){
+  dot_prod_stg2(normr_cpy);
+};
 
 //********** START OF RUNNING PROGRAM *********//
 /*
