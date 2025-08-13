@@ -191,7 +191,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    //ITERATION FOR FIRST LOOP
     MGP0a()
     MGP0b()
     sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_0c));
@@ -209,6 +208,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     MGP5b()
     sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_6a));
     MGP6b()
+    sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
