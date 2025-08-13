@@ -111,7 +111,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   int print_freq = 1;
 #endif
 
-  sender auto pre_loop_work = schedule(scheduler)
+  sender auto pre_loop_work = stdexec::on(scheduler, stdexec::just()
   | WAXPBY(1, x_vals, 0, x_vals, p_vals)
   | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
@@ -119,7 +119,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
-  });
+  }));
   sync_wait(std::move(pre_loop_work));
 
 #ifdef HPCG_DEBUG
@@ -127,16 +127,16 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
   
   int k = 1;
-  sender auto mg_point_0c = schedule(scheduler) | MGP0c();
-  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
-  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
-  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
-  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
-  sender auto mg_point_6a = schedule(scheduler) | MGP6a();
-  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
-  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
-  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
-  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
+  sender auto mg_point_0c = stdexec::on(scheduler, stdexec::just() | MGP0c());
+  sender auto mg_point_1c = stdexec::on(scheduler, stdexec::just() | MGP1c());
+  sender auto mg_point_2c = stdexec::on(scheduler, stdexec::just() | MGP2c());
+  sender auto mg_point_4a = stdexec::on(scheduler, stdexec::just() | MGP4a());
+  sender auto mg_point_5a = stdexec::on(scheduler, stdexec::just() | MGP5a());
+  sender auto mg_point_6a = stdexec::on(scheduler, stdexec::just() | MGP6a());
+  sender auto symgs_sweep_0 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_0());
+  sender auto symgs_sweep_1 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_1());
+  sender auto symgs_sweep_2 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_2());
+  sender auto symgs_sweep_3 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_3());
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
@@ -156,7 +156,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sync_wait(mg_point_6a);
   MGP6b()
 
-  sender auto rest_of_first_loop = schedule(scheduler)
+  sender auto rest_of_first_loop = stdexec::on(scheduler, stdexec::just()
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
@@ -165,7 +165,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); }));
     sync_wait(std::move(rest_of_first_loop));
 
 #ifdef HPCG_DEBUG
@@ -174,7 +174,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = schedule(scheduler)
+  sender auto rest_of_loop = stdexec::on(scheduler, stdexec::just()
     | then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
@@ -185,7 +185,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
     | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
     | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); }));
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
