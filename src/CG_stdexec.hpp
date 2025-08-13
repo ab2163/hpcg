@@ -188,13 +188,13 @@ using exec::repeat_n;
 #define SYMGS(DEPTH) \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
     if((DEPTH) == 0){ \
-      sync_wait(symgs_sweep_0); \
+      sync_wait(stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_0())); \
     }else if((DEPTH) == 1){ \
-      sync_wait(symgs_sweep_1); \
+      sync_wait(stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_1())); \
     }else if((DEPTH) == 2){ \
-      sync_wait(symgs_sweep_2); \
+      sync_wait(stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_2())); \
     }else if((DEPTH) == 3){ \
-      sync_wait(symgs_sweep_3); \
+      sync_wait(stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_3())); \
     } \
   } \
 

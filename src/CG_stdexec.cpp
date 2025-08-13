@@ -104,8 +104,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
-
-  auto cpu_scheduler = pool.get_scheduler();
   
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
@@ -113,7 +111,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   int print_freq = 1;
 #endif
 
-  sender auto pre_loop_work = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler)
+  sender auto pre_loop_work = schedule(scheduler)
   | WAXPBY(1, x_vals, 0, x_vals, p_vals)
   | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
@@ -129,36 +127,36 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
   
   int k = 1;
-  sender auto mg_point_0c = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP0c();
-  sender auto mg_point_1c = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP1c();
-  sender auto mg_point_2c = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP2c();
-  sender auto mg_point_4a = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP4a();
-  sender auto mg_point_5a = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP5a();
-  sender auto mg_point_6a = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | MGP6a();
-  sender auto symgs_sweep_0 = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | SYMGS_SWEEP_0();
-  sender auto symgs_sweep_1 = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | SYMGS_SWEEP_1();
-  sender auto symgs_sweep_2 = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | SYMGS_SWEEP_2();
-  sender auto symgs_sweep_3 = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler) | SYMGS_SWEEP_3();
+  sender auto mg_point_0c = schedule(scheduler) | MGP0c();
+  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
+  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
+  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
+  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
+  sender auto mg_point_6a = schedule(scheduler) | MGP6a();
+  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
+  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
+  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
+  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
-  sync_wait(mg_point_0c);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP0c()));
   MGP1a()
   MGP1b()
-  sync_wait(mg_point_1c);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP1c()));
   MGP2a()
   MGP2b()
-  sync_wait(mg_point_2c);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP2c()));
   MGP3a()
   MGP3b()
-  sync_wait(mg_point_4a);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP4a()));
   MGP4b()
-  sync_wait(mg_point_5a);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP5a()));
   MGP5b()
-  sync_wait(mg_point_6a);
+  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP6a()));
   MGP6b()
 
-  sender auto rest_of_first_loop = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler)
+  sender auto rest_of_first_loop = schedule(scheduler)
     | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
@@ -176,7 +174,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = stdexec::starts_on(cpu_scheduler, stdexec::just()) | continues_on(scheduler)
+  sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
