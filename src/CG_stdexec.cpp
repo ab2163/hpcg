@@ -111,8 +111,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   int print_freq = 1;
 #endif
 
-  sender auto pre_loop_work = stdexec::on(scheduler, stdexec::just()
-  | WAXPBY(1, x_vals, 0, x_vals, p_vals)
+  sender auto pre_loop_work = stdexec::just() | stdexec::on(scheduler,
+  WAXPBY(1, x_vals, 0, x_vals, p_vals)
   | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
   | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
   | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
@@ -127,16 +127,16 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
   
   int k = 1;
-  sender auto mg_point_0c = stdexec::on(scheduler, stdexec::just() | MGP0c());
-  sender auto mg_point_1c = stdexec::on(scheduler, stdexec::just() | MGP1c());
-  sender auto mg_point_2c = stdexec::on(scheduler, stdexec::just() | MGP2c());
-  sender auto mg_point_4a = stdexec::on(scheduler, stdexec::just() | MGP4a());
-  sender auto mg_point_5a = stdexec::on(scheduler, stdexec::just() | MGP5a());
-  sender auto mg_point_6a = stdexec::on(scheduler, stdexec::just() | MGP6a());
-  sender auto symgs_sweep_0 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_0());
-  sender auto symgs_sweep_1 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_1());
-  sender auto symgs_sweep_2 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_2());
-  sender auto symgs_sweep_3 = stdexec::on(scheduler, stdexec::just() | SYMGS_SWEEP_3());
+  sender auto mg_point_0c = stdexec::just() | stdexec::on(scheduler, MGP0c());
+  sender auto mg_point_1c = stdexec::just() | stdexec::on(scheduler, MGP1c());
+  sender auto mg_point_2c = stdexec::just() | stdexec::on(scheduler, MGP2c());
+  sender auto mg_point_4a = stdexec::just() | stdexec::on(scheduler, MGP4a());
+  sender auto mg_point_5a = stdexec::just() | stdexec::on(scheduler, MGP5a());
+  sender auto mg_point_6a = stdexec::just() | stdexec::on(scheduler, MGP6a());
+  sender auto symgs_sweep_0 = stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_0());
+  sender auto symgs_sweep_1 = stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_1());
+  sender auto symgs_sweep_2 = stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_2());
+  sender auto symgs_sweep_3 = stdexec::just() | stdexec::on(scheduler, SYMGS_SWEEP_3());
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
@@ -156,8 +156,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sync_wait(mg_point_6a);
   MGP6b()
 
-  sender auto rest_of_first_loop = stdexec::on(scheduler, stdexec::just()
-    | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
+  sender auto rest_of_first_loop = stdexec::just() | stdexec::on(scheduler,
+    WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
     | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
@@ -174,8 +174,8 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = stdexec::on(scheduler, stdexec::just()
-    | then([=](){ *oldrtz = *rtz; })
+  sender auto rest_of_loop = stdexec::just() | stdexec::on(scheduler,
+    then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
     | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
