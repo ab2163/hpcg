@@ -104,7 +104,63 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
-  
+
+//********** DEFINITION OF KERNELS **********//
+
+auto dot_prod_stg1 = [=](local_int_t i, const double * const vec1_vals, const double * const vec2_vals){ 
+    local_int_t minInd = i*(nrow/NUM_BINS);
+    local_int_t maxInd = ((i + 1) == NUM_BINS) ? nrow : (i + 1)*(nrow/NUM_BINS);
+    double bin_sum = 0.0;
+    for(local_int_t j = minInd; j < maxInd; ++j) {
+      bin_sum = std::fma(vec1_vals[j], vec2_vals[j], bin_sum);
+    }
+    bin_vals[i] = bin_sum;
+};
+
+auto dot_prod_stg2 = [=](double *result){
+    double result_cpy = 0.0;
+    for(local_int_t i = 0; i < NUM_BINS; ++i) result_cpy += bin_vals[i];
+    *result = result_cpy;
+};
+
+auto waxpby = [=](local_int_t i, double alpha, const double * const xvals, double beta, const double * const yvals, double *wvals){
+  wvals[i] = alpha*xvals[i] + beta*yvals[i]; 
+};
+
+auto spmv = [=](local_int_t i, const double * const * const avals, const double * const xvals, double *yvals, 
+  const local_int_t * const * const indvals, const local_int_t * const nnz){
+    double sum = 0.0;
+    for(int j = 0; j < nnz[i]; ++j){
+      sum += avals[i][j] * xvals[indvals[i][j]];
+    }
+    yvals[i] = sum;
+};
+
+auto restriction = [=](local_int_t i, int depth){
+      rcv_vals[depth][i] = r_vals[depth][f2c_vals[depth][i]] - Axfv_vals[depth][f2c_vals[depth][i]];
+};
+
+auto prolongation = [=](local_int_t i, int depth){ 
+    z_vals[depth][f2c_vals[depth][i]] += xcv_vals[depth][i];
+};
+
+auto symgs = [=](local_int_t i, const double * const * const avals, double *xvals, const double * const rvals, 
+  const local_int_t * const nnz, const local_int_t * const * const indvals, const double * const * const diagvals, 
+  const unsigned char * const colors){
+  if(colors[i] == *color){
+    const double currentDiagonal = diagvals[i][0];
+    double sum = rvals[i];
+    for(int j = 0; j < nnz[i]; j++){
+      local_int_t curCol = indvals[i][j];
+      sum -= avals[i][j] * xvals[curCol];
+    }
+    sum += xvals[i]*currentDiagonal;
+    xvals[i] = sum/currentDiagonal;
+  }
+};
+
+//********** START OF RUNNING PROGRAM *********//
+/*
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
 #ifdef HPCG_DEBUG
@@ -254,5 +310,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   delete z_objs;
   delete bin_vals;
   delete dot_local_result;
+  */
   return 0;
 }
