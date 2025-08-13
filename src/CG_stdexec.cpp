@@ -127,33 +127,33 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
   
   int k = 1;
-  sender auto mg_point_0c = schedule(scheduler) | MGP0c();
-  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
-  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
-  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
-  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
-  sender auto mg_point_6a = schedule(scheduler) | MGP6a();
-  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
-  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
-  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
-  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
+  auto mg_point_0c = MGP0c();
+  auto mg_point_1c = MGP1c();
+  auto mg_point_2c = MGP2c();
+  auto mg_point_4a = MGP4a();
+  auto mg_point_5a = MGP5a();
+  auto mg_point_6a = MGP6a();
+  auto symgs_sweep_0 = SYMGS_SWEEP_0();
+  auto symgs_sweep_1 = SYMGS_SWEEP_1();
+  auto symgs_sweep_2 = SYMGS_SWEEP_2();
+  auto symgs_sweep_3 = SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP0c()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_0c));
   MGP1a()
   MGP1b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP1c()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_1c));
   MGP2a()
   MGP2b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP2c()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_2c));
   MGP3a()
   MGP3b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP4a()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_4a));
   MGP4b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP5a()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_5a));
   MGP5b()
-  sync_wait(stdexec::just() | stdexec::on(scheduler, MGP6a()));
+  sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_6a));
   MGP6b()
 
   sender auto rest_of_first_loop = schedule(scheduler)
@@ -191,24 +191,24 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
+    //ITERATION FOR FIRST LOOP
     MGP0a()
     MGP0b()
-    sync_wait(mg_point_0c);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_0c));
     MGP1a()
     MGP1b()
-    sync_wait(mg_point_1c);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_1c));
     MGP2a()
     MGP2b()
-    sync_wait(mg_point_2c);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_2c));
     MGP3a()
     MGP3b()
-    sync_wait(mg_point_4a);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_4a));
     MGP4b()
-    sync_wait(mg_point_5a);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_5a));
     MGP5b()
-    sync_wait(mg_point_6a);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_6a));
     MGP6b()
-    sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
