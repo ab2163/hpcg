@@ -220,7 +220,7 @@ auto symgs = [=](local_int_t i, const double * const * const avals, double *xval
   if(colors[i] == *color){
     const double currentDiagonal = diagvals[i][0];
     double sum = rvals[i];
-    for(int j = 0; j < nnz[i]; j++){
+    for(int j = 0; j < nnz[i]; ++j){
       local_int_t curCol = indvals[i][j];
       sum -= avals[i][j] * xvals[curCol];
     }
@@ -318,7 +318,7 @@ auto dot_prod_pAp_stg1 = [=](local_int_t i){
   dot_prod_stg1(i, p_vals, Ap_vals);
 };
 auto dot_prod_pAp_stg2 = [=](){
-  dot_prod_stg2(alpha);
+  dot_prod_stg2(pAp);
 };
 auto dot_prod_rr_stg1 = [=](local_int_t i){
   dot_prod_stg1(i, r_vals0, r_vals0);
@@ -339,7 +339,7 @@ auto dot_prod_rr_stg2 = [=](){
   | bulk(par_unseq, nrow, waxpby_peqx)
   | bulk(par_unseq, nrow, spmv_Ap)
   | bulk(par_unseq, nrow, waxpby_reqbmAp)
-  | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+  | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
   | then(dot_prod_rr_stg2)
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
@@ -485,15 +485,15 @@ auto dot_prod_rr_stg2 = [=](){
   
   sender auto rest_of_first_loop = schedule(scheduler)
     | bulk(par_unseq, nrow, waxpby_peqz)
-    | bulk(par_unseq, nrow, dot_prod_rz_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_rz_stg1)
     | then(dot_prod_rz_stg2)
     | bulk(par_unseq, nrow, spmv_Ap)
-    | bulk(par_unseq, nrow, dot_prod_pAp_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_pAp_stg1)
     | then(dot_prod_pAp_stg2)
     | then([=](){ *alpha = *rtz/(*pAp); })
     | bulk(par_unseq, nrow, waxpby_xeqxpap)
     | bulk(par_unseq, nrow, waxpby_reqrmaAp)
-    | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
     | then(dot_prod_rr_stg2)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_first_loop));
@@ -506,17 +506,17 @@ auto dot_prod_rr_stg2 = [=](){
 
   sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
-    | bulk(par_unseq, nrow, dot_prod_rz_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_rz_stg1)
     | then(dot_prod_rz_stg2)
     | then([=](){ *beta = *rtz/(*oldrtz); })
     | bulk(par_unseq, nrow, waxpby_peqbppz)
     | bulk(par_unseq, nrow, spmv_Ap)
-    | bulk(par_unseq, nrow, dot_prod_pAp_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_pAp_stg1)
     | then(dot_prod_pAp_stg2)
     | then([=](){ *alpha = *rtz/(*pAp); })
     | bulk(par_unseq, nrow, waxpby_xeqxpap)
     | bulk(par_unseq, nrow, waxpby_reqrmaAp)
-    | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+    | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
     | then(dot_prod_rr_stg2)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
 
