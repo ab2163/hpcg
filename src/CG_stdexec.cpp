@@ -174,8 +174,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = schedule(scheduler)
-    | then([=](){ *oldrtz = *rtz; })
+  auto rest_of_loop = then([=](){ *oldrtz = *rtz; })
     | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
     | then([=](){ *beta = *rtz/(*oldrtz); })
     | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
@@ -208,7 +207,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     MGP5b()
     sync_wait(stdexec::just() | stdexec::on(scheduler, mg_point_6a));
     MGP6b()
-    sync_wait(rest_of_loop);
+    sync_wait(stdexec::just() | stdexec::on(scheduler, rest_of_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (k % print_freq == 0 || k == max_iter))
