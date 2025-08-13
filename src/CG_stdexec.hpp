@@ -34,6 +34,7 @@ using stdexec::bulk;
 using stdexec::just;
 using stdexec::continues_on;
 using exec::repeat_n;
+using stdexec::par_unseq;
 
 #define NUM_MG_LEVELS 4
 #define NUM_COLORS 8

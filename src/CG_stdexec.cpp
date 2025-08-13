@@ -316,7 +316,7 @@ auto dot_prod_rr_stg2 = [=](){
 };
 
 //********** START OF RUNNING PROGRAM *********//
-/*
+
   if (!doPreconditioning && A.geom->rank == 0) HPCG_fout << "WARNING: PERFORMING UNPRECONDITIONED ITERATIONS" << std::endl;
 
 #ifdef HPCG_DEBUG
@@ -324,10 +324,11 @@ auto dot_prod_rr_stg2 = [=](){
 #endif
 
   sender auto pre_loop_work = schedule(scheduler)
-  | WAXPBY(1, x_vals, 0, x_vals, p_vals)
-  | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
-  | WAXPBY(1, b_vals, -1, Ap_vals, r_vals[0]) //WAXPBY: r = b - Ax (x stored in p)
-  | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+  | bulk(par_unseq, nrow, waxpby_peqx)
+  | bulk(par_unseq, nrow, spmv_Ap)
+  | bulk(par_unseq, nrow, waxpby_reqbmAp)
+  | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+  | then(dot_prod_rr_stg2)
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
@@ -339,44 +340,21 @@ auto dot_prod_rr_stg2 = [=](){
 #endif
   
   int k = 1;
-  sender auto mg_point_0c = schedule(scheduler) | MGP0c();
-  sender auto mg_point_1c = schedule(scheduler) | MGP1c();
-  sender auto mg_point_2c = schedule(scheduler) | MGP2c();
-  sender auto mg_point_4a = schedule(scheduler) | MGP4a();
-  sender auto mg_point_5a = schedule(scheduler) | MGP5a();
-  sender auto mg_point_6a = schedule(scheduler) | MGP6a();
-  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
-  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
-  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
-  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
-  //ITERATION FOR FIRST LOOP
-  MGP0a()
-  MGP0b()
-  sync_wait(mg_point_0c);
-  MGP1a()
-  MGP1b()
-  sync_wait(mg_point_1c);
-  MGP2a()
-  MGP2b()
-  sync_wait(mg_point_2c);
-  MGP3a()
-  MGP3b()
-  sync_wait(mg_point_4a);
-  MGP4b()
-  sync_wait(mg_point_5a);
-  MGP5b()
-  sync_wait(mg_point_6a);
-  MGP6b()
+
+  //mg process here
 
   sender auto rest_of_first_loop = schedule(scheduler)
-    | WAXPBY(1, z_vals[0], 0, z_vals[0], p_vals)
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
-    | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
+    | bulk(par_unseq, nrow, waxpby_peqz)
+    | bulk(par_unseq, nrow, dot_prod_rz_stg1)
+    | then(dot_prod_rz_stg2)
+    | bulk(par_unseq, nrow, spmv_Ap)
+    | bulk(par_unseq, nrow, dot_prod_pAp_stg1)
+    | then(dot_prod_pAp_stg2)
     | then([=](){ *alpha = *rtz/(*pAp); })
-    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+    | bulk(par_unseq, nrow, waxpby_xeqxpap)
+    | bulk(par_unseq, nrow, waxpby_reqrmaAp)
+    | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+    | then(dot_prod_rr_stg2)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
     sync_wait(std::move(rest_of_first_loop));
 
@@ -388,38 +366,26 @@ auto dot_prod_rr_stg2 = [=](){
 
   sender auto rest_of_loop = schedule(scheduler)
     | then([=](){ *oldrtz = *rtz; })
-    | COMPUTE_DOT_PRODUCT(r_vals[0], z_vals[0], rtz) //rtz = r'*z
+    | bulk(par_unseq, nrow, dot_prod_rz_stg1)
+    | then(dot_prod_rz_stg2)
     | then([=](){ *beta = *rtz/(*oldrtz); })
-    | WAXPBY(1, z_vals[0], *beta, p_vals, p_vals) //WAXPBY: p = beta*p + z
-    | SPMV(A_vals_const[0], p_vals, Ap_vals, A_inds_const[0], A_nnzs_const[0], A_nrows_const[0])
-    | COMPUTE_DOT_PRODUCT(p_vals, Ap_vals, pAp) //alpha = p'*Ap
+    | bulk(par_unseq, nrow, waxpby_peqbppz)
+    | bulk(par_unseq, nrow, spmv_Ap)
+    | bulk(par_unseq, nrow, dot_prod_pAp_stg1)
+    | then(dot_prod_pAp_stg2)
     | then([=](){ *alpha = *rtz/(*pAp); })
-    | WAXPBY(1, x_vals, *alpha, p_vals, x_vals) //WAXPBY: x = x + alpha*p
-    | WAXPBY(1, r_vals[0], -*alpha, Ap_vals, r_vals[0]) //WAXPBY: r = r - alpha*Ap
-    | COMPUTE_DOT_PRODUCT(r_vals[0], r_vals[0], normr_cpy)
+    | bulk(par_unseq, nrow, waxpby_xeqxpap)
+    | bulk(par_unseq, nrow, waxpby_reqrmaAp)
+    | bulk(par_unseq, nrow, dot_prod_rr_stg1)
+    | then(dot_prod_rr_stg2)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    MGP0a()
-    MGP0b()
-    sync_wait(mg_point_0c);
-    MGP1a()
-    MGP1b()
-    sync_wait(mg_point_1c);
-    MGP2a()
-    MGP2b()
-    sync_wait(mg_point_2c);
-    MGP3a()
-    MGP3b()
-    sync_wait(mg_point_4a);
-    MGP4b()
-    sync_wait(mg_point_5a);
-    MGP5b()
-    sync_wait(mg_point_6a);
-    MGP6b()
+    //mg process here
+    
     sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
@@ -466,6 +432,5 @@ auto dot_prod_rr_stg2 = [=](){
   delete z_objs;
   delete bin_vals;
   delete dot_local_result;
-  */
   return 0;
 }
