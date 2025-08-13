@@ -84,14 +84,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double *bin_vals = new double[NUM_BINS];
   double *dot_local_result = new double(0.0);
 
-  //passed into kernels as const views of data
-  const double * const * const * A_vals_const = A_vals;
-  const local_int_t * const * const * A_inds_const = A_inds;
-  const double * const * const * A_diags_const = A_diags;
-  const local_int_t * A_nrows_const = A_nrows;
-  const char * const * A_nnzs_const = A_nnzs;
-  const unsigned char * const * A_colors_const = A_colors;
-
   unsigned int num_threads = omp_get_max_threads();
   std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
@@ -104,6 +96,83 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //scheduler for CPU execution
   auto scheduler = pool.get_scheduler();
 #endif
+
+//********** GETTING NAMED POINTERS FOR EACH PARAMETER TO SPEED UP KERNELS **********//
+
+double** A_vals0 = A_vals[0];
+double** A_vals1 = A_vals[1];
+double** A_vals2 = A_vals[2];
+double** A_vals3 = A_vals[3];
+
+local_int_t** A_inds0 = A_inds[0];
+local_int_t** A_inds1 = A_inds[1];
+local_int_t** A_inds2 = A_inds[2];
+local_int_t** A_inds3 = A_inds[3];
+
+double** A_diags0 = A_diags[0];
+double** A_diags1 = A_diags[1];
+double** A_diags2 = A_diags[2];
+double** A_diags3 = A_diags[3];
+
+local_int_t A_nrows0 = A_nrows[0];
+local_int_t A_nrows1 = A_nrows[1];
+local_int_t A_nrows2 = A_nrows[2];
+local_int_t A_nrows3 = A_nrows[3];
+
+char* A_nnzs0 = A_nnzs[0];
+char* A_nnzs1 = A_nnzs[1];
+char* A_nnzs2 = A_nnzs[2];
+char* A_nnzs3 = A_nnzs[3];
+
+unsigned char* A_colors0 = A_colors[0];
+unsigned char* A_colors1 = A_colors[1];
+unsigned char* A_colors2 = A_colors[2];
+unsigned char* A_colors3 = A_colors[3];
+
+double* r_vals0 = r_vals[0];
+double* r_vals1 = r_vals[1];
+double* r_vals2 = r_vals[2];
+double* r_vals3 = r_vals[3];
+
+double* z_vals0 = z_vals[0];
+double* z_vals1 = z_vals[1];
+double* z_vals2 = z_vals[2];
+double* z_vals3 = z_vals[3];
+
+double* Axfv_vals0 = Axfv_vals[0];
+double* Axfv_vals1 = Axfv_vals[1];
+double* Axfv_vals2 = Axfv_vals[2];
+double* Axfv_vals3 = nullptr;
+
+local_int_t* f2c_vals0 = f2c_vals[0];
+local_int_t* f2c_vals1 = f2c_vals[1];
+local_int_t* f2c_vals2 = f2c_vals[2];
+local_int_t* f2c_vals3 = nullptr;
+
+double* xcv_vals0 = xcv_vals[0];
+double* xcv_vals1 = xcv_vals[1];
+double* xcv_vals2 = xcv_vals[2];
+double* xcv_vals3 = nullptr;
+
+double* rcv_vals0 = rcv_vals[0];
+double* rcv_vals1 = rcv_vals[1];
+double* rcv_vals2 = rcv_vals[2];
+double* rcv_vals3 = nullptr;
+
+const SparseMatrix* A_obj0 = A_objs[0];
+const SparseMatrix* A_obj1 = A_objs[1];
+const SparseMatrix* A_obj2 = A_objs[2];
+const SparseMatrix* A_obj3 = A_objs[3];
+
+Vector* r_obj0 = r_objs[0];
+Vector* r_obj1 = r_objs[1];
+Vector* r_obj2 = r_objs[2];
+Vector* r_obj3 = r_objs[3];
+
+Vector* z_obj0 = z_objs[0];
+Vector* z_obj1 = z_objs[1];
+Vector* z_obj2 = z_objs[2];
+Vector* z_obj3 = z_objs[3];
 
 //********** DEFINITION OF KERNELS **********//
 
@@ -158,6 +227,10 @@ auto symgs = [=](local_int_t i, const double * const * const avals, double *xval
     xvals[i] = sum/currentDiagonal;
   }
 };
+
+//********** DEFINITION OF KERNEL SPECIALISATIONS **********//
+
+
 
 //********** START OF RUNNING PROGRAM *********//
 /*
