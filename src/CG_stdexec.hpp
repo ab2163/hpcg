@@ -86,19 +86,115 @@ using exec::repeat_n;
     z_vals[(depth)][f2c_vals[(depth)][i]] += xcv_vals[(depth)][i]; \
   })
 
+//NOTE - OMITTED MPI HALOEXCHANGE IN SYMGS
+#define SYMGS_SWEEP(AMV, XVALS, RVALS, NNZ, INDV, NROW, MATR_DIAG, COLORS) \
+  bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 0){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 1){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 2){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 3){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 4){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 5){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 6){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+  | bulk(stdexec::par_unseq, (NROW), [=](local_int_t i){ \
+    if((COLORS)[i] == 7){ \
+        const double currentDiagonal = (MATR_DIAG)[i][0]; \
+        double sum = (RVALS)[i]; \
+        for(int j = 0; j < (NNZ)[i]; j++){ \
+          local_int_t curCol = (INDV)[i][j]; \
+          sum -= (AMV)[i][j] * (XVALS)[curCol]; \
+        } \
+        sum += (XVALS)[i]*currentDiagonal; \
+        (XVALS)[i] = sum/currentDiagonal; \
+      } \
+  }) \
+
 #define SYMGS(DEPTH) \
-  *depth = (DEPTH); \
-  *sel_shape = A_nrows_const[*depth]; \
   for(int cnt = 1; cnt <= FORWARD_AND_BACKWARD; cnt++){ \
-    *color = 0; \
-    if(*depth == 0){ \
-      sync_wait(symgs_run_0); \
-    }else if(*depth == 1){ \
-      sync_wait(symgs_run_1); \
-    }else if(*depth == 2){ \
-      sync_wait(symgs_run_2); \
-    }else if(*depth == 3){ \
-      sync_wait(symgs_run_3); \
+    if((DEPTH) == 0){ \
+      sync_wait(symgs_sweep_0); \
+    }else if((DEPTH) == 1){ \
+      sync_wait(symgs_sweep_1); \
+    }else if((DEPTH) == 2){ \
+      sync_wait(symgs_sweep_2); \
+    }else if((DEPTH) == 3){ \
+      sync_wait(symgs_sweep_3); \
     } \
   } \
 

@@ -126,57 +126,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
     if (A.geom->rank == 0) HPCG_fout << "Initial Residual = "<< *normr_cpy << std::endl;
 #endif
   
-  int *depth = new int;
-  int *sel_shape = new local_int_t;
-  auto symgs = [=](local_int_t i){ 
-    if(A_colors_const[*depth][i] == 0){ 
-      const double currentDiagonal = A_diags_const[*depth][i][0]; 
-      double sum = r_vals[*depth][i]; 
-      for(int j = 0; j < A_nnzs_const[*depth][i]; j++){ 
-        local_int_t curCol = A_inds_const[*depth][i][j]; 
-        sum -= A_vals_const[*depth][i][j] * z_vals[*depth][curCol]; 
-      } 
-      sum += z_vals[*depth][i]*currentDiagonal; 
-      z_vals[*depth][i] = sum/currentDiagonal; 
-    } 
-  };
-  sender auto symgs_run_0 = schedule(scheduler) 
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[0], symgs);
-  sender auto symgs_run_1 = schedule(scheduler)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[1], symgs);
-  sender auto symgs_run_2 = schedule(scheduler)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[2], symgs);
-  sender auto symgs_run_3 = schedule(scheduler)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs)
-  | bulk(stdexec::par_unseq, A_nrows[3], symgs);
-
   int k = 1;
   sender auto mg_point_0c = schedule(scheduler) | MGP0c();
   sender auto mg_point_1c = schedule(scheduler) | MGP1c();
@@ -184,7 +133,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   sender auto mg_point_4a = schedule(scheduler) | MGP4a();
   sender auto mg_point_5a = schedule(scheduler) | MGP5a();
   sender auto mg_point_6a = schedule(scheduler) | MGP6a();
-
+  sender auto symgs_sweep_0 = schedule(scheduler) | SYMGS_SWEEP_0();
+  sender auto symgs_sweep_1 = schedule(scheduler) | SYMGS_SWEEP_1();
+  sender auto symgs_sweep_2 = schedule(scheduler) | SYMGS_SWEEP_2();
+  sender auto symgs_sweep_3 = schedule(scheduler) | SYMGS_SWEEP_3();
   //ITERATION FOR FIRST LOOP
   MGP0a()
   MGP0b()
@@ -237,7 +189,7 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= 60; k++){
+  for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     MGP0a()
     MGP0b()
@@ -302,7 +254,5 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   delete z_objs;
   delete bin_vals;
   delete dot_local_result;
-  delete depth;
-  delete sel_shape;
   return 0;
 }
