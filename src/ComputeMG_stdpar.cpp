@@ -3,12 +3,14 @@
 #include "ComputeSPMV_stdpar.hpp"
 #include "ComputeRestriction_stdpar.hpp"
 #include "ComputeProlongation_stdpar.hpp"
+#include "ComputeWAXPBY_stdpar.hpp"
 #include <cassert>
 
 int ComputeMG_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   assert(x.localLength == A.localNumberOfColumns); //make sure x contain space for halo values
 
-  ZeroVector(x); //initialize x to zero
+  //ZeroVector(x); //initialize x to zero
+  ComputeWAXPBY_stdpar(x.localLength, 0, x, 0, x, x); //zero vector "x" with WAXPBY
 
   int ierr = 0;
   if (A.mgData != 0){ //go to next coarse level if defined

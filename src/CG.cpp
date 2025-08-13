@@ -30,6 +30,7 @@
 #include "ComputeMG.hpp"
 #include "ComputeDotProduct.hpp"
 #include "ComputeWAXPBY.hpp"
+#include "ComputeWAXPBY_stdpar.hpp"
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
@@ -82,7 +83,11 @@ int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
   if (print_freq<1)  print_freq=1;
 #endif
   // p is of length ncols, copy x to p for sparse MV operation
+#ifndef SELECT_STDPAR
   CopyVector(x, p);
+#else
+  ComputeWAXPBY_stdpar(x.localLength, 1, x, 0, x, p); //use WAXPBY for copy vector
+#endif
   TICK(); ComputeSPMV(A, p, Ap); TOCK(t3); // Ap = A*p
   TICK(); ComputeWAXPBY(nrow, 1.0, b, -1.0, Ap, r, A.isWaxpbyOptimized);  TOCK(t2); // r = b - Ax (x stored in p)
   TICK(); ComputeDotProduct(nrow, r, r, normr, t4, A.isDotProductOptimized); TOCK(t1);
@@ -100,8 +105,13 @@ int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     TICK();
     if (doPreconditioning)
       ComputeMG(A, r, z); // Apply preconditioner
-    else
+    else{
+#ifndef SELECT_STDPAR
       CopyVector (r, z); // copy r to z (no preconditioning)
+#else
+      ComputeWAXPBY_stdpar(r.localLength, 1, r, 0, r, z); //use WAXPBY for copy vector
+#endif
+    }
     TOCK(t5); // Preconditioner apply time
 
     if (k == 1) {
