@@ -211,7 +211,7 @@ using exec::repeat_n;
   SYMGS_SWEEP(A_vals_const[3], z_vals[3], r_vals[3], A_nnzs_const[3], A_inds_const[3], A_nrows_const[3], A_diags_const[3], A_colors_const[3])
 
 #define MGP0a() \
-  ZeroVector(*z_objs[0]);
+  sync_wait(schedule(scheduler) | bulk(stdexec::par_unseq, z_objs[0]->localLength,[=](local_int_t i){ z_vals[0][i] = 0; }));
 #define MGP0b() \
   SYMGS(0)
 #define MGP0c() \
@@ -219,7 +219,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[0], 0)
 
 #define MGP1a() \
-  ZeroVector(*z_objs[1]);
+  sync_wait(schedule(scheduler) | bulk(stdexec::par_unseq, z_objs[1]->localLength,[=](local_int_t i){ z_vals[1][i] = 0; }));
 #define MGP1b() \
   SYMGS(1)
 #define MGP1c() \
@@ -227,7 +227,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[1], 1)
 
 #define MGP2a() \
-  ZeroVector(*z_objs[2]);
+  sync_wait(schedule(scheduler) | bulk(stdexec::par_unseq, z_objs[2]->localLength,[=](local_int_t i){ z_vals[2][i] = 0; }));
 #define MGP2b() \
   SYMGS(2)
 #define MGP2c() \  
@@ -235,7 +235,7 @@ using exec::repeat_n;
   | RESTRICTION(*A_objs[2], 2)
 
 #define MGP3a() \
-  ZeroVector(*z_objs[3]);
+  sync_wait(schedule(scheduler) | bulk(stdexec::par_unseq, z_objs[3]->localLength,[=](local_int_t i){ z_vals[3][i] = 0; }));
 #define MGP3b() \
   SYMGS(3)
 
