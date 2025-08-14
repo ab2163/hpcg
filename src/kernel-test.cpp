@@ -33,24 +33,29 @@ int main(void){
     nvexec::stream_context ctx;
     auto sched_gpu = ctx.get_scheduler();
 
+    auto indices = std::views::iota(0, ARR_SZ);
     auto start = high_resolution_clock::now();
 
+#ifdef STDPAR
+    std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), 
+      weighted_ave);
+#endif
+
+#ifdef STDEXEC
     stdexec::sync_wait(stdexec::schedule(sched_gpu) 
       | stdexec::bulk(stdexec::par_unseq, ARR_SZ, weighted_ave));
+#endif
 
     auto end = high_resolution_clock::now();
     auto duration_ms = duration_cast<milliseconds>(end - start).count();
-    std::cout << "Elapsed time: " << duration_ms << " ms\n";
-
-    auto indices = std::views::iota(0, ARR_SZ);
-    start = high_resolution_clock::now();
-
-    std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), 
-      weighted_ave);
-    
-    end = high_resolution_clock::now();
-    duration_ms = duration_cast<milliseconds>(end - start).count();
-    std::cout << "Elapsed time: " << duration_ms << " ms\n";
+    std::cout << "Elapsed time ";
+#ifdef STDPAR
+    std::cout << "(stdpar): ";
+#endif
+#ifdef STDEXEC
+    std::cout << "(stdexec): ";
+#endif
+    std::cout << duration_ms << " ms\n";
     
     return(0);
 }
