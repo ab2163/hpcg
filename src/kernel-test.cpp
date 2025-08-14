@@ -1,0 +1,56 @@
+#include "../stdexec/include/exec/static_thread_pool.hpp"
+#include "../stdexec/include/stdexec/execution.hpp"
+#include "../stdexec/include/exec/inline_scheduler.hpp"
+#include "../stdexec/include/nvexec/stream_context.cuh"
+#include <iostream>
+#include <cstdlib>
+#include <chrono>
+#include <execution>
+#include <numeric>
+#include <ranges>  
+
+#define ARR_SZ 100000000
+using namespace std::chrono;
+
+int main(void){
+    double *long_arr = new double[ARR_SZ];
+    double *transformed_arr = new double[ARR_SZ];
+
+    //initialise the input array
+    for(int ind = 0; ind < ARR_SZ; ++ind){
+        long_arr[ind] = rand() % 100;
+    }
+
+    auto weighted_ave = [=](int ind){
+        transformed_arr[ind] = long_arr[ind]*long_arr[ind] 
+          + 0.5*long_arr[ARR_SZ-(ind+1)]; 
+    };
+
+    //INLINE SCHEDULER CREATION
+    exec::inline_scheduler sched_inl;
+
+    //GPU SCHEDULER CREATION
+    nvexec::stream_context ctx;
+    auto sched_gpu = ctx.get_scheduler();
+
+    auto start = high_resolution_clock::now();
+
+    stdexec::sync_wait(stdexec::schedule(sched_gpu) 
+      | stdexec::bulk(stdexec::par_unseq, ARR_SZ, weighted_ave));
+
+    auto end = high_resolution_clock::now();
+    auto duration_ms = duration_cast<milliseconds>(end - start).count();
+    std::cout << "Elapsed time: " << duration_ms << " ms\n";
+
+    auto indices = std::views::iota(0, ARR_SZ);
+    start = high_resolution_clock::now();
+
+    std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), 
+      weighted_ave);
+    
+    end = high_resolution_clock::now();
+    duration_ms = duration_cast<milliseconds>(end - start).count();
+    std::cout << "Elapsed time: " << duration_ms << " ms\n";
+    
+    return(0);
+}
