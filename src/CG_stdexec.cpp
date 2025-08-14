@@ -335,8 +335,8 @@ auto dot_prod_rr_stg2 = [=](){
   int print_freq = 1;
 #endif
 
-  sender auto pre_loop_work = schedule(scheduler)
-  | bulk(par_unseq, nrow, waxpby_peqx)
+  sender auto pre_loop_work = just() | on(scheduler,
+  bulk(par_unseq, nrow, waxpby_peqx)
   | bulk(par_unseq, nrow, spmv_Ap)
   | bulk(par_unseq, nrow, waxpby_reqbmAp)
   | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
@@ -344,7 +344,7 @@ auto dot_prod_rr_stg2 = [=](){
   | then([=](){
     *normr_cpy = sqrt(*normr_cpy);
     *normr0_cpy = *normr_cpy; //record initial residual for convergence testing
-  });
+  }));
   sync_wait(std::move(pre_loop_work));
 
 #ifdef HPCG_DEBUG
@@ -354,10 +354,10 @@ auto dot_prod_rr_stg2 = [=](){
   int k = 1;
 
   //mg process here
-  sender auto mg_stg0a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows0, zerovector_0);
-  sender auto mg_stg0b = schedule(scheduler)
-    | then([=](){ *color = 0; })
+  sender auto mg_stg0a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows0, zerovector_0));
+  sender auto mg_stg0b = just() | on(scheduler,
+    then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows0, symgs_0)
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows0, symgs_0)
@@ -372,15 +372,15 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows0, symgs_0)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows0, symgs_0);
-  sender auto mg_stg0c = schedule(scheduler)
-    | bulk(par_unseq, A_nrows0, spmv_mg0)
-    | bulk(par_unseq, A_nrows1, restriction_0);
+    | bulk(par_unseq, A_nrows0, symgs_0));
+  sender auto mg_stg0c = just() | on(scheduler,
+    bulk(par_unseq, A_nrows0, spmv_mg0)
+    | bulk(par_unseq, A_nrows1, restriction_0));
 
-  sender auto mg_stg1a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows1, zerovector_1);
-  sender auto mg_stg1b = schedule(scheduler)
-    | then([=](){ *color = 0; })
+  sender auto mg_stg1a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows1, zerovector_1));
+  sender auto mg_stg1b = just() | on(scheduler,
+    then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows1, symgs_1)
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows1, symgs_1)
@@ -395,15 +395,15 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows1, symgs_1)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows1, symgs_1);
-  sender auto mg_stg1c = schedule(scheduler)
-    | bulk(par_unseq, A_nrows1, spmv_mg1)
-    | bulk(par_unseq, A_nrows2, restriction_1);
+    | bulk(par_unseq, A_nrows1, symgs_1));
+  sender auto mg_stg1c = just() | on(scheduler,
+    bulk(par_unseq, A_nrows1, spmv_mg1)
+    | bulk(par_unseq, A_nrows2, restriction_1));
 
-  sender auto mg_stg2a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows2, zerovector_2);
-  sender auto mg_stg2b = schedule(scheduler)
-    | then([=](){ *color = 0; })
+  sender auto mg_stg2a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows2, zerovector_2));
+  sender auto mg_stg2b = just() | on(scheduler,
+    then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows2, symgs_2)
@@ -418,15 +418,15 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows2, symgs_2);
-  sender auto mg_stg2c = schedule(scheduler)
-    | bulk(par_unseq, A_nrows2, spmv_mg2)
-    | bulk(par_unseq, A_nrows3, restriction_2);
+    | bulk(par_unseq, A_nrows2, symgs_2));
+  sender auto mg_stg2c = just() | on(scheduler,
+    bulk(par_unseq, A_nrows2, spmv_mg2)
+    | bulk(par_unseq, A_nrows3, restriction_2));
 
-  sender auto mg_stg3a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows3, zerovector_3);
-  sender auto mg_stg3b = schedule(scheduler)
-    | then([=](){ *color = 0; })
+  sender auto mg_stg3a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows3, zerovector_3));
+  sender auto mg_stg3b = just() | on(scheduler,
+    then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows3, symgs_3)
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows3, symgs_3)
@@ -441,16 +441,16 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows3, symgs_3)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows3, symgs_3);
+    | bulk(par_unseq, A_nrows3, symgs_3));
 
-  sender auto mg_stg4a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows3, prolongation_2);
+  sender auto mg_stg4a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows3, prolongation_2));
   
-  sender auto mg_stg5a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows2, prolongation_1);
+  sender auto mg_stg5a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows2, prolongation_1));
   
-  sender auto mg_stg6a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows1, prolongation_0);
+  sender auto mg_stg6a = just() | on(scheduler,
+    bulk(par_unseq, A_nrows1, prolongation_0));
 
   sync_wait(mg_stg0a);
   sync_wait(mg_stg0b);
@@ -483,8 +483,8 @@ auto dot_prod_rr_stg2 = [=](){
   sync_wait(mg_stg0b);
   sync_wait(mg_stg0b);
   
-  sender auto rest_of_first_loop = schedule(scheduler)
-    | bulk(par_unseq, nrow, waxpby_peqz)
+  sender auto rest_of_first_loop = just() | on(scheduler,
+    bulk(par_unseq, nrow, waxpby_peqz)
     | bulk(par_unseq, NUM_BINS, dot_prod_rz_stg1)
     | then(dot_prod_rz_stg2)
     | bulk(par_unseq, nrow, spmv_Ap)
@@ -495,7 +495,7 @@ auto dot_prod_rr_stg2 = [=](){
     | bulk(par_unseq, nrow, waxpby_reqrmaAp)
     | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
     | then(dot_prod_rr_stg2)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); }));
     sync_wait(std::move(rest_of_first_loop));
 
 #ifdef HPCG_DEBUG
@@ -504,8 +504,8 @@ auto dot_prod_rr_stg2 = [=](){
 #endif
     niters = 1;
 
-  sender auto rest_of_loop = schedule(scheduler)
-    | then([=](){ *oldrtz = *rtz; })
+  sender auto rest_of_loop = just() | on(scheduler,
+    then([=](){ *oldrtz = *rtz; })
     | bulk(par_unseq, NUM_BINS, dot_prod_rz_stg1)
     | then(dot_prod_rz_stg2)
     | then([=](){ *beta = *rtz/(*oldrtz); })
@@ -518,7 +518,7 @@ auto dot_prod_rr_stg2 = [=](){
     | bulk(par_unseq, nrow, waxpby_reqrmaAp)
     | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
     | then(dot_prod_rr_stg2)
-    | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
+    | then([=](){ *normr_cpy = sqrt(*normr_cpy); }));
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
