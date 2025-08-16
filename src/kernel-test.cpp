@@ -21,15 +21,13 @@ int main(void){
         long_arr[ind] = rand() % 100;
     }
 
-    auto weighted_ave = [=](int ind){
+    //kernel for gpu testing
+    auto transform_func = [=](int ind){
         transformed_arr[ind] = long_arr[ind]*long_arr[ind] 
           + 0.5*long_arr[ARR_SZ-(ind+1)]; 
     };
 
-    //INLINE SCHEDULER CREATION
-    exec::inline_scheduler sched_inl;
-
-    //GPU SCHEDULER CREATION
+    //GPU scheduler creation
     nvexec::stream_context ctx;
     auto sched_gpu = ctx.get_scheduler();
 
@@ -38,12 +36,12 @@ int main(void){
 
 #ifdef STDPAR
     std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), 
-      weighted_ave);
+      transform_func);
 #endif
 
 #ifdef STDEXEC
     stdexec::sync_wait(stdexec::schedule(sched_gpu) 
-      | stdexec::bulk(stdexec::par_unseq, ARR_SZ, weighted_ave));
+      | stdexec::bulk(stdexec::par_unseq, ARR_SZ, transform_func));
 #endif
 
     auto end = high_resolution_clock::now();
