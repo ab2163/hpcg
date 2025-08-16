@@ -142,37 +142,18 @@ double* z_vals3 = z_vals[3];
 double* Axfv_vals0 = Axfv_vals[0];
 double* Axfv_vals1 = Axfv_vals[1];
 double* Axfv_vals2 = Axfv_vals[2];
-double* Axfv_vals3 = nullptr;
 
 local_int_t* f2c_vals0 = f2c_vals[0];
 local_int_t* f2c_vals1 = f2c_vals[1];
 local_int_t* f2c_vals2 = f2c_vals[2];
-local_int_t* f2c_vals3 = nullptr;
 
 double* xcv_vals0 = xcv_vals[0];
 double* xcv_vals1 = xcv_vals[1];
 double* xcv_vals2 = xcv_vals[2];
-double* xcv_vals3 = nullptr;
 
 double* rcv_vals0 = rcv_vals[0];
 double* rcv_vals1 = rcv_vals[1];
 double* rcv_vals2 = rcv_vals[2];
-double* rcv_vals3 = nullptr;
-
-const SparseMatrix* A_obj0 = A_objs[0];
-const SparseMatrix* A_obj1 = A_objs[1];
-const SparseMatrix* A_obj2 = A_objs[2];
-const SparseMatrix* A_obj3 = A_objs[3];
-
-Vector* r_obj0 = r_objs[0];
-Vector* r_obj1 = r_objs[1];
-Vector* r_obj2 = r_objs[2];
-Vector* r_obj3 = r_objs[3];
-
-Vector* z_obj0 = z_objs[0];
-Vector* z_obj1 = z_objs[1];
-Vector* z_obj2 = z_objs[2];
-Vector* z_obj3 = z_objs[3];
 
 //********** DEFINITION OF KERNELS **********//
 
@@ -522,7 +503,7 @@ auto dot_prod_rr_stg2 = [=](){
 
   //start iterations
   //convergence check accepts an error of no more than 6 significant digits of tolerance
-  for(int k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
+  for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     sync_wait(mg_stg0a);
     sync_wait(mg_stg0b);
