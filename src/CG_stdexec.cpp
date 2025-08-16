@@ -4,7 +4,9 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
   double *times, bool doPreconditioning){
 
-  //DATA VARIABLES
+  //********** DATA VARIABLES **********//
+
+  double start_time = mytimer();
   double *rtz    = new double(0.0);
   double *oldrtz = new double(0.0);
   double *alpha  = new double(0.0);
@@ -539,6 +541,7 @@ auto dot_prod_rr_stg2 = [=](){
     niters = k;
   }
 
+  times[0] = mytimer() - start_time; //record total time elapsed
   normr = *normr_cpy;
   normr0 = *normr0_cpy;
   delete color;
