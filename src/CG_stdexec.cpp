@@ -372,6 +372,22 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows1, symgs_1)
     | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows1, symgs_1);
   sender auto mg_stg1c = schedule(scheduler)
     | bulk(par_unseq, A_nrows1, spmv_mg1)
@@ -380,6 +396,22 @@ auto dot_prod_rr_stg2 = [=](){
   sender auto mg_stg2a = schedule(scheduler)
     | bulk(par_unseq, A_nrows2, zerovector_2);
   sender auto mg_stg2b = schedule(scheduler)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ (*color)++; })
@@ -418,6 +450,22 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows3, symgs_3)
     | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows3, symgs_3)
+    | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows3, symgs_3);
 
   sender auto mg_stg4a = schedule(scheduler)
@@ -431,33 +479,26 @@ auto dot_prod_rr_stg2 = [=](){
 
   sync_wait(mg_stg0a);
   sync_wait(mg_stg0b);
-  sync_wait(mg_stg0b);
   sync_wait(mg_stg0c);
 
   sync_wait(mg_stg1a);
-  sync_wait(mg_stg1b);
   sync_wait(mg_stg1b);
   sync_wait(mg_stg1c);
 
   sync_wait(mg_stg2a);
   sync_wait(mg_stg2b);
-  sync_wait(mg_stg2b);
   sync_wait(mg_stg2c);
 
   sync_wait(mg_stg3a);
   sync_wait(mg_stg3b);
-  sync_wait(mg_stg3b);
 
   sync_wait(mg_stg4a);
-  sync_wait(mg_stg2b);
   sync_wait(mg_stg2b);
 
   sync_wait(mg_stg5a);
   sync_wait(mg_stg1b);
-  sync_wait(mg_stg1b);
 
   sync_wait(mg_stg6a);
-  sync_wait(mg_stg0b);
   sync_wait(mg_stg0b);
   
   sender auto rest_of_first_loop = schedule(scheduler)
@@ -503,33 +544,26 @@ auto dot_prod_rr_stg2 = [=](){
 
     sync_wait(mg_stg0a);
     sync_wait(mg_stg0b);
-    sync_wait(mg_stg0b);
     sync_wait(mg_stg0c);
 
     sync_wait(mg_stg1a);
-    sync_wait(mg_stg1b);
     sync_wait(mg_stg1b);
     sync_wait(mg_stg1c);
 
     sync_wait(mg_stg2a);
     sync_wait(mg_stg2b);
-    sync_wait(mg_stg2b);
     sync_wait(mg_stg2c);
 
     sync_wait(mg_stg3a);
     sync_wait(mg_stg3b);
-    sync_wait(mg_stg3b);
 
     sync_wait(mg_stg4a);
-    sync_wait(mg_stg2b);
     sync_wait(mg_stg2b);
 
     sync_wait(mg_stg5a);
     sync_wait(mg_stg1b);
-    sync_wait(mg_stg1b);
 
     sync_wait(mg_stg6a);
-    sync_wait(mg_stg0b);
     sync_wait(mg_stg0b);
 
     sync_wait(rest_of_loop);
