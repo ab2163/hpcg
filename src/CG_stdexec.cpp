@@ -3,11 +3,6 @@
 int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   const int max_iter, const double tolerance, int &niters, double &normr,  double &normr0,
   double *times, bool doPreconditioning){
-  
-  //TIMING VARIABLES  
-  double t_begin = mytimer();  //start timing right away
-  double t_dotProd = 0.0, t_WAXPBY = 0.0, t_SPMV = 0.0, t_MG = 0.0 , dummy_time = 0.0;
-  double t_SYMGS = 0.0, t_restrict = 0.0, t_prolong = 0.0;
 
   //DATA VARIABLES
   double *rtz    = new double(0.0);
@@ -85,7 +80,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   double *dot_local_result = new double(0.0);
 
   unsigned int num_threads = omp_get_max_threads();
-  std::cout << "THREAD POOL SIZE IS " << num_threads << ".\n";
   exec::static_thread_pool pool(num_threads);
 
 #ifdef USE_GPU
@@ -547,16 +541,6 @@ auto dot_prod_rr_stg2 = [=](){
 
   normr = *normr_cpy;
   normr0 = *normr0_cpy;
-  times[1] += t_dotProd; //dot-product time
-  times[2] += t_WAXPBY; //WAXPBY time
-  times[3] += t_SPMV; //SPMV time
-  times[4] += 0.0; //AllReduce time
-  times[5] += t_MG; //preconditioner apply time
-  times[0] += mytimer() - t_begin;  //total time
-  std::cout << "ADDITIONAL TIME DATA:\n";
-  std::cout << "SYMGS Time : " << t_SYMGS << "\n";
-  std::cout << "Restriction Time : " << t_restrict << "\n";
-  std::cout << "Prolongation Time : " << t_prolong << "\n";
   delete color;
   delete alpha;
   delete beta;
