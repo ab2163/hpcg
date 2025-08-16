@@ -6,7 +6,7 @@ mkdir build
 cd build
 
 #CHANGE THIS LINE TO POINT TO THE "CONFIGURE" FILE IN THE HPCG REPO:
-/root/hpcg/configure bris
+/home/ajinkya/Documents/hpcg/configure bris
 
 #Run make and pass the relevant compilation flag
 case "$1" in
