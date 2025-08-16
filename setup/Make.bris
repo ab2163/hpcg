@@ -64,8 +64,8 @@ HPCG_DEFS     = $(HPCG_OPTS) $(HPCG_INCLUDES)
 # ----------------------------------------------------------------------
 #
 USERFLAGS    =
-CXX          = /opt/nvidia/hpc_sdk/Linux_x86_64/2025/compilers/bin/nvc++
-CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -mp -ftemplate-depth=2048 $(USERFLAGS) -I/home/ajinkya/Documents/hpcg/stdexec/include
+CXX          = /opt/nvidia/hpc_sdk/Linux_x86_64/25.7/compilers/bin/nvc++
+CXXFLAGS     = $(HPCG_DEFS) -std=c++20 -O3 -mp -ftemplate-depth=2048 $(USERFLAGS) -I/root/hpcg/stdexec/include
 LINKER       = $(CXX)
 LINKFLAGS    = $(CXXFLAGS)
 #
