@@ -331,9 +331,8 @@ auto dot_prod_rr_stg2 = [=](){
   int k = 1;
 
   //mg process here
-  sender auto mg_stg0a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows0, zerovector_0);
-  sender auto mg_stg0b = schedule(scheduler)
+  sender auto mg_stg0 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows0, zerovector_0)
     | then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows0, symgs_0)
     | then([=](){ (*color)++; })
@@ -365,14 +364,12 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows0, symgs_0)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows0, symgs_0);
-  sender auto mg_stg0c = schedule(scheduler)
+    | bulk(par_unseq, A_nrows0, symgs_0)
     | bulk(par_unseq, A_nrows0, spmv_mg0)
     | bulk(par_unseq, A_nrows1, restriction_0);
 
-  sender auto mg_stg1a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows1, zerovector_1);
-  sender auto mg_stg1b = schedule(scheduler)
+  sender auto mg_stg1 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows1, zerovector_1)
     | then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows1, symgs_1)
     | then([=](){ (*color)++; })
@@ -404,14 +401,12 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows1, symgs_1)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows1, symgs_1);
-  sender auto mg_stg1c = schedule(scheduler)
+    | bulk(par_unseq, A_nrows1, symgs_1)
     | bulk(par_unseq, A_nrows1, spmv_mg1)
     | bulk(par_unseq, A_nrows2, restriction_1);
 
-  sender auto mg_stg2a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows2, zerovector_2);
-  sender auto mg_stg2b = schedule(scheduler)
+  sender auto mg_stg2 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows2, zerovector_2)
     | then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ (*color)++; })
@@ -443,14 +438,12 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows2, symgs_2)
     | then([=](){ (*color)++; })
-    | bulk(par_unseq, A_nrows2, symgs_2);
-  sender auto mg_stg2c = schedule(scheduler)
+    | bulk(par_unseq, A_nrows2, symgs_2)
     | bulk(par_unseq, A_nrows2, spmv_mg2)
     | bulk(par_unseq, A_nrows3, restriction_2);
 
-  sender auto mg_stg3a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows3, zerovector_3);
-  sender auto mg_stg3b = schedule(scheduler)
+  sender auto mg_stg3 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows3, zerovector_3)
     | then([=](){ *color = 0; })
     | bulk(par_unseq, A_nrows3, symgs_3)
     | then([=](){ (*color)++; })
@@ -484,38 +477,118 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows3, symgs_3);
 
-  sender auto mg_stg4a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows3, prolongation_2);
+  sender auto mg_stg4 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows3, prolongation_2)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows2, symgs_2);
   
-  sender auto mg_stg5a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows2, prolongation_1);
+  sender auto mg_stg5 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows2, prolongation_1)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows1, symgs_1);
   
-  sender auto mg_stg6a = schedule(scheduler)
-    | bulk(par_unseq, A_nrows1, prolongation_0);
+  sender auto mg_stg6 = schedule(scheduler)
+    | bulk(par_unseq, A_nrows1, prolongation_0)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ *color = 0; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ (*color)++; })
+    | bulk(par_unseq, A_nrows0, symgs_0);
 
-  sync_wait(mg_stg0a);
-  sync_wait(mg_stg0b);
-  sync_wait(mg_stg0c);
-
-  sync_wait(mg_stg1a);
-  sync_wait(mg_stg1b);
-  sync_wait(mg_stg1c);
-
-  sync_wait(mg_stg2a);
-  sync_wait(mg_stg2b);
-  sync_wait(mg_stg2c);
-
-  sync_wait(mg_stg3a);
-  sync_wait(mg_stg3b);
-
-  sync_wait(mg_stg4a);
-  sync_wait(mg_stg2b);
-
-  sync_wait(mg_stg5a);
-  sync_wait(mg_stg1b);
-
-  sync_wait(mg_stg6a);
-  sync_wait(mg_stg0b);
+  sync_wait(mg_stg0);
+  sync_wait(mg_stg1);
+  sync_wait(mg_stg2);
+  sync_wait(mg_stg3);
+  sync_wait(mg_stg4);
+  sync_wait(mg_stg5);
+  sync_wait(mg_stg6);
   
   sender auto rest_of_first_loop = schedule(scheduler)
     | bulk(par_unseq, nrow, waxpby_peqz)
@@ -558,30 +631,13 @@ auto dot_prod_rr_stg2 = [=](){
   //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    sync_wait(mg_stg0a);
-    sync_wait(mg_stg0b);
-    sync_wait(mg_stg0c);
-
-    sync_wait(mg_stg1a);
-    sync_wait(mg_stg1b);
-    sync_wait(mg_stg1c);
-
-    sync_wait(mg_stg2a);
-    sync_wait(mg_stg2b);
-    sync_wait(mg_stg2c);
-
-    sync_wait(mg_stg3a);
-    sync_wait(mg_stg3b);
-
-    sync_wait(mg_stg4a);
-    sync_wait(mg_stg2b);
-
-    sync_wait(mg_stg5a);
-    sync_wait(mg_stg1b);
-
-    sync_wait(mg_stg6a);
-    sync_wait(mg_stg0b);
-
+    sync_wait(mg_stg0);
+    sync_wait(mg_stg1);
+    sync_wait(mg_stg2);
+    sync_wait(mg_stg3);
+    sync_wait(mg_stg4);
+    sync_wait(mg_stg5);
+    sync_wait(mg_stg6);
     sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
