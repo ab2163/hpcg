@@ -157,7 +157,7 @@ auto dot_prod_stg1 = [=](local_int_t i, const double * const vec1_vals, const do
     local_int_t minInd = i*(nrow/NUM_BINS);
     local_int_t maxInd = ((i + 1) == NUM_BINS) ? nrow : (i + 1)*(nrow/NUM_BINS);
     double bin_sum = 0.0;
-    for(local_int_t j = minInd; j < maxInd; ++j) {
+    for(local_int_t j = minInd; j < maxInd; ++j){
       bin_sum = std::fma(vec1_vals[j], vec2_vals[j], bin_sum);
     }
     bin_vals[i] = bin_sum;
