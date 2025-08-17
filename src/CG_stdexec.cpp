@@ -330,7 +330,7 @@ auto dot_prod_rr_stg2 = [=](){
   
   int k = 1;
 
-  //mg process here
+  //mg process first stage
   sender auto mg_stg0 = schedule(scheduler)
     | bulk(par_unseq, A_nrows0, zerovector_0)
     | then([=](){ *color = 0; })
@@ -628,7 +628,6 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
 
   //start iterations
-  //convergence check accepts an error of no more than 6 significant digits of tolerance
   for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
     sync_wait(mg_stg0);
