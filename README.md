@@ -1,85 +1,75 @@
-########################################################
-# High Performance Conjugate Gradient Benchmark (HPCG) #
-########################################################
+# HPCG Benchmark with C++ `stdpar` and `stdexec` Libraries
 
-Jack Dongarra and Michael Heroux and Piotr Luszczek
+## Purpose of This Fork
 
-Revision: 3.1
+This repo is a fork of the [Official HPCG Benchmark repo](https://github.com/hpcg-benchmark/hpcg). Here, we implement the HPCG benchmark using the C++ `stdpar` and experimental NVIDIA `stdexec` libraries. The `stdpar` library provides functions such as `std::for_each` and `std::transform_reduce` which allow common patterns of computation to be performed in parallel. The `stdexec` library introduces the abstractions of senders and receivers which allow the construction and execution of asynchronous task graphs. Within such graphs parallel computations may be performed using sender adaptors such as `stdexec::bulk` and `stdexec::then`.
 
-Date: March 28, 2019
+Our HPCG implementations parallelise the symmetric Gauss-Seidel kernel using a simple multi-colouring approach with eight colours. Further, the implementations are capable of compilation for both CPU and GPU targets using the NVIDIA `nvc++` compiler.
 
-## Introduction ##
+## Repo Structure
 
-HPCG is a software package that performs a fixed number of multigrid preconditioned
-(using a symmetric Gauss-Seidel smoother) conjugate gradient (PCG) iterations using double
-precision (64 bit) floating point values.
+All source code is within the `src` folder. Files associated with the `stdpar` implementation are suffixed with `_stdpar` whereas those associated with `stdexec` are suffixed `_stdexec`. An accompanying masters thesis for this project is located in the `abhalerao_thesis` folder.
 
-The HPCG rating is is a weighted GFLOP/s (billion floating operations per second) value
-that is composed of the operations performed in the PCG iteration phase over
-the time taken.  The overhead time of problem construction and any modifications to improve
-performance are divided by 500 iterations (the amortization weight) and added to the runtime.
+## Prerequisites 
 
-Integer arrays have global and local
-scope (global indices are unique across the entire distributed memory system,
-local indices are unique within a memory image).  Integer data for global/local
-indices have three modes:
+To run and build the code the following are required:
 
-* 32/32 - global and local integers are 32-bit
-* 64/32 - global integers are 64-bit, local are 32-bit
-* 64/64 - global and local are 64-bit.
+* Linux installation (since `nvc++` compiler only supports Linux)
+* `nvc++` compiler version 23.3+
+* MPI installation
 
-These various modes are required in order to address sufficiently big problems
-if the range of indexing goes above 2^31 (roughly 2.1B), or to conserve storage
-costs if the range of indexing is less than 2^31.
+## Build Instructions
 
-The  HPCG  software  package requires the availibility on your system of an
-implementation of the  Message Passing Interface (MPI) if enabling the MPI
-build of HPCG, and a compiler that supports OpenMP syntax. An implementation
-compliant with MPI version 1.1 is sufficient.
+Since `nvc++` compiler is only available for Linux, these instructions only apply to Linux-based systems. Compilation steps to produce and run the `xhpcg` executable are:
 
-## Installation ##
+1. Clone the [GitHub repo](https://github.com/ab2163/hpcg) (using `--recursive` to also clone the `stdexec` submodule):  
+   `git clone --recursive https://github.com/ab2163/hpcg`
 
-See the file `INSTALL` in this directory.
+2. Install NVIDIA `nvc++` compiler and an MPI implementation.
 
-## Valid Runs ##
+3. Modify the `Make.bris` file within the `setup` subdirectory of the repo such that:
+   1. The `CXX` variable points to the correct location of the `nvc++` compiler e.g.:
+      ```make
+      CXX = /opt/nvidia/hpc_sdk/Linux_x86_64/2025/compilers/bin/nvc++
+      ```
+   2. The `MPinc` and `MPlib` variables point to the `include` and `lib` directories of the MPI installation e.g.:
+      ```make
+      MPinc = -I/usr/lib/x86_64-linux-gnu/openmpi/include
+      MPlib = /usr/lib/x86_64-linux-gnu/openmpi/lib
+      ```
+   3. In `CXXFLAGS`, the include path for the `stdexec/include` folder within the HPCG repo is correctly set e.g.:
+      ```make
+      CXXFLAGS = ... -I/root/hpcg/stdexec/include
+      ```
 
-HPCG can be run in just a few minutes from start to finish.  However, official
-runs must be at least 1800 seconds (30 minutes) as reported in the output file.
-The Quick Path option is an exception for machines that are in production mode
-prior to broad availability of an optimized version of HPCG 3.0 for a given platform.
-In this situation (which should be confirmed by sending a note to the HPCG Benchmark
-owners) the Quick Path option can be invoked by setting the run time parameter equal
-to 0 (zero).
+4. Change the relevant line in `bris_build.sh` (which calls the `configure` file within the HPCG repo) to match the location of the `configure` file on the system e.g.:
+   ```bash
+   /root/hpcg/configure bris
+   ```
 
-A valid run must also execute a problem size that is large enough so that data
-arrays accessed in the CG iteration loop do not fit in the cache of the device
-in a way that would be unrealistic in a real application setting.  Presently this
-restriction means that the problem size should be large enough to occupy a
-significant fraction of *main memory*, at least 1/4 of the total.
+5. Run one of the commands below to build the code:
 
-Future memory system architectures may require restatement of the specific memory
-size requirements.  But the guiding principle will always be that the problem
-size should reflect what would be reasonable for a real sparse iterative solver.
+    | Code Implementation              | Build Command                    |
+    |----------------------------------|----------------------------------|
+    | Baseline                         | `bris_build.sh baseline`         |
+    | Baseline with Parallel SYMGS     | `bris_build.sh baseline_par`     |
+    | `stdpar` (CPU execution)         | `bris_build.sh stdpar_cpu`       |
+    | `stdpar` (GPU execution)         | `bris_build.sh stdpar_gpu`       |
+    | `stdexec` (CPU execution)        | `bris_build.sh stdexec_cpu`      |
+    | `stdexec` (GPU execution)        | `bris_build.sh stdexec_gpu`      |
 
-## Documentation ##
+6. Adjust the environment variables in `bris_run.sh`:
 
-The source code documentation can be generated with a Doxygen (version 1.8 or
-newer). In this directory type:
+    * `OMP_NUM_THREADS` should equal the number of available hardware cores
+    * `OMP_PROC_BIND=spread`
+    * `OMP_PLACES=cores` for `stdexec` implementation and `OMP_PLACES=threads` otherwise
 
-    doxygen tools/hpcg.dox
+7. Adjust the HPCG problem size in the `hpcg.dat` file within the `build/bin` folder.
 
-Doxygen will then generate various output formats in the `out` directory.
+8. Run the `bris_run.sh` script, after which an output file will be produced in the `build/bin` folder containing the benchmark results.
 
-## Tuning ##
+9. To remove all files generated during building and execution of the program, run `bris_clean.sh`.
 
-See the file `TUNING` in this directory.
+## Acknowledgements
 
-## Bugs ##
-
-Known problems and bugs with this release are documented in the file
-`BUGS`.
-
-## Further information ##
-
-Check out  the website  http://www.hpcg-benchmark.org/ for the latest
-information and performance results.
+Thanks to Dr Tom Deakin and the University of Bristol HPC team for their support.
