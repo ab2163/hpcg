@@ -16,9 +16,9 @@ int ComputeWAXPBY_stdpar(const local_int_t n, const double alpha, const Vector &
 
   if(alpha == 1.0){
     std::transform(std::execution::par_unseq, xv, xv + n, yv, wv, [=](double xi, double yi){ return xi + beta*yi; });
-  }else if (beta == 1.0){
+  }else if(beta == 1.0){
     std::transform(std::execution::par_unseq, xv, xv + n, yv, wv, [=](double xi, double yi){ return alpha*xi + yi; });
-  }else {
+  }else{
     std::transform(std::execution::par_unseq, xv, xv + n, yv, wv, [=](double xi, double yi){ return alpha*xi + beta*yi; });
   }
 

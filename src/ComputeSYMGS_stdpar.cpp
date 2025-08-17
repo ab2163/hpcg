@@ -11,6 +11,7 @@
 
 #include "ComputeSYMGS_ref.hpp"
 #define NUM_COLORS 8
+#define FWD_AND_BACK_SWEEPS 2
 
 int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   assert(x.localLength == A.localNumberOfColumns);
@@ -26,41 +27,25 @@ int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   const local_int_t * const * const indv = A.mtxIndL;
   const char * const nnz = A.nonzerosInRow;
   const unsigned char * const colors = A.colors;
-  auto rows = std::views::iota(local_int_t{0}, nrow);
+  auto rows = std::views::iota(0, nrow);
 
-  for(int color = 0; color < NUM_COLORS; color++){
-    std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
-      if(colors[i] == color){
-        const double currentDiagonal = matrixDiagonal[i][0]; //current diagonal value
-        double sum = rv[i]; //RHS value
+  for(int sweeps = 0; sweeps < FWD_AND_BACK_SWEEPS; sweeps++){
+    for(int color = 0; color < NUM_COLORS; color++){
+      std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
+        if(colors[i] == color){
+          const double currentDiagonal = matrixDiagonal[i][0]; //current diagonal value
+          double sum = rv[i]; //RHS value
 
-        for(int j = 0; j < nnz[i]; j++){
-          local_int_t curCol = indv[i][j];
-          sum -= amv[i][j] * xv[curCol];
+          for(int j = 0; j < nnz[i]; j++){
+            local_int_t curCol = indv[i][j];
+            sum -= amv[i][j] * xv[curCol];
+          }
+          sum += xv[i]*currentDiagonal; //remove diagonal contribution from previous loop
+
+          xv[i] = sum/currentDiagonal;
         }
-        sum += xv[i]*currentDiagonal; //remove diagonal contribution from previous loop
-
-        xv[i] = sum/currentDiagonal;
-      }
-    });
-  }
-
-  //back sweep
-  for(int color = 0; color < NUM_COLORS; color++){
-    std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
-      if(colors[i] == color){
-        const double currentDiagonal = matrixDiagonal[i][0]; //current diagonal value
-        double sum = rv[i]; //RHS value
-
-        for(int j = 0; j < nnz[i]; j++){
-          local_int_t curCol = indv[i][j];
-          sum -= amv[i][j] * xv[curCol];
-        }
-        sum += xv[i]*currentDiagonal; //remove diagonal contribution from previous loop
-
-        xv[i] = sum/currentDiagonal;
-      }
-    });
+      });
+    }
   }
 
   return 0;

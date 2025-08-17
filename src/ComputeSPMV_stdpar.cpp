@@ -26,7 +26,7 @@ int ComputeSPMV_stdpar(const SparseMatrix &A, Vector &x, Vector &y){
   const local_int_t * const * const indv = A.mtxIndL;
   const char * const nnz = A.nonzerosInRow;
   const local_int_t nrow = A.localNumberOfRows;
-  auto rows = std::views::iota(local_int_t{0}, nrow);
+  auto rows = std::views::iota(0, nrow);
 
   std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
     double sum = 0.0;
