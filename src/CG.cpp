@@ -1,4 +1,3 @@
-
 //@HEADER
 // ***************************************************
 //
@@ -16,7 +15,7 @@
  @file CG.cpp
 
  HPCG routine
- */
+*/
 
 #include <fstream>
 
@@ -31,6 +30,7 @@
 #include "ComputeDotProduct.hpp"
 #include "ComputeWAXPBY.hpp"
 #include "ComputeWAXPBY_stdpar.hpp"
+#include "CG_stdexec.hpp"
 
 // Use TICK and TOCK to time a code section in MATLAB-like fashion
 #define TICK()  t0 = mytimer() //!< record current time in 't0'
@@ -56,15 +56,19 @@
 
   @see CG_ref()
 */
+
 int CG(const SparseMatrix & A, CGData & data, const Vector & b, Vector & x,
     const int max_iter, const double tolerance, int & niters, double & normr, double & normr0,
-    double * times, bool doPreconditioning) {
+    double * times, bool doPreconditioning){
+
+#ifdef SELECT_STDEXEC
+  //the CG_stdexec algorithm is standalone - call this when compiler flag specified
+  return CG_stdexec(A, data, b, x, max_iter, tolerance, niters, normr, normr0, times, doPreconditioning);
+#endif
 
   double t_begin = mytimer();  // Start timing right away
   normr = 0.0;
   double rtz = 0.0, oldrtz = 0.0, alpha = 0.0, beta = 0.0, pAp = 0.0;
-
-
   double t0 = 0.0, t1 = 0.0, t2 = 0.0, t3 = 0.0, t4 = 0.0, t5 = 0.0;
 //#ifndef HPCG_NO_MPI
 //  double t6 = 0.0;
