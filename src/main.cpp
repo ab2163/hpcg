@@ -61,6 +61,7 @@ using std::endl;
 #include "TestSymmetry.hpp"
 #include "TestNorms.hpp"
 #include "CG_stdexec.hpp"
+#include "ComputeMG_stdpar.hpp"
 
 /*!
   Main driver program: Construct synthetic problem, run V&V tests, compute benchmark parameters, run benchmark, report results.
@@ -239,6 +240,10 @@ int main(int argc, char * argv[]) {
     std::cout << "SPMV time: " << ref_times[3] << "\n";
     std::cout << "MG time: " << ref_times[5] << "\n";
 
+    std::cout << "MG L0 time (stdpar): " << times_mg_levels[0] << "\n";
+    std::cout << "MG L1 time (stdpar): " << times_mg_levels[1] << "\n";
+    std::cout << "MG L2 time (stdpar): " << times_mg_levels[2] << "\n";
+    std::cout << "MG L3 time (stdpar): " << times_mg_levels[3] << "\n";
   return 0;
 
   // Call user-tunable set up function.
