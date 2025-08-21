@@ -6,18 +6,8 @@
 #include "ComputeWAXPBY_stdpar.hpp"
 #include <cassert>
 
-double times_mg_levels[4] = {0.0, 0.0, 0.0, 0.0};
-
 int ComputeMG_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   assert(x.localLength == A.localNumberOfColumns); //make sure x contain space for halo values
-
-  const SparseMatrix *matPtr = &A;
-  int mglvl = 3;
-  while(matPtr->mgData != 0){
-    matPtr = matPtr->Ac;
-    mglvl--;
-  }
-  double dummy_time = mytimer();
 
   //ZeroVector(x); //initialize x to zero
   ComputeWAXPBY_stdpar(x.localLength, 0, x, 0, x, x); //zero vector "x" with WAXPBY
@@ -40,8 +30,6 @@ int ComputeMG_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
     ierr = ComputeSYMGS_stdpar(A, r, x);
     if(ierr != 0) return ierr;
   }
-
-  times_mg_levels[mglvl] += (mytimer() - dummy_time);
   return 0;
 }
 

@@ -6,7 +6,6 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
 
   //********** DATA VARIABLES **********//
 
-  double time_mg_0 = 0.0, time_mg_1 = 0.0, time_mg_2 = 0.0, time_mg_3 = 0.0, dummy_time = 0.0;
   double start_time = mytimer();
   double *rtz    = new double(0.0);
   double *oldrtz = new double(0.0);
@@ -583,33 +582,13 @@ auto dot_prod_rr_stg2 = [=](){
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows0, symgs_0);
 
-  dummy_time = mytimer();
   sync_wait(mg_stg0);
-  time_mg_0 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg1);
-  time_mg_1 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg2);
-  time_mg_2 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg3);
-  time_mg_3 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg4);
-  time_mg_2 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg5);
-  time_mg_1 += (mytimer() - dummy_time);
-
-  dummy_time = mytimer();
   sync_wait(mg_stg6);
-  time_mg_0 += (mytimer() - dummy_time);
   
   sender auto rest_of_first_loop = schedule(scheduler)
     | bulk(par_unseq, nrow, waxpby_peqz)
@@ -624,7 +603,7 @@ auto dot_prod_rr_stg2 = [=](){
     | bulk(par_unseq, NUM_BINS, dot_prod_rr_stg1)
     | then(dot_prod_rr_stg2)
     | then([=](){ *normr_cpy = sqrt(*normr_cpy); });
-  sync_wait(std::move(rest_of_first_loop));
+    sync_wait(std::move(rest_of_first_loop));
 
 #ifdef HPCG_DEBUG
     if(A.geom->rank == 0 && (1 % print_freq == 0 || 1 == max_iter))
@@ -651,34 +630,13 @@ auto dot_prod_rr_stg2 = [=](){
   //start iterations
   for(k = 2; k <= max_iter && *normr_cpy/(*normr0_cpy) > tolerance; k++){
 
-    dummy_time = mytimer();
     sync_wait(mg_stg0);
-    time_mg_0 += (mytimer() - dummy_time);
-
-    dummy_time = mytimer();
     sync_wait(mg_stg1);
-    time_mg_1 += (mytimer() - dummy_time);
-
-    dummy_time = mytimer();
     sync_wait(mg_stg2);
-    time_mg_2 += (mytimer() - dummy_time);
-
-    dummy_time = mytimer();
     sync_wait(mg_stg3);
-    time_mg_3 += (mytimer() - dummy_time);
-
-    dummy_time = mytimer();
     sync_wait(mg_stg4);
-    time_mg_2 += (mytimer() - dummy_time);
-
-    dummy_time = mytimer();
     sync_wait(mg_stg5);
-    time_mg_1 += (mytimer() - dummy_time);
-    
-    dummy_time = mytimer();
     sync_wait(mg_stg6);
-    time_mg_0 += (mytimer() - dummy_time);
-
     sync_wait(rest_of_loop);
 
 #ifdef HPCG_DEBUG
@@ -687,11 +645,6 @@ auto dot_prod_rr_stg2 = [=](){
 #endif
     niters = k;
   }
-
-  std::cout << "Time for MG level 0: " << time_mg_0 << ".\n";
-  std::cout << "Time for MG level 1: " << time_mg_1 << ".\n";
-  std::cout << "Time for MG level 2: " << time_mg_2 << ".\n";
-  std::cout << "Time for MG level 3: " << time_mg_3 << ".\n";
 
   times[0] = mytimer() - start_time; //record total time elapsed
   normr = *normr_cpy;
