@@ -646,7 +646,7 @@ auto dot_prod_rr_stg2 = [=](){
     niters = k;
   }
 
-  times[0] = mytimer() - start_time; //record total time elapsed
+  times[0] += mytimer() - start_time; //record total time elapsed
   normr = *normr_cpy;
   normr0 = *normr0_cpy;
   delete color;
