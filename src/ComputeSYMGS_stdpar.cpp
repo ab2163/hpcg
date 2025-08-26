@@ -12,6 +12,7 @@
 #include "ComputeSYMGS_ref.hpp"
 #define NUM_COLORS 8
 #define FWD_AND_BACK_SWEEPS 2
+#define NNZ_PER_LOCN 27
 
 int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   assert(x.localLength == A.localNumberOfColumns);
@@ -44,8 +45,8 @@ int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
         double sum = rv[ind]; //RHS value
 
         for(int j = 0; j < nnz[ind]; j++){
-          local_int_t curCol = indv[ind][j];
-          sum -= amv[ind][j] * xv[curCol];
+          local_int_t curCol = startOfMemInds[NNZ_PER_LOCN*i + j];
+          sum -= startOfMemVals[NNZ_PER_LOCN*i + j] * xv[curCol];
         }
         sum += xv[ind]*currentDiagonal; //remove diagonal contribution from previous loop
 
