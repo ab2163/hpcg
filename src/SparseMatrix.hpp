@@ -82,6 +82,9 @@ struct SparseMatrix_STRUCT {
   local_int_t startInds[NUM_COLORS];
   local_int_t endInds[NUM_COLORS];
   unsigned char *colors; //for 8-coloring of 27-point stencil
+  local_int_t *mem2row; //for going from memory location to row index
+  double *startOfMemVals; //record the start of the memory block
+  local_int_t *startOfMemInds;
 };
 typedef struct SparseMatrix_STRUCT SparseMatrix;
 

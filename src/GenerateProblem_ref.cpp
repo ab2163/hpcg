@@ -111,20 +111,27 @@ void GenerateProblem_ref(SparseMatrix & A, Vector * b, Vector * x, Vector * xexa
   global_int_t *tmpIndG = new global_int_t[total_nnz];
   local_int_t indCnt = 0;
 
+  //an array to allow going from the memory location to the row number
+  A.mem2row = new local_int_t[localNumberOfRows];
+  A.startOfMemVals = tmpVals;
+  A.startOfMemInds = tmpIndL;
+
   for(int color = 0; color < NUM_COLORS; color++){
-    A.startInds[color] = indCnt;
+    A.startInds[color] = indCnt; //inclusive bound
     for (local_int_t i = 0; i < localNumberOfRows; i++){
       if(A.colors[i] == color){
         mtxIndL[i] = tmpIndL;
         matrixValues[i] = tmpVals;
         mtxIndG[i] = tmpIndG;
+        A.mem2row[indCnt] = i;
+
         tmpIndL += numberOfNonzerosPerRow;
         tmpVals += numberOfNonzerosPerRow;
         tmpIndG += numberOfNonzerosPerRow;
         indCnt++;
       }
     }
-    A.endInds[color] = indCnt;
+    A.endInds[color] = indCnt; //exclusive bound
   }
 
 #elif !defined(HPCG_CONTIGUOUS_ARRAYS)

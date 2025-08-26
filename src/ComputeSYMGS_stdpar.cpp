@@ -27,23 +27,29 @@ int ComputeSYMGS_stdpar(const SparseMatrix &A, const Vector &r, Vector &x){
   const local_int_t * const * const indv = A.mtxIndL;
   const char * const nnz = A.nonzerosInRow;
   const unsigned char * const colors = A.colors;
-  auto rows = std::views::iota(0, nrow);
+
+  const local_int_t * const mem2row = A.mem2row;
+  const double * const startOfMemVals = A.startOfMemVals;
+  const local_int_t * const startOfMemInds = A.startOfMemInds;
 
   for(int sweeps = 0; sweeps < FWD_AND_BACK_SWEEPS; sweeps++){
     for(int color = 0; color < NUM_COLORS; color++){
-      std::for_each(std::execution::par_unseq, rows.begin(), rows.end(), [=](local_int_t i){
-        if(colors[i] == color){
-          const double currentDiagonal = matrixDiagonal[i][0]; //current diagonal value
-          double sum = rv[i]; //RHS value
 
-          for(int j = 0; j < nnz[i]; j++){
-            local_int_t curCol = indv[i][j];
-            sum -= amv[i][j] * xv[curCol];
-          }
-          sum += xv[i]*currentDiagonal; //remove diagonal contribution from previous loop
+      //work over a smaller range for the specific colour
+      auto locns = std::views::iota(A.startInds[color], A.endInds[color]);
 
-          xv[i] = sum/currentDiagonal;
+      std::for_each(std::execution::par_unseq, locns.begin(), locns.end(), [=](local_int_t i){
+        local_int_t ind = mem2row[i];
+        const double currentDiagonal = matrixDiagonal[ind][0]; //current diagonal value
+        double sum = rv[ind]; //RHS value
+
+        for(int j = 0; j < nnz[ind]; j++){
+          local_int_t curCol = indv[ind][j];
+          sum -= amv[ind][j] * xv[curCol];
         }
+        sum += xv[ind]*currentDiagonal; //remove diagonal contribution from previous loop
+
+        xv[ind] = sum/currentDiagonal;
       });
     }
   }
