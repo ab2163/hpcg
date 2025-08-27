@@ -7,6 +7,10 @@ int CG_stdexec(const SparseMatrix &A, CGData &data, const Vector &b, Vector &x,
   //********** DATA VARIABLES **********//
 
   double start_time = mytimer();
+  double *symgs_time = new double(0.0);
+  double *dotprod_time = new double(0.0);
+  double *spmv_time = new double(0.0);
+  double *dummy_time = new double(0.0);
   double *rtz    = new double(0.0);
   double *oldrtz = new double(0.0);
   double *alpha  = new double(0.0);
@@ -365,7 +369,9 @@ auto dot_prod_rr_stg2 = [=](){
     | bulk(par_unseq, A_nrows0, symgs_0)
     | then([=](){ (*color)++; })
     | bulk(par_unseq, A_nrows0, symgs_0)
+    | then([=](){ *symgs_time += (mytimer() - *dummy_time); *dummy_time = mytimer(); })
     | bulk(par_unseq, A_nrows0, spmv_mg0)
+    | then([=](){ *spmv_time += (mytimer() - *dummy_time); })
     | bulk(par_unseq, A_nrows1, restriction_0);
 
   sender auto mg_stg1 = schedule(scheduler)
