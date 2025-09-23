@@ -19,7 +19,11 @@
 
 #include "ComputeSYMGS.hpp"
 
-#ifdef SELECT_STDPAR
+#ifdef SELECT_STDEXEC
+#include "ComputeSYMGS_stdexec.hpp"
+#include "ComputeSYMGS_stdexec_advanced.hpp"
+#include "ComputeSYMGS_stdexec_optimized_bulk.hpp"
+#elif defined(SELECT_STDPAR)
 #include "ComputeSYMGS_stdpar.hpp"
 #elif defined(PARALLEL_SYMGS)
 #include "ComputeSYMGS_par.hpp"
@@ -55,7 +59,11 @@
 */
 int ComputeSYMGS(const SparseMatrix &A, const Vector &r, Vector &x){
 
-#ifdef SELECT_STDPAR
+#ifdef SELECT_STDEXEC
+  // Choose the best stdexec implementation based on problem characteristics
+  // Always use adaptive single-bulk for minimal sync_wait overhead
+  return ComputeSYMGS_stdexec_adaptive(A, r, x);
+#elif defined(SELECT_STDPAR)
   return ComputeSYMGS_stdpar(A, r, x);
 #elif defined(PARALLEL_SYMGS)
   return ComputeSYMGS_par(A, r, x);
